@@ -58,6 +58,7 @@ export class BuildBar {
     for (const item of BUILD_ITEMS) {
       const c = card(item.label, item.key, icon(item.icon, 24), item.tool === 'demolish' ? undefined : money(BUILD_COST[item.tool]));
       c.root.onclick = () => actions.setTool(item.tool);
+      c.root.dataset.tool = item.tool;
       this.toolCards.set(item.tool, c.root);
       this.thumbs.set(item.tool, c.thumb);
       bar.append(c.root);
@@ -68,6 +69,7 @@ export class BuildBar {
     this.thumbs.set('technician', hire.thumb);
 
     this.heatButton = toggle('heatmap', 'Chaleur', 'H', actions.toggleHeatmap);
+    this.heatButton.dataset.toggle = 'heatmap';
     this.edgeButton = toggle('edgePan', 'Bords', 'B', actions.toggleEdgePan);
     this.helpButton = toggle('help', 'Aide', '?', actions.toggleHelp);
     const toggles = el('div', 'toggle-group', this.heatButton, this.edgeButton, this.helpButton);

@@ -55,6 +55,7 @@ export class ResourceBar {
     this.moneyBlock.root.querySelector('.res-body')!.append(goalRow);
     this.power.sub.append(this.powerMeter.root, this.shed);
     this.compute.sub.append(this.computeMeter.root);
+    this.compute.root.dataset.res = 'compute';
 
     const speed = el('div', 'speed', el('span', 'speed-time', icon('time', 14), this.clock));
     for (const sp of SPEEDS) {

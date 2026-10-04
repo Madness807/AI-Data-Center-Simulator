@@ -38,10 +38,18 @@ class EndStats {
 export class TitleScreen {
   readonly root: HTMLElement;
   private readonly continueButton: HTMLButtonElement;
+  private readonly guidedButton: HTMLButtonElement;
   private readonly loadButton: HTMLButtonElement;
 
-  constructor(start: () => void, showHelp: () => void, continueGame: () => void, openLoad: () => void) {
+  constructor(
+    startGuided: () => void,
+    startFree: () => void,
+    showHelp: () => void,
+    continueGame: () => void,
+    openLoad: () => void,
+  ) {
     this.continueButton = action('play', 'Continuer', continueGame, true);
+    this.guidedButton = action('target', 'Partie guidée', startGuided, true);
     this.loadButton = action('load', 'Charger', openLoad);
     this.root = el(
       'div',
@@ -54,17 +62,27 @@ export class TitleScreen {
         el('span', 'chip ok', icon('trophy', 12), `Objectif : ${money(ECONOMY.goalMoney)}`),
         el('span', 'chip danger', icon('alert', 12), `Faillite après ${ECONOMY.bankruptcySeconds} s dans le rouge`),
       ),
-      el('div', 'screen-actions', this.continueButton, action('restart', 'Nouvelle partie', start, false, 'Entrée')),
+      el('div', 'screen-actions', this.continueButton),
+      el('div', 'screen-actions', this.guidedButton, action('restart', 'Partie libre', startFree)),
       el('div', 'screen-actions secondary', this.loadButton, action('keyboard', 'Commandes', showHelp, false, '?')),
       el('div', 'title-version mono', `version ${__APP_VERSION__}`),
     );
     this.setSaves(false);
   }
 
-  /** « Continuer » et « Charger » n'apparaissent que s'il existe une sauvegarde. */
+  /**
+   * « Continuer » et « Charger » n'apparaissent que s'il existe une sauvegarde ; sinon la
+   * partie guidée devient l'action principale (conseillée pour débuter).
+   */
   setSaves(available: boolean): void {
     this.continueButton.hidden = !available;
     this.loadButton.hidden = !available;
+    this.guidedButton.classList.toggle('btn-primary', !available);
+  }
+
+  /** Action de la touche Entrée : continuer s'il y a une sauvegarde, sinon partie guidée. */
+  primary(): void {
+    (this.continueButton.hidden ? this.guidedButton : this.continueButton).click();
   }
 }
 

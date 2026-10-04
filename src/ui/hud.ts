@@ -1,6 +1,6 @@
 import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, PDU, RACK, REPAIR, TECH } from '../sim/balance';
 import type { Cell } from '../sim/entities';
-import { buildingAt, idx, type GameState, type Speed } from '../sim/state';
+import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
 import type { Tool } from '../input/build';
 import { tempToRgb } from '../render/overlays';
 import { AlertFeed } from './components/alert-feed';
@@ -13,6 +13,8 @@ import { Inspector } from './components/inspector';
 import { Minimap, type MinimapCamera } from './components/minimap';
 import { PauseMenu } from './components/pause-menu';
 import { SaveSlots, type SaveSlotsActions } from './components/save-slots';
+import { Tutorial } from './tutorial/tutorial';
+import type { Command } from '../sim/commands';
 import type { SettingsStore } from '../settings';
 import { ResourceBar } from './components/resource-bar';
 import { DefeatScreen, TitleScreen, VictoryScreen } from './components/screens';
@@ -31,8 +33,11 @@ export interface HudActions {
   hire: () => void;
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
-  /** Lance une nouvelle partie (écran titre, victoire, faillite). */
-  newGame: () => void;
+  /** Lance une nouvelle partie (guidée depuis l'écran titre si demandé). */
+  newGame: (guided?: boolean) => void;
+  /** Le tutoriel passe ses commandes (panne d'exercice) et montre des cases. */
+  enqueue: (c: Command) => void;
+  pingCell: (cell: Cell) => void;
   /** Revient à l'écran titre. */
   showTitle: () => void;
   /** Copie un rapport de bug ; renvoie vrai si la copie a réussi. */
@@ -113,6 +118,7 @@ export class Hud {
   private readonly actions: HudActions;
   readonly pause: PauseMenu;
   private readonly slots: SaveSlots;
+  private readonly tutorial: Tutorial;
   /** Vitesse à rétablir en sortant du menu pause. */
   private speedBeforePause: Speed = 1;
   private state: GameState | null = null;
@@ -138,7 +144,18 @@ export class Hud {
     this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle() });
     this.contracts = new ContractsPanel(actions);
     this.slots = new SaveSlots(actions.saves);
-    this.title = new TitleScreen(actions.newGame, () => this.help.toggle(), actions.continueGame, () => this.slots.open('load'));
+    this.title = new TitleScreen(
+      () => actions.newGame(true),
+      () => actions.newGame(false),
+      () => this.help.toggle(),
+      actions.continueGame,
+      () => this.slots.open('load'),
+    );
+    this.tutorial = new Tutorial({
+      enqueue: actions.enqueue,
+      ping: actions.pingCell,
+      onFinish: () => this.state && notify(this.state, 'success', 'Tutoriel terminé : à vous de jouer !'),
+    });
     const pauseItem = (name: 'save' | 'load', label: string) => {
       const b = el('button', 'btn menu-item', icon(name, 16), el('span', undefined, label));
       b.onclick = () => this.slots.open(name);
@@ -164,7 +181,7 @@ export class Hud {
     this.bindBalanceTip();
 
     root.append(
-      region('top', this.resources.root),
+      region('top', this.resources.root, this.tutorial.root),
       region('top-left', this.minimap.root, this.legend, this.alerts.root),
       region('right', this.contracts.root),
       region('bottom', this.build.root),
@@ -176,6 +193,14 @@ export class Hud {
       this.help.root,
       this.tooltip.root,
     );
+  }
+
+  startTutorial(s: GameState): void {
+    this.tutorial.start(s);
+  }
+
+  stopTutorial(): void {
+    this.tutorial.stop();
   }
 
   /** Ouvre le menu pause et fige la partie (elle reprendra à sa vitesse d'avant). */
@@ -224,7 +249,7 @@ export class Hud {
       return true;
     }
     if (this.phase === 'title') {
-      if (e.code === 'Enter') this.actions.newGame();
+      if (e.code === 'Enter') this.title.primary();
       return true;
     }
     return this.victoryOpen || this.state?.outcome === 'lost';
@@ -255,6 +280,9 @@ export class Hud {
     this.selection.update(s, view.selected);
     const inspected = view.inspected === null ? null : (s.buildings.find((b) => b.id === view.inspected) ?? null);
     this.inspector.update(s, inspected, this.temps);
+    if (this.phase === 'playing') {
+      this.tutorial.update({ s, selected: view.selected, inspected: view.inspected, heatmap: view.heatmap }, now);
+    }
     setHidden(this.legend, !view.heatmap);
     // Première victoire de la partie : pause et fenêtre de choix.
     if (this.phase === 'playing' && s.outcome === 'won' && !this.victorySeen) {

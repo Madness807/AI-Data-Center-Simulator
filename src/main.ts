@@ -16,6 +16,7 @@ import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
 import { createShowcaseState } from './ui/showcase';
 import { applyTheme } from './ui/theme';
+import { setColorblind } from './render/assets';
 import { copyText, installCrashHandler, showFatal } from './ui/components/error-screen';
 import { buildReport } from './report';
 import { SettingsStore, safeStorage } from './settings';
@@ -131,6 +132,7 @@ const loadState = (next: GameState) => {
 };
 let lastAutosave = 0;
 const startPlaying = (next: GameState) => {
+  hud.stopTutorial();
   loadState(next);
   lastAutosave = next.time;
   director.sync(next);
@@ -138,10 +140,14 @@ const startPlaying = (next: GameState) => {
   view.rts.settle();
   hud.setPhase('playing');
 };
-const newGame = () => startPlaying(createInitialState(Date.now() >>> 0));
+const newGame = (guided = false) => {
+  startPlaying(createInitialState(Date.now() >>> 0));
+  if (guided) hud.startTutorial(state);
+};
 /** Écran titre : salle de démonstration en pause, caméra en rotation lente. */
 const showTitle = () => {
   phase = 'title';
+  hud.stopTutorial();
   loadState(createShowcaseState());
   view.rts.autoOrbit = true;
   hud.setPhase('title');
@@ -237,6 +243,8 @@ const hud = new Hud(
         () => false,
       ),
     continueGame,
+    enqueue,
+    pingCell: (cell) => view.ping(cell, 'focus'),
     saves: { list: () => saves.list(), save: saveSlot, load: loadSlot, importText, exportGame },
   },
   { w: state.w, h: state.h, camera: { footprint: () => view.rts.footprint(), setTarget: (x, z) => view.rts.setTarget(x, z) } },
@@ -263,6 +271,8 @@ window.addEventListener('resize', applyLayout);
 
 // Les options s'appliquent en direct (l'anticrénelage, lui, au prochain lancement).
 settings.subscribe((s) => {
+  setColorblind(s.colorblind);
+  applyTheme();
   audio.setVolumes({ master: s.volumeMaster, sfx: s.volumeSfx, ambience: s.volumeAmbience });
   view.applyGraphics(s);
   view.rts.edgePan = s.edgePan;

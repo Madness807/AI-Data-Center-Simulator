@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, ENTRANCE } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
-import { buildingAt, createEmptyState, createInitialState } from '../src/sim/state';
+import { addBuilding, buildingAt, createEmptyState, createInitialState } from '../src/sim/state';
 import { nextRandom } from '../src/sim/rng';
 
 describe('commands', () => {
@@ -74,5 +74,21 @@ describe('commands', () => {
     const seqB = [nextRandom(b), nextRandom(b), nextRandom(b)];
     expect(seqA).toEqual(seqB);
     expect(new Set(seqA).size).toBe(3);
+  });
+});
+
+describe('commande du tutoriel', () => {
+  it('met en panne un rack en service, et seulement lui', () => {
+    const s = createEmptyState();
+    const ok = addBuilding(s, 'rack', 4, 4);
+    const site = addBuilding(s, 'rack', 6, 4, true);
+    const crac = addBuilding(s, 'crac', 8, 4);
+    s.commands.push({ type: 'forceFailure', id: ok.id }, { type: 'forceFailure', id: site.id }, { type: 'forceFailure', id: crac.id });
+    processCommands(s);
+    expect(ok.status).toBe('failed');
+    expect(ok.failures).toBe(1);
+    expect(site.status).toBe('construction');
+    expect(crac.status).toBe('ok');
+    expect(s.events.find((e) => e.code === 'failure')?.cell).toEqual({ x: 4, y: 4 });
   });
 });

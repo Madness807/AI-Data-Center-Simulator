@@ -181,8 +181,8 @@
 .sparkline.hot .spark-area { fill: rgba(255, 90, 79, 0.14); }
 .sparkline.hot .spark-line { stroke: var(--danger); }
 .sparkline.hot .spark-dot { fill: var(--danger); }
-/* Quand l'inspecteur est ouvert, l'historique des alertes se fait plus discret pour lui laisser la place. */
-#hud:has(.inspector:not([hidden])) .alerts { max-height: 150px; }
+/* Quand l'inspecteur est ouvert, les alertes se replient sur leur en-tête (le compteur reste visible). */
+#hud:has(.inspector:not([hidden])) .alerts-list, #hud:has(.inspector:not([hidden])) .alerts-empty { display: none; }
 
 /* ───────────── Menu pause et options ───────────── */
 .pause { width: min(420px, calc(100% - 32px)); padding: 16px 18px 18px; }
@@ -233,6 +233,22 @@
 .slots-files { display: flex; gap: 6px; justify-content: flex-end; }
 .screen-actions.secondary { margin-top: 8px; }
 .screen-actions.secondary .btn { padding: 7px 14px; font-size: 12.5px; }
+
+/* ───────────── Tutoriel ───────────── */
+.tutorial { width: 400px; padding: 11px 14px 12px; display: flex; flex-direction: column; gap: 5px; border-color: rgba(79, 209, 255, 0.4); }
+.tutorial.advanced { animation: tuto-step 0.7s ease-out; }
+@keyframes tuto-step { from { box-shadow: var(--shadow), 0 0 0 2px var(--accent); } to { box-shadow: var(--shadow); } }
+.tuto-head { display: flex; align-items: center; justify-content: space-between; }
+.tuto-counter { font-size: 11px; color: var(--text-dim); }
+.tuto-title { font-weight: 700; font-size: 14px; }
+.tuto-text { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-dim); }
+.tuto-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+.tuto-actions .btn { padding: 5px 10px; font-size: 12px; }
+.tuto-highlight { position: relative; z-index: 2; animation: tuto-pulse 1.1s ease-in-out infinite; }
+@keyframes tuto-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(79, 209, 255, 0.4); }
+  50% { box-shadow: 0 0 0 3px var(--accent), 0 0 24px rgba(79, 209, 255, 0.8); }
+}
 
 /* ───────────── Infobulle ───────────── */
 .tooltip {
@@ -310,7 +326,8 @@
    barre de construction se décale vers la droite pour lui laisser la place. */
 #hud.lt-1320 .region-top { left: var(--edge); right: var(--edge); }
 #hud.lt-1320 .region-top-left { top: 112px; }
-#hud.lt-1320 .inspector { max-height: calc(100vh / var(--ui-scale, 1) - 306px); }
+/* Sous la barre du haut : mini-carte puis légende de la heatmap, que l'inspecteur ne doit pas atteindre. */
+#hud.lt-1320 .inspector { max-height: calc(100vh / var(--ui-scale, 1) - 380px); }
 #hud.lt-1320 .alerts { max-height: 200px; }
 #hud.lt-1320:has(.inspector:not([hidden])) .alerts, #hud.lt-1320:has(.selection:not([hidden])) .alerts { display: none; }
 #hud.lt-1320:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1320:has(.selection:not([hidden])) .region-bottom { left: calc(50% + 160px); }
@@ -318,3 +335,4 @@
 #hud.lt-1100 .res { padding: 2px 8px; }
 #hud.lt-1100 .tool-card { width: 70px; }
 #hud.lt-1100 .toggle-group .btn span:not(.kbd) { display: none; }
+#hud.lt-1100 .tutorial { width: 360px; }

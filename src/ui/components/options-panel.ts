@@ -38,7 +38,12 @@ export class OptionsPanel {
           [1.15, '115 %'],
         ], 'limitée si la fenêtre est petite'),
       ),
-      section('accessibility', 'Commandes et accessibilité', this.toggle('Défilement par les bords de l’écran', 'edgePan')),
+      section(
+        'accessibility',
+        'Commandes et accessibilité',
+        this.toggle('Mode daltonien', 'colorblind', 'couleurs adaptées et symboles de délestage'),
+        this.toggle('Défilement par les bords de l’écran', 'edgePan'),
+      ),
     );
     store.subscribe((s) => this.sync.forEach((fn) => fn(s)));
   }

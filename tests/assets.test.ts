@@ -143,3 +143,20 @@ describe('textures générées', () => {
     expect(seen).toEqual(new Set([hex(PALETTE.hazardA), hex(PALETTE.hazardB)]));
   });
 });
+
+describe('mode daltonien', () => {
+  it('bascule la palette d’état et signale le changement', async () => {
+    const { setColorblind, statusColor, statusVersion, PALETTE } = await import('../src/render/assets');
+    const v = statusVersion();
+    expect(statusColor('busy')).toBe(PALETTE.status.busy);
+    setColorblind(true);
+    expect(statusVersion()).toBe(v + 1);
+    expect(statusColor('busy')).not.toBe(PALETTE.status.busy);
+    // Plus d'opposition rouge / vert : « en calcul » n'est plus un vert dominant.
+    const busy = statusColor('busy');
+    const [r, g, b] = [(busy >> 16) & 255, (busy >> 8) & 255, busy & 255];
+    expect(g > r && g > b && g - Math.max(r, b) > 60).toBe(false);
+    setColorblind(false);
+    expect(statusColor('busy')).toBe(PALETTE.status.busy);
+  });
+});

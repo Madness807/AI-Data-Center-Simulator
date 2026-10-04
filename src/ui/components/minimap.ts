@@ -1,7 +1,7 @@
 import { ENTRANCE } from '../../sim/balance';
 import type { GameState } from '../../sim/state';
 import { busyRackIds } from '../../sim/stats';
-import { PALETTE } from '../../render/assets';
+import { PALETTE, statusColor } from '../../render/assets';
 import { HEAT_STOPS, tempToRgb } from '../../render/overlays';
 import { el, icon } from '../dom';
 
@@ -112,10 +112,10 @@ export class Minimap {
       let color: number;
       if (b.kind === 'crac') color = PALETTE.cracBody;
       else if (b.kind === 'pdu') color = PALETTE.pduBody;
-      else if (b.status === 'failed') color = PALETTE.status.failed;
-      else if (b.status === 'repairing') color = PALETTE.status.repairing;
-      else if (!b.powered) color = PALETTE.status.shed;
-      else color = busy.has(b.id) ? PALETTE.status.busy : PALETTE.status.idle;
+      else if (b.status === 'failed') color = statusColor('failed');
+      else if (b.status === 'repairing') color = statusColor('repairing');
+      else if (!b.powered) color = statusColor('shed');
+      else color = statusColor(busy.has(b.id) ? 'busy' : 'idle');
       ctx.fillStyle = css(color);
       ctx.fillRect(px, py, CELL - 2, CELL - 2);
     }

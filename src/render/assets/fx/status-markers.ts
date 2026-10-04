@@ -28,3 +28,32 @@ export function createStatusMarkers(capacity: number): THREE.InstancedMesh {
   m.frustumCulled = false;
   return m;
 }
+
+/** Plaque carrée, éclair et barre oblique : « plus de courant », lisible sans la couleur. */
+const shedGeometry = once(() => {
+  const bolt = new THREE.Shape(
+    [
+      [0.03, 0.15],
+      [-0.08, -0.01],
+      [0.0, -0.01],
+      [-0.04, -0.15],
+      [0.09, 0.03],
+      [0.01, 0.03],
+      [0.06, 0.15],
+    ].map(([x, y]) => new THREE.Vector2(x, y)),
+  );
+  return bake([
+    { geometry: new THREE.BoxGeometry(0.4, 0.4, 0.04), color: 0xffffff },
+    { geometry: new THREE.ExtrudeGeometry(bolt, { depth: 0.06, bevelEnabled: false }).translate(0, 0, -0.03), color: PALETTE.markerSymbol },
+    { geometry: new THREE.BoxGeometry(0.46, 0.045, 0.07).rotateZ(-Math.PI / 4), color: PALETTE.markerSymbol },
+  ]);
+});
+
+/** Marqueurs des racks délestés (mode daltonien), instanciés comme les panneaux de panne. */
+export function createShedMarkers(capacity: number): THREE.InstancedMesh {
+  const m = new THREE.InstancedMesh(shedGeometry(), MATERIALS.statusMarker(), capacity);
+  m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+  m.count = 0;
+  m.frustumCulled = false;
+  return m;
+}

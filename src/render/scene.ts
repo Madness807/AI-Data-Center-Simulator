@@ -12,6 +12,7 @@ import {
   createRackInstances,
   createRangeRing,
   createSelectionBrackets,
+  createShedMarkers,
   createStatusMarkers,
   createTechnician,
   createWalls,
@@ -23,6 +24,10 @@ import {
   type RackInstances,
   type TechnicianModel,
   type WallsModel,
+  isColorblind,
+  statusColor,
+  statusVersion,
+  type StatusName,
 } from './assets';
 import { cellCenter } from './grid';
 import { Heatmap } from './overlays';
@@ -79,11 +84,14 @@ export class RtsCamera {
     this.focusGoal = new THREE.Vector3(THREE.MathUtils.clamp(x, 0, this.w), 0, THREE.MathUtils.clamp(z, 0, this.h));
   }
 
-  /** Recentre la salle et revient à l'angle isométrique le plus proche (sortie de l'écran titre). */
+  /**
+   * Recentre la salle sur l'angle de départ (entrée à gauche), quel que soit l'angle laissé
+   * par la rotation de l'écran titre : on rejoint le tour équivalent le plus proche.
+   */
   settle(): void {
     this.autoOrbit = false;
-    const quarter = Math.PI / 2;
-    this.azimuthGoal = Math.round((this.azimuth - Math.PI / 4) / quarter) * quarter + Math.PI / 4;
+    const turn = Math.PI * 2;
+    this.azimuthGoal = Math.PI / 4 + Math.round((this.azimuth - Math.PI / 4) / turn) * turn;
     this.focusOn(this.w / 2, this.h / 2);
   }
 
@@ -164,13 +172,22 @@ export class RtsCamera {
   }
 }
 
-const LED_BUSY = new THREE.Color(PALETTE.status.busy);
-const LED_IDLE = new THREE.Color(PALETTE.status.idle);
-const LED_SHED = new THREE.Color(PALETTE.status.shed);
-const LED_OFF = new THREE.Color(PALETTE.status.shedOff);
-const LED_DEAD = new THREE.Color(PALETTE.status.dead);
-const MARK_FAILED = new THREE.Color(PALETTE.status.failed);
-const MARK_REPAIR = new THREE.Color(PALETTE.status.repairing);
+/** Couleurs d'état converties pour three.js, recalculées quand le thème change (mode daltonien). */
+const STATUS = {
+  busy: new THREE.Color(),
+  idle: new THREE.Color(),
+  shed: new THREE.Color(),
+  shedOff: new THREE.Color(),
+  dead: new THREE.Color(),
+  failed: new THREE.Color(),
+  repairing: new THREE.Color(),
+};
+let statusColorsVersion = -1;
+function refreshStatusColors(): void {
+  if (statusColorsVersion === statusVersion()) return;
+  statusColorsVersion = statusVersion();
+  for (const name of Object.keys(STATUS) as StatusName[]) STATUS[name].setHex(statusColor(name));
+}
 const UP = new THREE.Vector3(0, 1, 0);
 
 /** Modèle d'un bâtiment non instancié, avec ce qui permet de savoir s'il est encore à jour. */
@@ -189,6 +206,7 @@ export class SceneView {
   readonly heatmap: Heatmap;
   private readonly racks: RackInstances;
   private readonly markers = createStatusMarkers(RACK_CAPACITY);
+  private readonly shedMarkers = createShedMarkers(RACK_CAPACITY);
   private readonly walls: WallsModel;
   private readonly others = new Map<number, PlacedModel>();
   /** Case du bâtiment de chaque instance de rack, pour le picking. */
@@ -224,7 +242,16 @@ export class SceneView {
     this.heatmap = new Heatmap(w, h);
     this.racks = createRackInstances(RACK_CAPACITY);
     this.inspectRange.visible = false;
-    this.scene.add(this.walls.root, this.heatmap.mesh, this.racks.body, this.racks.led, this.markers, this.inspectBrackets, this.inspectRange);
+    this.scene.add(
+      this.walls.root,
+      this.heatmap.mesh,
+      this.racks.body,
+      this.racks.led,
+      this.markers,
+      this.shedMarkers,
+      this.inspectBrackets,
+      this.inspectRange,
+    );
 
     this.applyGraphics(graphics);
     window.addEventListener('resize', () => this.resize());
@@ -349,10 +376,15 @@ export class SceneView {
   private syncRacks(s: GameState, realTime: number): void {
     const { body, led } = this.racks;
     const markers = this.markers;
+    const shedMarkers = this.shedMarkers;
+    refreshStatusColors();
+    // En mode daltonien, un rack délesté a son propre symbole : l'état ne tient plus à la couleur.
+    const symbols = isColorblind();
     const blink = Math.sin(realTime * 8) > 0;
     const busy = busyRackIds(s);
     let n = 0;
     let m = 0;
+    let k = 0;
     this.rackCells.length = 0;
     for (const b of s.buildings) {
       if (b.kind !== 'rack' || b.status === 'construction' || n >= body.instanceMatrix.count) continue;
@@ -361,14 +393,24 @@ export class SceneView {
       body.setMatrixAt(n, this.tmpMatrix);
       led.setMatrixAt(n, this.tmpMatrix);
       let color: THREE.Color;
-      if (b.status !== 'ok') color = LED_DEAD;
-      else if (!b.powered) color = blink ? LED_SHED : LED_OFF;
+      if (b.status !== 'ok') color = STATUS.dead;
+      else if (!b.powered) color = blink ? STATUS.shed : STATUS.shedOff;
       else if (busy.has(b.id)) {
         // Un rack qui calcule scintille légèrement, chacun à son rythme.
-        color = this.tmpColor.copy(LED_BUSY).multiplyScalar(0.78 + 0.22 * Math.sin(realTime * 7 + b.id * 1.7));
-      } else color = LED_IDLE;
+        color = this.tmpColor.copy(STATUS.busy).multiplyScalar(0.78 + 0.22 * Math.sin(realTime * 7 + b.id * 1.7));
+      } else color = STATUS.idle;
       led.setColorAt(n, color);
       n++;
+
+      if (symbols && b.status === 'ok' && !b.powered) {
+        this.tmpVec.y = 2.0 + Math.sin(realTime * 2 + b.id) * 0.04;
+        this.tmpQuat.setFromAxisAngle(UP, this.rts.yaw);
+        this.tmpScale.setScalar(1);
+        this.tmpMatrix.compose(this.tmpVec, this.tmpQuat, this.tmpScale);
+        shedMarkers.setMatrixAt(k, this.tmpMatrix);
+        shedMarkers.setColorAt(k, STATUS.shed);
+        k++;
+      }
 
       if (b.status !== 'ok') {
         // Panneau tourné vers la caméra ; il palpite tant que le rack est en panne.
@@ -378,15 +420,15 @@ export class SceneView {
         this.tmpScale.setScalar(failed ? 1 + 0.1 * Math.sin(realTime * 6 + b.id) : 1);
         this.tmpMatrix.compose(this.tmpVec, this.tmpQuat, this.tmpScale);
         markers.setMatrixAt(m, this.tmpMatrix);
-        markers.setColorAt(m, failed ? MARK_FAILED : MARK_REPAIR);
+        markers.setColorAt(m, failed ? STATUS.failed : STATUS.repairing);
         m++;
       }
     }
     body.count = led.count = n;
     markers.count = m;
-    body.instanceMatrix.needsUpdate = led.instanceMatrix.needsUpdate = markers.instanceMatrix.needsUpdate = true;
-    if (led.instanceColor) led.instanceColor.needsUpdate = true;
-    if (markers.instanceColor) markers.instanceColor.needsUpdate = true;
+    shedMarkers.count = k;
+    for (const mesh of [body, led, markers, shedMarkers]) mesh.instanceMatrix.needsUpdate = true;
+    for (const mesh of [led, markers, shedMarkers]) if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     // Le raycast d'un InstancedMesh teste d'abord sa sphère englobante, mise en cache : sans
     // recalcul, les racks posés après le premier raycast sont invisibles au picking.
     body.computeBoundingSphere();

@@ -11,6 +11,8 @@ export type Command =
   | { type: 'demolish'; x: number; y: number }
   | { type: 'order'; techs: number[]; task: TechTask; append: boolean }
   | { type: 'hire' }
+  /** Tutoriel uniquement : met en panne un rack en service, pour apprendre à réparer. */
+  | { type: 'forceFailure'; id: number }
   | { type: 'acceptJob'; id: number }
   | { type: 'rejectJob'; id: number }
   | { type: 'setSpeed'; speed: Speed };
@@ -74,6 +76,14 @@ export function processCommands(s: GameState): void {
           addTech(s);
         }
         break;
+      case 'forceFailure': {
+        const b = s.buildings.find((o) => o.id === c.id);
+        if (!b || b.kind !== 'rack' || b.status !== 'ok') break;
+        b.status = 'failed';
+        b.failures++;
+        notify(s, 'warning', `Panne du rack ${b.x},${b.y} (exercice)`, { cell: b, code: 'failure' });
+        break;
+      }
       case 'acceptJob': {
         const job = s.jobs.find((j) => j.id === c.id && j.status === 'offer');
         if (!job) break;
