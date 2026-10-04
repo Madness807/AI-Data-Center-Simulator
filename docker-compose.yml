@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-5173}:5173"
+    volumes:
+      - .:/app
+      # Garde les node_modules Linux de l'image (binaires natifs esbuild/rollup).
+      - /app/node_modules
+    environment:
+      - VITE_USE_POLLING=${VITE_USE_POLLING:-false}
