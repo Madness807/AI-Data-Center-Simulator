@@ -227,7 +227,8 @@ export class SceneView {
   constructor(container: HTMLElement, w: number, h: number, graphics: { antialias: boolean; shadows: boolean; pixelRatio: 1 | 2 }) {
     this.renderer = new THREE.WebGLRenderer({ antialias: graphics.antialias });
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // three.js a retiré PCFSoftShadowMap et le remplaçait déjà par PCFShadowMap (avec un avertissement).
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);

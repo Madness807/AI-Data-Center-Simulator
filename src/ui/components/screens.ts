@@ -34,6 +34,27 @@ class EndStats {
   }
 }
 
+/** Crédits repliés sous la version : composants tiers et lien vers leurs licences complètes. */
+function credits(): { toggle: HTMLButtonElement; panel: HTMLElement } {
+  const licenses = el('a', undefined, 'Textes complets des licences');
+  Object.assign(licenses, { href: 'assets/LICENSES.md', target: '_blank', rel: 'noopener' });
+  const panel = el(
+    'div',
+    'title-credits',
+    el('p', undefined, 'Modèles 3D, textures et sons sont générés par le code du jeu.'),
+    el('p', undefined, 'Moteur 3D three.js (MIT) · icônes Lucide (ISC) · polices Inter et JetBrains Mono (SIL OFL 1.1).'),
+    el('p', undefined, licenses),
+  );
+  panel.hidden = true;
+  const toggle = el('button', 'link-button', 'Crédits');
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.onclick = () => {
+    panel.hidden = !panel.hidden;
+    toggle.setAttribute('aria-expanded', String(!panel.hidden));
+  };
+  return { toggle, panel };
+}
+
 /** Écran titre, au-dessus de la salle de démonstration qui tourne lentement. */
 export class TitleScreen {
   readonly root: HTMLElement;
@@ -51,6 +72,7 @@ export class TitleScreen {
     this.continueButton = action('play', 'Continuer', continueGame, true);
     this.guidedButton = action('target', 'Partie guidée', startGuided, true);
     this.loadButton = action('load', 'Charger', openLoad);
+    const about = credits();
     this.root = el(
       'div',
       'screen title glass',
@@ -65,7 +87,8 @@ export class TitleScreen {
       el('div', 'screen-actions', this.continueButton),
       el('div', 'screen-actions', this.guidedButton, action('restart', 'Partie libre', startFree)),
       el('div', 'screen-actions secondary', this.loadButton, action('keyboard', 'Commandes', showHelp, false, '?')),
-      el('div', 'title-version mono', `version ${__APP_VERSION__}`),
+      el('div', 'title-version mono', `version ${__APP_VERSION__} · `, about.toggle),
+      about.panel,
     );
     this.setSaves(false);
   }

@@ -1,6 +1,9 @@
 services:
+  # Développement : `docker compose up` (APP_PORT=5174 si le port 5173 est pris).
   app:
-    build: .
+    build:
+      context: .
+      target: dev
     ports:
       - "${APP_PORT:-5173}:5173"
     volumes:
@@ -9,3 +12,14 @@ services:
       - /app/node_modules
     environment:
       - VITE_USE_POLLING=${VITE_USE_POLLING:-false}
+
+  # Bêta pour les testeurs : `docker compose --profile beta up -d --build beta`, puis http://localhost:8080.
+  # Accessible depuis cette machine seulement ; BETA_HOST=0.0.0.0 l'ouvre au réseau local.
+  beta:
+    profiles: [beta]
+    build:
+      context: .
+      target: beta
+    ports:
+      - "${BETA_HOST:-127.0.0.1}:${BETA_PORT:-8080}:80"
+    restart: unless-stopped

@@ -15,7 +15,8 @@ Choix validés : caméra isométrique 3D, pas d'IA ennemie en v1 (la pression vi
   - `docker-compose.yml` qui lance `vite --host` sur le port 5173, avec le dossier monté en volume pour le rechargement automatique
   - volume anonyme `- /app/node_modules` pour que les binaires natifs Linux musl (esbuild, rollup) ne soient pas écrasés par ceux de macOS
   - si le rechargement ne se déclenche pas sur macOS : `server.watch.usePolling: true` dans `vite.config.ts` (Vite ignore `CHOKIDAR_USEPOLLING`)
-- Tests : Vitest sur la simulation pure (sans rendu)
+  - depuis la bêta, l'étape `beta` du `Dockerfile` produit une image nginx qui sert `dist/` (service `beta`, profil compose `beta`, port 8080) ; elle n'est construite que si `npm run check` passe
+- Tests : Vitest sur la simulation pure (sans rendu), plus des bots d'équilibrage qui jouent des parties complètes
 
 ## Architecture
 
@@ -135,7 +136,7 @@ Toutes les valeurs sont dans `balance.ts`.
 - **Dépenses** : électricité (par kWh, prix fixe en v0.1), salaires, pièces et pénalités.
 - **Revenus** : paiements des contrats.
 - **Faillite** : argent < 0 pendant **30 s d'affilée** (configurable), avec un compte à rebours visible. Game over à la fin du compte.
-- **Objectif v0.1** : atteindre un montant cible (ex. 50 000 $) pour gagner. La partie continue ensuite en mode libre.
+- **Objectif** : atteindre un montant cible pour gagner (100 000 $ depuis la bêta, calé par les bots d'équilibrage). La partie continue ensuite en mode libre.
 
 ### État de départ
 
@@ -184,12 +185,27 @@ Toutes les valeurs sont dans `balance.ts`.
 
 **But** : la v0.1 complète est jouable.
 
-### v0.2 — Équilibrage et lisibilité
+### v0.2 — Équilibrage et lisibilité ✅
 
 - Tooltips sur les entités (température, état, contrat en cours).
 - Alertes (surchauffe, panne, deadline proche, énergie saturée).
 - Mini-graphes : température moyenne, revenus/dépenses, utilisation du calcul.
 - Passe d'équilibrage sur `balance.ts`.
+
+Réalisé avec la refonte du HUD (console d'opérateur, inspecteur) et le lot 5 de la bêta.
+
+### v0.9 — Bêta ✅
+
+Le jeu est complet et confié à des testeurs : on ne fait plus que corriger et équilibrer.
+
+1. Version affichée, options persistantes, menu pause, écran d'erreur avec rapport.
+2. Sauvegarde : automatique, 3 emplacements, export/import `.json`.
+3. Son synthétisé : effets et ambiance, réglés par un chef d'orchestre testé.
+4. Partie guidée en 9 étapes et mode daltonien.
+5. Équilibrage par bots (`tests/balance.test.ts`) : un joueur compétent gagne en 25 à 40 minutes de jeu, et grandir est récompensé.
+6. Image Docker de production (nginx), README pour les testeurs, CHANGELOG, crédits et licences.
+
+**But** : recueillir les retours des testeurs ; ce sont eux qui décideront de la suite.
 
 ### Suite
 
@@ -200,10 +216,12 @@ Toutes les valeurs sont dans `balance.ts`.
   - PDU à rayon local ;
   - événements canicule.
 - **v0.5 Réseau** : switches et câblage ; un cluster mal relié voit ses performances baisser. Prévoir dès la v0.1 des allées libres entre les rangées de racks, pour que le câblage ne force pas à tout reconstruire.
-- **v0.6 Extension** : achat de nouvelles salles, carte qui s'agrandit. Sauvegarde/chargement (facilitée par le state sérialisable).
+- **v0.6 Extension** : achat de nouvelles salles, carte qui s'agrandit (la sauvegarde existe depuis la bêta).
 
 ## Vérification
 
+- `docker compose exec app npm run check` : typage, tests et build ; la même vérification conditionne la construction de l'image bêta.
+- `docker compose --profile beta up -d --build beta`, puis http://localhost:8080 : le jeu servi par nginx, tel que le reçoivent les testeurs.
 - `docker compose up`, puis ouvrir http://localhost:5173 dans le navigateur pour vérifier (si le port est pris : `APP_PORT=5174 docker compose up`) :
   - la construction ;
   - la heatmap ;
@@ -215,7 +233,10 @@ Toutes les valeurs sont dans `balance.ts`.
   - `jobs` : pool de calcul, paiement, pénalité ;
   - `failures` : indépendance au `dt`, croissance du taux avec la température, déterminisme avec la graine ;
   - `technicians` : A*, refus des constructions qui bloquent l'accès ;
-  - `economy` : compte à rebours de faillite, victoire.
+  - `economy` : compte à rebours de faillite, victoire ;
+  - `save`, `settings` : aller-retour fidèle, sauvegardes corrompues refusées, options assainies ;
+  - `audio-director`, `tutorial` : sons déclenchés au bon moment, partie guidée jouée de bout en bout ;
+  - `balance` : bots d'équilibrage (joueur compétent, sans refroidissement, sans contrats, premier contrat).
 - `tests/scenario.test.ts` : le scénario du test manuel ci-dessous, rejoué sans rendu avec une graine fixe pour vérifier la même séquence (garde-fou contre les régressions d'équilibrage).
 - Scénario manuel :
   1. Poser 4 racks sans refroidissement : surchauffe, puis pannes.

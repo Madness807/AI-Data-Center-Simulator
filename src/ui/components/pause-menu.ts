@@ -19,6 +19,7 @@ export class PauseMenu {
   private readonly menu: HTMLElement;
   private readonly options: OptionsPanel;
   private readonly extra = el('div', 'menu-extra');
+  private readonly note = el('p', 'menu-note');
   private quitArmedUntil = 0;
 
   constructor(settings: SettingsStore, actions: PauseActions) {
@@ -29,7 +30,13 @@ export class PauseMenu {
       return b;
     };
     const report = item('bug', 'Signaler un bug', (b) => {
-      void actions.reportBug().then((ok) => this.flash(b, ok ? 'Rapport copié : collez-le dans votre message' : 'Copie impossible'));
+      void actions.reportBug().then((ok) => {
+        this.flash(b, ok ? 'Rapport copié : collez-le dans votre message' : 'Copie impossible');
+        this.note.textContent = ok
+          ? 'Joignez si possible la partie en cours : Sauvegarder › Exporter la partie (.json). Elle permet de rejouer le problème.'
+          : 'Le navigateur a refusé la copie : décrivez le problème et joignez la partie exportée (Sauvegarder › Exporter la partie).';
+        this.note.hidden = false;
+      });
     });
     const quit = item('quit', 'Menu principal', (b) => {
       if (performance.now() < this.quitArmedUntil) {
@@ -50,6 +57,7 @@ export class PauseMenu {
       item('keyboard', 'Commandes', () => actions.showHelp()),
       report,
       quit,
+      this.note,
     );
     const panel = el('div', 'pause glass', this.menu, this.options.root);
     this.root = el('div', 'modal-backdrop interactive', panel);
@@ -68,6 +76,7 @@ export class PauseMenu {
 
   open(): void {
     this.show('menu');
+    this.note.hidden = true;
     this.root.hidden = false;
   }
 
