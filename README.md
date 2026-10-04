@@ -1,8 +1,8 @@
-# Data Center IA — bêta 0.10
+# Data Center IA — 1.0
 
 Jeu de stratégie en temps réel dans le navigateur : construisez et exploitez un data center d'IA. Il faut honorer les contrats de calcul, garder la salle au frais et réparer les pannes avant que la trésorerie ne passe dans le rouge.
 
-Cette bêta est complète : il reste à l'équilibrer et à la corriger. **Vos retours décident de la suite.**
+La version 1.0 ajoute le mode **Carrière** (une heure et demie environ) à la partie rapide de la bêta. **Vos retours décident de la suite.**
 
 ## Installer et lancer
 
@@ -31,7 +31,11 @@ Ouvrez ensuite **http://localhost:8080**. La première construction prend une à
 Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du jeu (techniciens, racks, contrats, chaleur, refroidissement, réparation).
 
 - **Deux modes** :
-  - **Carrière** : livrez à l'heure pour gagner de la réputation et gravir 4 paliers, de Start-up à Hyperscaler. Une part de votre calcul finance la recherche (touche U).
+  - **Carrière**, une heure et demie environ :
+    - livrez à l'heure pour gagner de la réputation et gravir 4 paliers, de Start-up à Hyperscaler ; les deux derniers exigent aussi du calcul en service ;
+    - chaque palier amène de plus gros clients et de nouveaux défis : coupures de courant et usure des racks (Scale-up), météo, canicules, contrats d'entraînement et SLA (Labo d'IA) ;
+    - une part de votre calcul finance la recherche (touche U) : 22 nœuds, des onduleurs au refroidissement liquide et aux GPU de 3e génération ;
+    - un conseil s'affiche la première fois qu'une situation se présente.
   - **Partie rapide** : atteindre 100 000 $ de trésorerie, en une trentaine de minutes.
   - Dans les deux cas, la partie continue en mode libre après la victoire.
 - **Défaite** : rester plus de 30 secondes dans le rouge.
@@ -74,7 +78,8 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
   - ombres, netteté et anticrénelage (à baisser si le jeu saccade) ;
   - taille de l'interface ;
   - défilement par les bords ;
-  - **mode daltonien** : couleurs adaptées et symbole propre aux racks délestés.
+  - **mode daltonien** : couleurs adaptées et symbole propre aux racks délestés ;
+  - conseils de carrière : « Revoir » réaffiche ceux déjà vus.
 
 ## Signaler un bug
 
@@ -96,7 +101,7 @@ Le jeu a été vérifié sous Chrome. Sur Firefox et sur Safari, une partie rapi
 
 - [ ] L'écran titre s'affiche, avec la salle en 3D qui tourne lentement.
 - [ ] Le tutoriel va de l'étape 1 à l'étape 9.
-- [ ] En carrière, une recherche se lance (U) et avance ; le passage d'un palier ouvre sa fenêtre.
+- [ ] En carrière, un conseil s'affiche après quelques secondes et « Compris » le range ; une recherche se lance (U) et avance ; le passage d'un palier ouvre sa fenêtre.
 - [ ] Le son se lance après le premier clic, et les curseurs de volume agissent.
 - [ ] Sauvegarde dans l'emplacement 1, rechargement de la page, puis « Continuer » : on retrouve la même partie.
 - [ ] Un export suivi d'un import redonne la partie.

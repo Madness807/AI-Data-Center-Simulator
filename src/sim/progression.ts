@@ -12,6 +12,8 @@ export interface Tier {
   maxUnits: number;
   /** Multiplicateur des paiements : les gros clients paient mieux. */
   priceMult: number;
+  /** Capacité de calcul en service (CU/s) exigée en plus de la réputation : il faut aussi grandir. */
+  computeCU?: number;
   /** Ce que le palier apporte, pour la fenêtre de passage. */
   perks: string[];
 }
@@ -32,7 +34,8 @@ export const TIERS: readonly Tier[] = [
   },
   {
     name: 'Labo d’IA',
-    reputation: 450,
+    reputation: 500,
+    computeCU: 150,
     maxUnits: 12,
     priceMult: 1.2,
     perks: [
@@ -44,7 +47,8 @@ export const TIERS: readonly Tier[] = [
   },
   {
     name: 'Hyperscaler',
-    reputation: 1000,
+    reputation: 2000,
+    computeCU: 400,
     maxUnits: 20,
     priceMult: 1.3,
     perks: ['Contrats jusqu’à 20 racks, payés 30 % de plus', 'Recherche de niveau 4'],
@@ -59,11 +63,21 @@ export function deliveryReputation(job: Job, s?: GameState): number {
   return s ? Math.round(base * modifiers(s).reputationMult) : base;
 }
 
-/** Paliers franchis d'un coup si besoin ; le dernier donne la victoire de la carrière. */
+/** Le palier suivant est-il atteint (réputation, et calcul en service quand il en exige) ? */
+export function nextTierReady(s: GameState): boolean {
+  const next = TIERS[s.career.tier + 1];
+  return !!next && s.career.reputation >= next.reputation && s.compute.total >= (next.computeCU ?? 0);
+}
+
 export function gainReputation(s: GameState, delta: number): void {
+  s.career.reputation = Math.max(0, s.career.reputation + delta);
+  promote(s);
+}
+
+/** Paliers franchis d'un coup si besoin ; le dernier donne la victoire de la carrière. */
+export function promote(s: GameState): void {
   const c = s.career;
-  c.reputation = Math.max(0, c.reputation + delta);
-  while (c.tier < TIERS.length - 1 && c.reputation >= TIERS[c.tier + 1].reputation) {
+  while (c.tier < TIERS.length - 1 && nextTierReady(s)) {
     c.tier++;
     const tier = TIERS[c.tier];
     if (c.tier === TIERS.length - 1) {

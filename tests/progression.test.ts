@@ -3,12 +3,12 @@ import { deserialize, serialize } from '../src/save';
 import { BUILD_COST, ECONOMY, RACK } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
 import type { Job } from '../src/sim/entities';
-import { deliveryReputation, gainReputation, modifiers, researchBlocker, TIERS } from '../src/sim/progression';
+import { deliveryReputation, gainReputation, modifiers, promote, researchBlocker, TIERS } from '../src/sim/progression';
 import { addBuilding, addTech, createEmptyState, createInitialState, idx, type GameState } from '../src/sim/state';
 import { freeCapacity } from '../src/sim/stats';
 import { updateEconomy } from '../src/sim/systems/economy';
 import { updateHeat } from '../src/sim/systems/heat';
-import { generateOffer, updateJobs } from '../src/sim/systems/jobs';
+import { clientsFor, generateOffer, updateJobs } from '../src/sim/systems/jobs';
 import { updatePower } from '../src/sim/systems/power';
 import { updateTechnicians } from '../src/sim/systems/technicians';
 
@@ -140,7 +140,11 @@ describe('réputation et paliers', () => {
     expect(s.career.tier).toBe(1);
     expect(s.events.at(-1)?.code).toBe('tierUp');
     s.events = [];
+    // La réputation ne suffit pas : les derniers paliers exigent aussi du calcul en service.
     gainReputation(s, TIERS[3].reputation);
+    expect(s.career.tier).toBe(1);
+    s.compute.total = TIERS[3].computeCU ?? 0;
+    promote(s);
     expect(s.career.tier).toBe(3);
     expect(s.outcome).toBe('won');
     expect(s.events.map((e) => e.code)).toEqual(['tierUp', 'won']);
@@ -173,6 +177,19 @@ describe('réputation et paliers', () => {
     const base = at(0).filter((o) => o.rateCU <= 40);
     const rich = at(3).slice(0, base.length);
     expect(pricePerWork(rich)).toBeGreaterThan(pricePerWork(base) * 1.2);
+  });
+
+  it('chaque palier amène ses clients ; la partie rapide garde les premiers', () => {
+    const client = (o: Job) => o.name.split(' — ')[1].replace(/ \(SLA.*$/, '');
+    const clients = (s: GameState) => new Set(Array.from({ length: 60 }, () => client(generateOffer(s))));
+    const q = createInitialState(1);
+    const first = clientsFor(q);
+    expect([...clients(q)].every((n) => first.includes(n))).toBe(true);
+    const c = career(20);
+    c.career.tier = 3;
+    const top = [...clients(c)];
+    expect(top.every((n) => clientsFor(c).includes(n))).toBe(true);
+    expect(top.some((n) => !first.includes(n))).toBe(true);
   });
 });
 

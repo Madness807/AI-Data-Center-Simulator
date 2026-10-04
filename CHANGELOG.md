@@ -2,9 +2,9 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
-## [Non publié]
+## [1.0.0] — 2026-10-05
 
-Lots suivants de la feuille de route v1.0, en cours.
+La v1.0 « Carrière » : une partie d'une heure et demie environ, de la start-up à l'hyperscaler, dans un data center bien plus proche du réel (énergie de secours, allées chaudes, refroidissement liquide, générations de GPU, usure et maintenance). La partie rapide garde exactement les règles de la bêta.
 
 ### Ajouté
 
@@ -13,7 +13,7 @@ Lots suivants de la feuille de route v1.0, en cours.
   - livrer à l'heure rapporte de la réputation (plus pour un gros contrat), un retard en coûte ;
   - 4 paliers (Start-up, Scale-up, Labo d'IA, Hyperscaler) : chaque palier ouvre des contrats plus gros et mieux payés ;
   - une fenêtre présente les nouveautés à chaque palier ; le dernier donne la victoire.
-- **Recherche** (U, ou bouton « R&D » de la barre) : une part réglable du calcul (0 à 50 %) produit des points de recherche, prélevés avant les contrats. Premiers nœuds :
+- **Recherche** (U, ou bouton « R&D » de la barre) : une part réglable du calcul (0 à 50 %) produit des points de recherche, prélevés avant les contrats. 22 nœuds en 4 branches (calcul, refroidissement, énergie, exploitation), ouverts niveau par niveau avec les paliers. Premiers nœuds :
   - ordonnanceur opportuniste ;
   - CRAC haute efficacité ;
   - PDU haute capacité ;
@@ -46,9 +46,22 @@ Lots suivants de la feuille de route v1.0, en cours.
   - recherche : **maintenance planifiée** (entretien automatique au-delà de 50 % d'usure, réglable), **stock de pièces** (réparation à 250 $ en 5 s), **spécialités** (électricien, frigoriste, informaticien : deux fois plus rapides dans leur domaine), **maintenance prédictive** (pannes −30 %, alerte avant la casse) ;
   - panneau Équipe : spécialité de chacun, embauche par métier, réglages automatiques ; calque risque et tableau de bord tiennent compte de l'usure.
 
+- **Carrière complète** :
+  - les paliers Labo d'IA et Hyperscaler exigent aussi du **calcul en service** (150 puis 400 CU/s) : la réputation ne suffit plus, il faut grandir. Le bandeau affiche ce qui manque ;
+  - chaque palier amène **ses clients** : cliniques et fintechs, puis instituts et consortiums, puis géants du cloud ;
+  - **conseils de carrière** : une carte, sans pause, au début de la carrière puis à la première coupure, la première canicule, le premier rack usé, le premier contrat d'entraînement et les premiers GPU G3. Chacun ne s'affiche qu'une fois (Options › Conseils de carrière › Revoir).
+- **Bots de carrière** dans `tests/balance.test.ts` : un joueur soigné gagne en 75 à 120 minutes de jeu sans surchauffe ; sans recherche, il plafonne au Labo d'IA ; sans énergie de secours, il cumule pannes et retards et gagne plus tard.
+
 ### Modifié
 
+- **Paliers** : Scale-up à 150 de réputation, Labo d'IA à 500 (et 150 CU/s), Hyperscaler à 2 000 (et 400 CU/s).
+- Sur un écran étroit, les bannières (coupure, canicule), le tutoriel et les conseils restent dans l'allée centrale, entre les colonnes de gauche et de droite.
 - Sauvegarde au format 7. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
+
+### Corrigé
+
+- La bannière de canicule n'avait pas de fond.
+- Sur un écran étroit, la bannière de coupure pouvait chevaucher le panneau des contrats.
 
 ## [0.10.0-beta] — 2026-10-04
 

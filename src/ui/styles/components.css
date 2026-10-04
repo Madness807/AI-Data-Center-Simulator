@@ -247,6 +247,9 @@
 .tuto-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
 .tuto-actions .btn { padding: 5px 10px; font-size: 12px; }
 .tuto-highlight { position: relative; z-index: 2; animation: tuto-pulse 1.1s ease-in-out infinite; }
+.tip-card { border-color: rgba(242, 193, 78, 0.45); }
+.tip-card-title { display: flex; align-items: center; gap: 7px; }
+.tip-card-icon { display: inline-flex; color: var(--warn); }
 @keyframes tuto-pulse {
   0%, 100% { box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(79, 209, 255, 0.4); }
   50% { box-shadow: 0 0 0 3px var(--accent), 0 0 24px rgba(79, 209, 255, 0.8); }
@@ -401,6 +404,10 @@
 /* La barre du haut fait environ 1 000 px : sous 1 520 px, les contrats passent dessous. */
 #hud.lt-1520 .region-top { right: var(--edge); }
 #hud.lt-1520 .region-right { top: 112px; max-height: calc(100vh / var(--ui-scale, 1) - 240px); width: 296px; }
+/* Ce qui s'empile sous la barre (bandeaux, tutoriel, conseils) reste dans l'allée centrale,
+   entre les colonnes passées dessous : jusqu'à 296 px de chaque côté, plus l'écart. */
+#hud.lt-1520 .region-top .banner, #hud.lt-1520 .region-top > .tutorial { max-width: calc(100% - 632px); }
+#hud.lt-1520 .region-top .banner { text-align: center; border-radius: 16px; }
 /* Sous 1 320 px : la barre du haut prend toute la largeur et la colonne de gauche passe dessous.
    Quand un panneau occupe le bas à gauche (inspecteur, sélection), les alertes s'effacent et la
    barre de construction se décale vers la droite pour lui laisser la place. */
@@ -471,7 +478,8 @@
 .team-policy input { accent-color: var(--accent); }
 
 /* ───────────── Énergie de secours ───────────── */
-.banner-outage { color: #ffe2a8; border-color: rgba(242, 193, 78, 0.55); background: rgba(60, 42, 8, 0.86); }
+.banner-outage { color: #ffe2a8; border: 1px solid rgba(242, 193, 78, 0.55); background: rgba(60, 42, 8, 0.86); }
+.banner-heatwave { color: #ffd0b0; border: 1px solid rgba(255, 162, 59, 0.55); background: rgba(64, 26, 8, 0.86); }
 .res.outage .res-value { color: var(--warn); }
 /* Familles de la barre : une pastille par variante, cadenas pour celles à débloquer. */
 .tool-card { position: relative; }

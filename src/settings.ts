@@ -17,6 +17,8 @@ export interface Settings {
   edgePan: boolean;
   uiScale: 0.9 | 1 | 1.15;
   colorblind: boolean;
+  /** Conseils de carrière déjà affichés : chacun ne s'affiche qu'une fois. */
+  tipsSeen: readonly string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   edgePan: false,
   uiScale: 1,
   colorblind: false,
+  tipsSeen: [],
 };
 
 export const SETTINGS_KEY = 'datacenter-ia.settings';
@@ -69,6 +72,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   for (const k of ['shadows', 'antialias', 'edgePan', 'colorblind'] as const) if (typeof r[k] === 'boolean') s[k] = r[k];
   if (r.pixelRatio === 1 || r.pixelRatio === 2) s.pixelRatio = r.pixelRatio;
   if (r.uiScale === 0.9 || r.uiScale === 1 || r.uiScale === 1.15) s.uiScale = r.uiScale;
+  s.tipsSeen = Array.isArray(r.tipsSeen) ? [...new Set(r.tipsSeen.filter((id): id is string => typeof id === 'string'))].slice(0, 50) : [];
   return s;
 }
 

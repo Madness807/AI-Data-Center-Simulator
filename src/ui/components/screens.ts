@@ -170,7 +170,10 @@ export class TierScreen {
     setText(this.title, `Nouveau palier : ${t.name}`);
     this.perks.replaceChildren(...t.perks.map((p) => el('li', undefined, icon('done', 14), p)));
     const next = TIERS[tier + 1];
-    setText(this.next, next ? `Prochain palier : ${next.name}, à ${next.reputation} de réputation.` : '');
+    setText(
+      this.next,
+      next ? `Prochain palier : ${next.name}, à ${next.reputation} de réputation${next.computeCU ? ` et ${next.computeCU} CU/s de calcul en service` : ''}.` : '',
+    );
   }
 }
 

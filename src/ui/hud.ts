@@ -13,6 +13,7 @@ import { CursorFlash } from './components/cursor-flash';
 import { Dashboard, type DashboardTab } from './components/dashboard';
 import { OverlayLegend } from './components/overlay-legend';
 import { TeamPanel } from './components/team-panel';
+import { TipCard } from './components/tip-card';
 import type { OverlayMode } from '../render/overlay-colors';
 import { HelpOverlay } from './components/help-overlay';
 import { Inspector } from './components/inspector';
@@ -151,6 +152,7 @@ export class Hud {
   readonly pause: PauseMenu;
   private readonly slots: SaveSlots;
   private readonly tutorial: Tutorial;
+  private readonly tips: TipCard;
   /** Vitesse à rétablir en sortant du menu pause. */
   private speedBeforePause: Speed = 1;
   private state: GameState | null = null;
@@ -199,6 +201,7 @@ export class Hud {
       ping: actions.pingCell,
       onFinish: () => this.state && notify(this.state, 'success', 'Tutoriel terminé : à vous de jouer !'),
     });
+    this.tips = new TipCard(settings);
     const pauseItem = (name: 'save' | 'load', label: string) => {
       const b = el('button', 'btn menu-item', icon(name, 16), el('span', undefined, label));
       b.onclick = () => this.slots.open(name);
@@ -227,7 +230,7 @@ export class Hud {
     this.bindBalanceTip();
 
     root.append(
-      region('top', this.resources.root, this.tutorial.root),
+      region('top', this.resources.root, this.tutorial.root, this.tips.root),
       region('top-left', this.minimap.root, this.legend.root, this.alerts.root),
       region('right', this.contracts.root),
       region('bottom', this.build.root),
@@ -300,6 +303,7 @@ export class Hud {
     this.dashboard.close();
     this.team.close();
     this.research.close();
+    this.tips.hide();
     if (phase === 'title') this.title.setSaves(this.actions.saves.list().length > 0);
   }
 
@@ -359,6 +363,7 @@ export class Hud {
     this.alerts.clear();
     this.gameHistory.clear();
     this.team.reset();
+    this.tips.hide();
     this.victorySeen = false;
     this.victoryOpen = false;
     this.tierOpen = false;
@@ -409,6 +414,8 @@ export class Hud {
       this.actions.setSpeed(0);
     }
     const lost = this.phase === 'playing' && s.outcome === 'lost';
+    // Conseils de carrière : ils attendent la fin des fenêtres bloquantes.
+    this.tips.update(s, now, this.phase === 'playing' && !this.tierOpen && !this.victoryOpen && !this.pause.isOpen && !lost);
     setHidden(this.title.root, this.phase !== 'title');
     setHidden(this.tier.root, !this.tierOpen || this.victoryOpen || lost);
     setHidden(this.victory.root, !this.victoryOpen || lost);

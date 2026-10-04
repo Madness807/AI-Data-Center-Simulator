@@ -43,9 +43,24 @@ export class OptionsPanel {
         'Commandes et accessibilité',
         this.toggle('Mode daltonien', 'colorblind', 'couleurs adaptées et symboles de délestage'),
         this.toggle('Défilement par les bords de l’écran', 'edgePan'),
+        this.tipsReset(),
       ),
     );
     store.subscribe((s) => this.sync.forEach((fn) => fn(s)));
+  }
+
+  /** Réaffiche les conseils de carrière déjà vus. */
+  private tipsReset(): HTMLElement {
+    const button = el('button', 'btn', 'Revoir');
+    button.type = 'button';
+    button.onclick = () => this.store.update({ tipsSeen: [] });
+    const note = el('small');
+    this.sync.push((s) => {
+      const n = s.tipsSeen.length;
+      button.disabled = n === 0;
+      note.textContent = n ? `${n} déjà vu${n > 1 ? 's' : ''}` : 'aucun vu pour l’instant';
+    });
+    return el('label', 'opt-row', el('span', 'opt-label', 'Conseils de carrière', note), button);
   }
 
   private slider(label: string, key: 'volumeMaster' | 'volumeSfx' | 'volumeAmbience'): HTMLElement {

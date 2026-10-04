@@ -3,11 +3,23 @@ import { clusterIntact, clusterRate, findCluster } from '../clusters';
 import { isRackActive, type Job } from '../entities';
 import { nextRandom } from '../rng';
 import { earn, spend } from '../ledger';
-import { advanceResearch, deliveryReputation, gainReputation, LATE_REPUTATION, modifiers, researchReserve, TIERS } from '../progression';
+import { advanceResearch, deliveryReputation, gainReputation, LATE_REPUTATION, modifiers, promote, researchReserve, TIERS } from '../progression';
 import { notify, type GameState } from '../state';
 
 const KINDS = ['Entraînement LLM', 'Fine-tuning', 'Inférence batch', 'Rendu vidéo IA', 'Repliement de protéines', 'Prévision météo'];
-const CLIENTS = ['Lumen Labs', 'Orbital ML', 'Nébuleuse IA', 'Kappa Research', 'Helix Bio', 'Quanta Finance', 'Atelier Vision', 'Synapse Studio'];
+/** Clients par palier de carrière : chaque palier en amène de plus gros. La partie rapide garde les premiers. */
+const CLIENTS: readonly (readonly string[])[] = [
+  ['Lumen Labs', 'Orbital ML', 'Nébuleuse IA', 'Kappa Research', 'Helix Bio', 'Quanta Finance', 'Atelier Vision', 'Synapse Studio'],
+  ['Clinique des Tilleuls', 'Fintech Albatros', 'Studio Mirage', 'Ciel Ouvert Météo', 'Logistique Boréale', 'Éditions Papyrus'],
+  ['Institut Pascaline', 'Consortium Europa IA', 'Observatoire Céleste', 'Génomique Atlas', 'Robotique Ferrand', 'Agence Hélios'],
+  ['Titan Models', 'Stratos Cloud', 'Mégalithe IA', 'Archipel Intelligence', 'Réseau Continental', 'Fondation Prométhée'],
+];
+
+/** Clients qui démarchent le joueur : ceux de son palier et du précédent (un seul tirage, comme avant). */
+export function clientsFor(s: GameState): readonly string[] {
+  const t = s.rules.progression ? Math.min(s.career.tier, CLIENTS.length - 1) : 0;
+  return t === 0 ? CLIENTS[0] : [...CLIENTS[t - 1], ...CLIENTS[t]];
+}
 
 /**
  * Allocation du calcul, dans l'ordre : chaque entraînement occupe un bloc de racks contigus
@@ -37,7 +49,11 @@ export function updateJobs(s: GameState, dt: number): void {
     pool = 0;
   }
   s.compute = { total, used: total - pool };
-  if (s.rules.progression) advanceResearch(s, research, dt);
+  if (s.rules.progression) {
+    advanceResearch(s, research, dt);
+    // Un palier peut aussi s'ouvrir parce que le parc a grandi (exigence de calcul).
+    promote(s);
+  }
 
   const finished = new Set<Job>();
   for (const j of active) {
@@ -123,7 +139,7 @@ export function generateOffer(s: GameState): Job {
   const slack = lerp(JOBS.slack, r());
   const tightBonus = 1 + (JOBS.slack[1] - slack) * 0.6;
   const payment = Math.round((rateCU * durationS * JOBS.pricePerCU * (0.85 + 0.35 * r()) * tightBonus * (tier?.priceMult ?? 1)) / 10) * 10;
-  const name = `${pick(KINDS, r())} — ${pick(CLIENTS, r())}`;
+  const name = `${pick(KINDS, r())} — ${pick(clientsFor(s), r())}`;
   if (special === 'sla') {
     const paid = Math.round((payment * SLA.priceMult) / 10) * 10;
     return {
@@ -184,7 +200,7 @@ function trainingOffer(s: GameState, r: () => number): Job {
   const payment = Math.round((rateCU * durationS * JOBS.pricePerCU * TRAINING.priceMult * tier.priceMult * (0.9 + 0.3 * r())) / 10) * 10;
   return {
     id: s.nextJobId++,
-    name: `Entraînement LLM — ${pick(CLIENTS, r())}`,
+    name: `Entraînement LLM — ${pick(clientsFor(s), r())}`,
     status: 'offer',
     rateCU,
     durationS,

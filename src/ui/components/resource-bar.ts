@@ -126,13 +126,19 @@ export class ResourceBar {
       const f = next ? Math.min(1, Math.max(0, (reputation - here.reputation) / (next.reputation - here.reputation))) : 1;
       setStyle(this.goal.fill, 'width', `${f * 100}%`);
       this.goal.fill.classList.toggle('won', !next);
-      setText(this.goalPct, next ? `${here.name} ${percent(f)}` : here.name);
-      this.goal.root.title = next ? `Réputation ${reputation} / ${next.reputation} : palier ${next.name}` : `Dernier palier atteint (${reputation} de réputation)`;
+      // Réputation acquise mais pas le calcul exigé : c'est lui qu'on affiche, en attente.
+      const cuShort = !!next?.computeCU && f >= 1 && s.compute.total < next.computeCU;
+      setText(this.goalPct, !next ? here.name : cuShort ? `${s.compute.total}/${next.computeCU} CU/s` : `${here.name} ${percent(f)}`);
+      this.goalPct.classList.toggle('warn', cuShort);
+      this.goal.root.title = next
+        ? `Palier ${next.name} : réputation ${reputation} / ${next.reputation}${next.computeCU ? ` · calcul ${s.compute.total} / ${next.computeCU} CU/s` : ''}`
+        : `Dernier palier atteint (${reputation} de réputation)`;
     } else {
       const goal = Math.min(1, Math.max(0, s.money / ECONOMY.goalMoney));
       setStyle(this.goal.fill, 'width', `${goal * 100}%`);
       this.goal.fill.classList.toggle('won', s.outcome === 'won');
       setText(this.goalPct, s.outcome === 'won' ? 'objectif atteint' : `${percent(goal)} objectif`);
+      this.goalPct.classList.remove('warn');
       this.goal.root.title = `Objectif : ${money(ECONOMY.goalMoney)}`;
     }
 

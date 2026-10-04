@@ -207,16 +207,39 @@ Le jeu est complet et confié à des testeurs : on ne fait plus que corriger et 
 
 **But** : recueillir les retours des testeurs ; ce sont eux qui décideront de la suite.
 
+### v0.10 — Supervision ✅
+
+Alertes préventives, tableau de bord (PUE, disponibilité), panneau Équipe et calques. Livré aux testeurs en 0.10.0-beta.
+
+### v1.0 — Carrière ✅
+
+Une carrière d'une heure et demie environ, en 4 paliers (réputation, puis calcul en service), avec un arbre de recherche de 22 nœuds financé par une part du calcul. La partie rapide garde exactement les règles de la bêta : chaque système lit `GameState.rules`.
+
+1. Supervision (v0.10).
+2. Socle de progression : modes, réputation, paliers, recherche.
+3. Énergie de secours : coupures, onduleurs, groupes électrogènes, redondance N+1.
+4. Refroidissement avancé : orientation des racks et allées, confinement, CDU, météo et canicules.
+5. Générations de GPU (G1 à G3), modernisation, contrats d'entraînement (blocs contigus) et SLA.
+6. Personnel et maintenance : usure, entretien, maintenance planifiée et prédictive, stock de pièces, spécialités.
+7. Carrière complète : clients par palier, conseils contextuels, équilibrage par bots.
+
+Écarts au plan de départ, décidés à l'équilibrage :
+
+- GPU G3 en recherche de niveau 3, avec le refroidissement liquide qu'ils exigent ; l'interconnexion optique passe au niveau 4 ;
+- entraînement et SLA dès le Labo d'IA, pour nourrir la plus longue étape de la carrière ;
+- les deux derniers paliers exigent aussi du calcul en service (150 puis 400 CU/s) ;
+- seuils de réputation : 150, 500, 2 000.
+
+**But** : une partie longue qui se renouvelle. Un joueur soigné atteint Hyperscaler en 75 à 120 minutes ; sans recherche, il plafonne au Labo d'IA.
+
 ### Suite
 
-- **v0.3 Recherche** : arbre technologique (générations de GPU, refroidissement liquide, techniciens plus rapides).
-- **v0.4 Énergie** :
-  - marché avec prix variable (réseau, solaire, gaz) ;
-  - contrats d'approvisionnement ;
-  - PDU à rayon local ;
-  - événements canicule.
-- **v0.5 Réseau** : switches et câblage ; un cluster mal relié voit ses performances baisser. Prévoir dès la v0.1 des allées libres entre les rangées de racks, pour que le câblage ne force pas à tout reconstruire.
-- **v0.6 Extension** : achat de nouvelles salles, carte qui s'agrandit (la sauvegarde existe depuis la bêta).
+- **Réseau** : switches et câblage ; un cluster mal relié voit ses performances baisser. Les allées libres entre les rangées de racks laissent la place au câblage.
+- **Extension** : achat de nouvelles salles, carte qui s'agrandit.
+- **Énergie** : prix variable de l'électricité (réseau, solaire, gaz), contrats d'approvisionnement, PDU à rayon local.
+- **Sécurité** : incendie, détection et extinction.
+- **Personnel** : fatigue et équipes de nuit, compétences individuelles des techniciens.
+- **Interface** : historique des contrats, guide des règles.
 
 ## Vérification
 
@@ -236,7 +259,10 @@ Le jeu est complet et confié à des testeurs : on ne fait plus que corriger et 
   - `economy` : compte à rebours de faillite, victoire ;
   - `save`, `settings` : aller-retour fidèle, sauvegardes corrompues refusées, options assainies ;
   - `audio-director`, `tutorial` : sons déclenchés au bon moment, partie guidée jouée de bout en bout ;
-  - `balance` : bots d'équilibrage (joueur compétent, sans refroidissement, sans contrats, premier contrat).
+  - `supervision` : alertes préventives (hystérésis), PUE, disponibilité ;
+  - `progression`, `power-backup`, `aisles`, `generations`, `maintenance` : paliers, recherche et systèmes de la carrière ;
+  - `career-tips` : conseils de carrière, une fois chacun ;
+  - `balance` : bots d'équilibrage (joueur compétent, sans refroidissement, sans contrats, premier contrat ; en carrière : joueur soigné, sans recherche, sans énergie de secours).
 - `tests/scenario.test.ts` : le scénario du test manuel ci-dessous, rejoué sans rendu avec une graine fixe pour vérifier la même séquence (garde-fou contre les régressions d'équilibrage).
 - Scénario manuel :
   1. Poser 4 racks sans refroidissement : surchauffe, puis pannes.
