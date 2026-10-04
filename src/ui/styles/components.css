@@ -176,6 +176,17 @@
 .help-line span:last-child { display: flex; gap: 3px; flex: none; }
 
 /* ───────────── Écrans ───────────── */
+.region-overlay { background: radial-gradient(ellipse at center, rgba(5, 8, 12, 0.15), rgba(5, 8, 12, 0.6)); }
+.region-overlay.dim { background: rgba(5, 8, 12, 0.6); }
+#hud.phase-title .region:not(.region-overlay), #hud.phase-title .tooltip, #hud.phase-title .cursor-flashes { display: none !important; }
+.screen.title { width: min(560px, calc(100% - 32px)); padding: 30px 32px 26px; }
+.logo { display: inline-flex; align-items: center; gap: 12px; font-size: 34px; font-weight: 800; letter-spacing: 0.08em; margin-bottom: 10px; }
+.logo em { font-style: normal; color: var(--accent); text-shadow: 0 0 18px rgba(79, 209, 255, 0.55); }
+.logo-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--accent); background: var(--accent-soft); border: 1px solid rgba(79, 209, 255, 0.35); }
+.title-pitch { max-width: 440px; margin: 0 auto 14px !important; line-height: 1.55; }
+.title-rules { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+.screen.victory .screen-icon { color: var(--warn); background: rgba(242, 193, 78, 0.14); box-shadow: 0 0 30px rgba(242, 193, 78, 0.25); }
+.screen.victory h1 { color: var(--warn); }
 .screen { width: min(460px, calc(100% - 32px)); padding: 26px 28px; text-align: center; }
 .screen[hidden], .region-overlay[hidden] { display: none; }
 .screen-icon { display: inline-grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; margin-bottom: 10px; }

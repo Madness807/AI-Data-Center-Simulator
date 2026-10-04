@@ -76,6 +76,14 @@ export class RtsCamera {
     this.focusGoal = new THREE.Vector3(THREE.MathUtils.clamp(x, 0, this.w), 0, THREE.MathUtils.clamp(z, 0, this.h));
   }
 
+  /** Recentre la salle et revient à l'angle isométrique le plus proche (sortie de l'écran titre). */
+  settle(): void {
+    this.autoOrbit = false;
+    const quarter = Math.PI / 2;
+    this.azimuthGoal = Math.round((this.azimuth - Math.PI / 4) / quarter) * quarter + Math.PI / 4;
+    this.focusOn(this.w / 2, this.h / 2);
+  }
+
   /** Place immédiatement la caméra au-dessus de (x, z) : glisser sur la mini-carte. */
   setTarget(x: number, z: number): void {
     this.focusGoal = null;

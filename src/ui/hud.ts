@@ -11,7 +11,7 @@ import { CursorFlash } from './components/cursor-flash';
 import { HelpOverlay } from './components/help-overlay';
 import { Minimap, type MinimapCamera } from './components/minimap';
 import { ResourceBar } from './components/resource-bar';
-import { DefeatScreen } from './components/screens';
+import { DefeatScreen, TitleScreen, VictoryScreen } from './components/screens';
 import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
 import { Tooltip } from './components/tooltip';
 import type { BuildingKind } from '../sim/entities';
@@ -27,7 +27,12 @@ export interface HudActions {
   hire: () => void;
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
-  restart: () => void;
+  /** Lance une nouvelle partie (écran titre, victoire, faillite). */
+  newGame: () => void;
+  /** Revient à l'écran titre. */
+  showTitle: () => void;
+  /** Reprend la partie à sa vitesse précédente (après la victoire). */
+  resume: () => void;
   /** Recentre la caméra sur une case (alerte cliquée). */
   focusCell: (cell: Cell) => void;
 }
@@ -79,18 +84,34 @@ export class Hud {
   private readonly minimap: Minimap;
   private readonly history = new LedgerHistory();
   private readonly tooltip = new Tooltip();
+  private readonly title: TitleScreen;
+  private readonly victory: VictoryScreen;
   private readonly defeat: DefeatScreen;
   private readonly overlay: HTMLElement;
+  private readonly root: HTMLElement;
+  private phase: 'title' | 'playing' = 'playing';
+  /** La fenêtre de victoire ne s'ouvre qu'une fois par partie. */
+  private victorySeen = false;
+  private victoryOpen = false;
+  private readonly actions: HudActions;
   private state: GameState | null = null;
 
   constructor(root: HTMLElement, actions: HudActions, world: { w: number; h: number; camera: MinimapCamera }) {
+    this.root = root;
+    this.actions = actions;
     this.resources = new ResourceBar(actions.setSpeed);
     this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle() });
     this.contracts = new ContractsPanel(actions);
-    this.defeat = new DefeatScreen(actions.restart);
+    this.title = new TitleScreen(actions.newGame, () => this.help.toggle());
+    this.victory = new VictoryScreen(() => {
+      this.victoryOpen = false;
+      actions.resume();
+    }, actions.newGame);
+    this.defeat = new DefeatScreen(actions.newGame, actions.showTitle);
     this.alerts = new AlertFeed(actions.focusCell);
     this.minimap = new Minimap(world.w, world.h, world.camera);
-    this.overlay = region('overlay', this.defeat.root);
+    this.overlay = region('overlay', this.title.root, this.victory.root, this.defeat.root);
+    this.overlay.classList.add('interactive');
     this.bindBuildTips();
     this.bindBalanceTip();
 
@@ -107,7 +128,16 @@ export class Hud {
     );
   }
 
-  /** Touches propres au HUD ; renvoie vrai si la touche a été consommée. */
+  /** Écran titre (salle de démonstration, HUD masqué) ou partie en cours. */
+  setPhase(phase: 'title' | 'playing'): void {
+    this.phase = phase;
+    this.root.classList.toggle('phase-title', phase === 'title');
+  }
+
+  /**
+   * Touches propres au HUD ; renvoie vrai si la touche a été consommée. Pendant l'écran
+   * titre ou une fenêtre de fin, les raccourcis de jeu sont bloqués.
+   */
   handleKey(e: KeyboardEvent): boolean {
     if (e.key === '?' || e.code === 'F1') {
       e.preventDefault();
@@ -118,13 +148,19 @@ export class Hud {
       this.help.close();
       return true;
     }
-    return false;
+    if (this.phase === 'title') {
+      if (e.code === 'Enter') this.actions.newGame();
+      return true;
+    }
+    return this.victoryOpen || this.state?.outcome === 'lost';
   }
 
   /** Vide les cartes et l'historique, après un redémarrage. */
   reset(): void {
     this.contracts.reset();
     this.alerts.clear();
+    this.victorySeen = false;
+    this.victoryOpen = false;
   }
 
   /** Remplace l'icône d'une carte de construction par la vignette du vrai modèle. */
@@ -141,8 +177,20 @@ export class Hud {
     this.contracts.update(s);
     this.selection.update(s, view.selected);
     setHidden(this.legend, !view.heatmap);
-    this.defeat.update(s);
-    setHidden(this.overlay, s.outcome !== 'lost');
+    // Première victoire de la partie : pause et fenêtre de choix.
+    if (this.phase === 'playing' && s.outcome === 'won' && !this.victorySeen) {
+      this.victorySeen = true;
+      this.victoryOpen = true;
+      this.actions.setSpeed(0);
+    }
+    const lost = this.phase === 'playing' && s.outcome === 'lost';
+    setHidden(this.title.root, this.phase !== 'title');
+    setHidden(this.victory.root, !this.victoryOpen || lost);
+    setHidden(this.defeat.root, !lost);
+    if (this.victoryOpen) this.victory.update(s);
+    if (lost) this.defeat.update(s);
+    setHidden(this.overlay, this.phase !== 'title' && !this.victoryOpen && !lost);
+    this.overlay.classList.toggle('dim', this.phase !== 'title');
     this.updateWorldTip(s, view.hover);
     // Les refus vont près du curseur ; le reste rejoint l'historique des alertes.
     for (const e of s.events) {

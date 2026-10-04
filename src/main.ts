@@ -7,13 +7,14 @@ import './ui/styles/components.css';
 import { DT, MAX_TICKS_PER_FRAME } from './sim/balance';
 import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
-import { buildingAt, createInitialState, notify, type Speed } from './sim/state';
+import { buildingAt, createInitialState, notify, type GameState, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
 import { renderThumbnails, type ThumbnailKey } from './render/thumbnails';
 import { BuildController, type Tool } from './input/build';
 import { pickGroundCell, rayFromScreen } from './input/picking';
 import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
+import { createShowcaseState } from './ui/showcase';
 import { applyTheme } from './ui/theme';
 
 applyTheme();
@@ -62,14 +63,26 @@ const toggleEdgePan = () => (view.rts.edgePan = !view.rts.edgePan);
 const hire = () => enqueue({ type: 'hire' });
 const acceptJob = (id: number) => enqueue({ type: 'acceptJob', id });
 const rejectJob = (id: number) => enqueue({ type: 'rejectJob', id });
-const restart = () => {
-  // Le state est partagé par référence (contrôleurs, rendu) : on le remplace champ par champ.
-  Object.assign(state, createInitialState(Date.now() >>> 0));
+/** Remplace l'état champ par champ : il est partagé par référence (contrôleurs, rendu). */
+const loadState = (next: GameState) => {
+  Object.assign(state, next);
   lastSpeed = 1;
   build.setTool(null);
   selection.clear();
   hud.reset();
 };
+const newGame = () => {
+  loadState(createInitialState(Date.now() >>> 0));
+  view.rts.settle();
+  hud.setPhase('playing');
+};
+/** Écran titre : salle de démonstration en pause, caméra en rotation lente. */
+const showTitle = () => {
+  loadState(createShowcaseState());
+  view.rts.autoOrbit = true;
+  hud.setPhase('title');
+};
+const resume = () => setSpeed(lastSpeed);
 
 const focusCell = (cell: { x: number; y: number }) => {
   view.rts.focusOn(cell.x + 0.5, cell.y + 0.5);
@@ -78,7 +91,7 @@ const focusCell = (cell: { x: number; y: number }) => {
 
 const hud = new Hud(
   document.getElementById('hud')!,
-  { setTool, setSpeed, toggleHeatmap, toggleEdgePan, hire, acceptJob, rejectJob, restart, focusCell },
+  { setTool, setSpeed, toggleHeatmap, toggleEdgePan, hire, acceptJob, rejectJob, newGame, showTitle, resume, focusCell },
   { w: state.w, h: state.h, camera: { footprint: () => view.rts.footprint(), setTarget: (x, z) => view.rts.setTarget(x, z) } },
 );
 // Vignettes des vrais modèles 3D dans la barre de construction.
@@ -102,6 +115,8 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'Digit2') setSpeed(2);
   else if (e.code === 'Digit3') setSpeed(4);
 });
+
+showTitle();
 
 // Pas fixe : la vitesse change le nombre de ticks par seconde réelle, jamais le dt.
 let acc = 0;
