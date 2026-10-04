@@ -74,15 +74,3 @@ export class Heatmap {
     this.texture.needsUpdate = true;
   }
 }
-
-/** Cercle au sol montrant la portée d'un CRAC. */
-export function createRadiusRing(radius: number): THREE.Mesh {
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(radius + 0.45, radius + 0.55, 64),
-    new THREE.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.7, depthWrite: false }),
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.03;
-  ring.renderOrder = 2;
-  return ring;
-}

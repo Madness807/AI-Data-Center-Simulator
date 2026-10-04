@@ -2,19 +2,27 @@ import * as THREE from 'three';
 import { BUILD_TIME, RACK } from '../sim/balance';
 import { isRackActive } from '../sim/entities';
 import type { GameState } from '../sim/state';
-import {
-  cellCenter,
-  createCracMesh,
-  createFloor,
-  createPduMesh,
-  createRackMeshes,
-  createSiteMesh,
-  createStatusMarkers,
-  createTechMesh,
-  type RackMeshes,
-} from './meshes';
-import { Heatmap } from './overlays';
 import type { Cell } from '../input/picking';
+import {
+  createBuildingModel,
+  createFloor,
+  createLighting,
+  createPing,
+  createRackInstances,
+  createStatusMarkers,
+  createTechnician,
+  createWalls,
+  PALETTE,
+  RACK_CAPACITY,
+  type AssetModel,
+  type Ping,
+  type PingKind,
+  type RackInstances,
+  type TechnicianModel,
+  type WallsModel,
+} from './assets';
+import { cellCenter } from './grid';
+import { Heatmap } from './overlays';
 
 const ELEVATION = Math.atan(1 / Math.SQRT2); // isométrie vraie
 const DISTANCE = 60;
@@ -53,6 +61,11 @@ export class RtsCamera {
     );
     dom.addEventListener('mousemove', (e) => (this.mouse = { x: e.clientX, y: e.clientY }));
     dom.addEventListener('mouseleave', () => (this.mouse = null));
+  }
+
+  /** Angle courant de la caméra autour de la salle (radians), animé pendant les rotations. */
+  get yaw(): number {
+    return this.azimuth;
   }
 
   resize(width: number, height: number): void {
@@ -105,13 +118,21 @@ export class RtsCamera {
   }
 }
 
-const LED_BUSY = new THREE.Color(0x3dffa0);
-const LED_IDLE = new THREE.Color(0x2a7fa8);
-const LED_SHED = new THREE.Color(0xff3b3b);
-const LED_OFF = new THREE.Color(0x3a1414);
-const LED_DEAD = new THREE.Color(0x15181d);
-const MARK_FAILED = new THREE.Color(0xff3b3b);
-const MARK_REPAIR = new THREE.Color(0xffa23b);
+const LED_BUSY = new THREE.Color(PALETTE.status.busy);
+const LED_IDLE = new THREE.Color(PALETTE.status.idle);
+const LED_SHED = new THREE.Color(PALETTE.status.shed);
+const LED_OFF = new THREE.Color(PALETTE.status.shedOff);
+const LED_DEAD = new THREE.Color(PALETTE.status.dead);
+const MARK_FAILED = new THREE.Color(PALETTE.status.failed);
+const MARK_REPAIR = new THREE.Color(PALETTE.status.repairing);
+
+/** Modèle d'un bâtiment non instancié, avec ce qui permet de savoir s'il est encore à jour. */
+interface PlacedModel {
+  model: AssetModel;
+  /** 'crac', 'pdu' ou 'site:<type>' : un chantier terminé change de modèle. */
+  key: string;
+  cell: Cell;
+}
 
 /** Lit le GameState et met la scène à jour ; ne modifie jamais l'état. */
 export class SceneView {
@@ -119,13 +140,14 @@ export class SceneView {
   readonly renderer: THREE.WebGLRenderer;
   readonly rts: RtsCamera;
   readonly heatmap: Heatmap;
-  private readonly racks: RackMeshes;
-  private readonly markers = createStatusMarkers();
-  private readonly others = new Map<number, THREE.Group>();
+  private readonly racks: RackInstances;
+  private readonly markers = createStatusMarkers(RACK_CAPACITY);
+  private readonly walls: WallsModel;
+  private readonly others = new Map<number, PlacedModel>();
   /** Case du bâtiment de chaque instance de rack, pour le picking. */
   private rackCells: Cell[] = [];
-  private readonly techs = new Map<number, THREE.Group>();
-  private readonly pings: { mesh: THREE.Mesh; age: number }[] = [];
+  private readonly techs = new Map<number, TechnicianModel>();
+  private readonly pings: Ping[] = [];
   private readonly tmpMatrix = new THREE.Matrix4();
   private readonly tmpVec = new THREE.Vector3();
 
@@ -136,27 +158,14 @@ export class SceneView {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
 
-    this.scene.background = new THREE.Color(0x0d1015);
+    this.scene.background = new THREE.Color(PALETTE.background);
     this.rts = new RtsCamera(this.renderer.domElement, w, h);
 
-    this.scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x1a1d24, 1.2));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
-    sun.position.set(w / 2 + 12, 25, h / 2 + 8);
-    sun.target.position.set(w / 2, 0, h / 2);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    const sc = sun.shadow.camera;
-    sc.left = sc.bottom = -Math.max(w, h);
-    sc.right = sc.top = Math.max(w, h);
-    sc.near = 1;
-    sc.far = 80;
-    this.scene.add(sun, sun.target);
-
-    this.scene.add(createFloor(w, h));
+    this.scene.add(createLighting(w, h), createFloor(w, h));
+    this.walls = createWalls(w, h);
     this.heatmap = new Heatmap(w, h);
-    this.scene.add(this.heatmap.mesh);
-    this.racks = createRackMeshes();
-    this.scene.add(this.racks.body, this.racks.led, this.markers);
+    this.racks = createRackInstances(RACK_CAPACITY);
+    this.scene.add(this.walls.root, this.heatmap.mesh, this.racks.body, this.racks.led, this.markers);
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -164,7 +173,8 @@ export class SceneView {
 
   /** Case du bâtiment visé par le rayon (le volume 3D, pas le sol derrière), ou null. */
   pickBuilding(ray: THREE.Raycaster): Cell | null {
-    const hit = ray.intersectObjects([this.racks.body, ...this.others.values()], true)[0];
+    const roots = [...this.others.values()].map((p) => p.model.root);
+    const hit = ray.intersectObjects([this.racks.body, ...roots], true)[0];
     if (!hit) return null;
     if (hit.object === this.racks.body) return hit.instanceId === undefined ? null : this.rackCells[hit.instanceId];
     for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) {
@@ -183,11 +193,12 @@ export class SceneView {
    */
   render(s: GameState, realTime: number, realDt: number, alpha: number, selected: ReadonlySet<number>): void {
     this.syncRacks(s, realTime);
-    this.syncOthers(s, realDt);
+    this.syncOthers(s, realTime, realDt);
     this.syncTechs(s, realTime, alpha, selected);
     this.updatePings(realDt);
     this.heatmap.update(s);
     this.rts.update(realDt);
+    this.walls.update(this.rts.yaw, realDt);
     this.renderer.render(this.scene, this.rts.camera);
   }
 
@@ -195,8 +206,8 @@ export class SceneView {
   techScreenPositions(): { id: number; x: number; y: number }[] {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const out: { id: number; x: number; y: number }[] = [];
-    for (const [id, obj] of this.techs) {
-      this.tmpVec.copy(obj.position).setY(0.5).project(this.rts.camera);
+    for (const [id, tech] of this.techs) {
+      this.tmpVec.copy(tech.root.position).setY(0.5).project(this.rts.camera);
       out.push({
         id,
         x: rect.left + ((this.tmpVec.x + 1) / 2) * rect.width,
@@ -207,31 +218,21 @@ export class SceneView {
   }
 
   /** Cercle bref au sol pour confirmer un ordre. */
-  ping(cell: Cell, color: number): void {
-    const mesh = new THREE.Mesh(
-      new THREE.RingGeometry(0.3, 0.42, 32),
-      new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }),
-    );
-    mesh.rotation.x = -Math.PI / 2;
-    cellCenter(cell.x, cell.y, mesh.position).setY(0.04);
-    mesh.renderOrder = 3;
-    this.scene.add(mesh);
-    this.pings.push({ mesh, age: 0 });
+  ping(cell: Cell, kind: PingKind): void {
+    const ping = createPing(kind);
+    const y = ping.mesh.position.y; // hauteur fixée par l'asset, que cellCenter remettrait à 0
+    cellCenter(cell.x, cell.y, ping.mesh.position).setY(y);
+    this.scene.add(ping.mesh);
+    this.pings.push(ping);
   }
 
   private updatePings(realDt: number): void {
     for (let i = this.pings.length - 1; i >= 0; i--) {
-      const p = this.pings[i];
-      p.age += realDt;
-      const k = p.age / 0.6;
-      if (k >= 1) {
-        this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        this.pings.splice(i, 1);
-        continue;
-      }
-      p.mesh.scale.setScalar(1.4 - 0.6 * k);
-      (p.mesh.material as THREE.MeshBasicMaterial).opacity = 1 - k;
+      const ping = this.pings[i];
+      if (ping.update(realDt)) continue;
+      this.scene.remove(ping.mesh);
+      ping.dispose();
+      this.pings.splice(i, 1);
     }
   }
 
@@ -239,26 +240,24 @@ export class SceneView {
     const seen = new Set<number>();
     for (const t of s.techs) {
       seen.add(t.id);
-      let obj = this.techs.get(t.id);
-      if (!obj) {
-        obj = createTechMesh();
-        this.techs.set(t.id, obj);
-        this.scene.add(obj);
+      let tech = this.techs.get(t.id);
+      if (!tech) {
+        tech = createTechnician();
+        this.techs.set(t.id, tech);
+        this.scene.add(tech.root);
       }
       const x = t.prevX + (t.x - t.prevX) * alpha;
       const y = t.prevY + (t.y - t.prevY) * alpha;
-      obj.position.set(x + 0.5, 0, y + 0.5);
+      tech.root.position.set(x + 0.5, 0, y + 0.5);
       const dx = t.x - t.prevX;
       const dy = t.y - t.prevY;
-      if (dx || dy) obj.rotation.y = Math.atan2(dx, dy);
-      const figure = obj.userData.figure as THREE.Object3D;
-      // Au travail : il s'agite ; en marche : petit rebond.
-      figure.position.y = t.working ? Math.abs(Math.sin(realTime * 12)) * 0.06 : dx || dy ? Math.abs(Math.sin(realTime * 9)) * 0.04 : 0;
-      (obj.userData.ring as THREE.Object3D).visible = selected.has(t.id);
+      if (dx || dy) tech.root.rotation.y = Math.atan2(dx, dy);
+      tech.animate(t.working ? 'work' : dx || dy ? 'walk' : 'idle', realTime);
+      tech.setSelected(selected.has(t.id));
     }
-    for (const [id, obj] of this.techs) {
+    for (const [id, tech] of this.techs) {
       if (seen.has(id)) continue;
-      this.scene.remove(obj);
+      this.scene.remove(tech.root);
       this.techs.delete(id);
     }
   }
@@ -306,35 +305,39 @@ export class SceneView {
   }
 
   /** CRAC, PDU et tous les chantiers (les racks terminés sont instanciés à part). */
-  private syncOthers(s: GameState, realDt: number): void {
+  private syncOthers(s: GameState, realTime: number, realDt: number): void {
     const seen = new Set<number>();
     for (const b of s.buildings) {
       const site = b.status === 'construction';
       if (b.kind === 'rack' && !site) continue;
       seen.add(b.id);
       const key = site ? `site:${b.kind}` : b.kind;
-      let obj = this.others.get(b.id);
+      let placed = this.others.get(b.id);
       // Un chantier terminé change de modèle ; et les id repartent de 1 après « Recommencer ».
-      const cell = obj?.userData.cell as Cell | undefined;
-      if (obj && (obj.userData.key !== key || cell?.x !== b.x || cell?.y !== b.y)) {
-        this.scene.remove(obj);
-        obj = undefined;
+      if (placed && (placed.key !== key || placed.cell.x !== b.x || placed.cell.y !== b.y)) {
+        this.scene.remove(placed.model.root);
+        placed = undefined;
       }
-      if (!obj) {
-        obj = site ? createSiteMesh(b.kind) : b.kind === 'crac' ? createCracMesh() : createPduMesh();
-        cellCenter(b.x, b.y, obj.position);
-        obj.userData.cell = { x: b.x, y: b.y };
-        obj.userData.key = key;
-        this.others.set(b.id, obj);
-        this.scene.add(obj);
+      if (!placed) {
+        const model = createBuildingModel(b.kind, site);
+        const cell = { x: b.x, y: b.y };
+        cellCenter(b.x, b.y, model.root.position);
+        model.root.userData.cell = cell; // retrouvé par pickBuilding en remontant les parents
+        placed = { model, key, cell };
+        this.others.set(b.id, placed);
+        this.scene.add(model.root);
       }
-      if (site) (obj.userData.setProgress as (p: number) => void)(1 - b.workLeft / BUILD_TIME[b.kind]);
-      const fan = obj.userData.fan as THREE.Object3D | undefined;
-      if (fan && b.powered) fan.rotation.y += realDt * 10 * Math.max(s.speed, 0.15);
+      placed.model.update({
+        time: realTime,
+        dt: realDt,
+        speed: s.speed,
+        powered: b.powered,
+        progress: site ? 1 - b.workLeft / BUILD_TIME[b.kind] : 1,
+      });
     }
-    for (const [id, obj] of this.others) {
+    for (const [id, placed] of this.others) {
       if (seen.has(id)) continue;
-      this.scene.remove(obj);
+      this.scene.remove(placed.model.root);
       this.others.delete(id);
     }
   }

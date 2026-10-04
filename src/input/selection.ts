@@ -1,6 +1,7 @@
 import type { Command } from '../sim/commands';
 import type { Building, Cell, TechTask } from '../sim/entities';
 import type { GameState } from '../sim/state';
+import type { PingKind } from '../render/assets';
 
 const CLICK_SLOP = 5;
 const TECH_HIT_RADIUS = 22;
@@ -13,7 +14,7 @@ export interface SelectionDeps {
   /** Bâtiment visé (par son volume 3D) ou case du sol sous le curseur. */
   pickTarget: (clientX: number, clientY: number) => { building?: Building; cell: Cell | null };
   enqueue: (c: Command) => void;
-  ping: (cell: Cell, color: number) => void;
+  ping: (cell: Cell, kind: PingKind) => void;
   hint: (message: string) => void;
 }
 
@@ -93,20 +94,17 @@ export class SelectionController {
     if (this.selected.size === 0) return;
     const { building, cell } = this.deps.pickTarget(x, y);
     let task: TechTask;
-    let color = 0x3dffa0;
     if (building?.status === 'construction') {
       task = { type: 'build', target: building.id };
-      color = 0xffc83d;
     } else if (building?.status === 'failed' || building?.status === 'repairing') {
       task = { type: 'repair', target: building.id };
-      color = 0xffa23b;
     } else if (building) {
       task = { type: 'move', x: building.x, y: building.y };
     } else if (cell) {
       task = { type: 'move', x: cell.x, y: cell.y };
     } else return;
     this.deps.enqueue({ type: 'order', techs: [...this.selected], task, append });
-    this.deps.ping(building ?? cell!, color);
+    this.deps.ping(building ?? cell!, task.type);
   }
 
   private drawRect(): void {

@@ -3,8 +3,8 @@ import { CRAC } from '../sim/balance';
 import { canBuild, type Command } from '../sim/commands';
 import type { BuildingKind } from '../sim/entities';
 import { buildingAt, type GameState } from '../sim/state';
-import { BUILDING_SIZE, cellCenter } from '../render/meshes';
-import { createRadiusRing } from '../render/overlays';
+import { createBuildGhost, createRangeRing } from '../render/assets';
+import { cellCenter } from '../render/grid';
 import { pickGroundCell, rayFromScreen, type Cell } from './picking';
 
 export type Tool = BuildingKind | 'demolish' | null;
@@ -20,11 +20,8 @@ export class BuildController {
   onToolChange: (tool: Tool) => void = () => {};
   private painting = false;
   private lastPainted = '';
-  private readonly ghost = new THREE.Group();
-  private readonly ghostBox: THREE.Mesh;
-  private readonly ghostMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.45, depthWrite: false });
-  private readonly ring = createRadiusRing(CRAC.radius);
-  private readonly hoverRing = createRadiusRing(CRAC.radius);
+  private readonly ghost = createBuildGhost();
+  private readonly hoverRing = createRangeRing(CRAC.radius, 'soft');
 
   constructor(
     scene: THREE.Scene,
@@ -36,12 +33,8 @@ export class BuildController {
     /** Techniciens sélectionnés : chaque chantier posé leur est confié. */
     private readonly getAssigned: () => number[],
   ) {
-    this.ghostBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), this.ghostMat);
-    this.ghost.add(this.ghostBox, this.ring);
-    this.ghost.visible = false;
-    (this.hoverRing.material as THREE.MeshBasicMaterial).opacity = 0.4;
     this.hoverRing.visible = false;
-    scene.add(this.ghost, this.hoverRing);
+    scene.add(this.ghost.root, this.hoverRing);
 
     dom.addEventListener('pointermove', (e) => {
       const s = this.getState();
@@ -110,24 +103,12 @@ export class BuildController {
     if (hovered && this.hoverRing.visible) cellCenter(hovered.x, hovered.y, this.hoverRing.position).setY(0.03);
 
     if (!this.tool || !cell) {
-      this.ghost.visible = false;
+      this.ghost.root.visible = false;
       return;
     }
-    this.ghost.visible = true;
-    cellCenter(cell.x, cell.y, this.ghost.position);
-
-    if (this.tool === 'demolish') {
-      this.ghostBox.scale.set(1, 2, 1);
-      this.ghostBox.position.y = 1;
-      this.ghostMat.color.set(hovered ? 0xff4040 : 0x666666);
-      this.ghostBox.visible = true;
-      this.ring.visible = false;
-      return;
-    }
-    const [sx, sy, sz] = BUILDING_SIZE[this.tool];
-    this.ghostBox.scale.set(sx, sy, sz);
-    this.ghostBox.position.y = sy / 2;
-    this.ghostMat.color.set(canBuild(s, this.tool, cell.x, cell.y) === null ? 0x40ff80 : 0xff4040);
-    this.ring.visible = this.tool === 'crac';
+    this.ghost.root.visible = true;
+    cellCenter(cell.x, cell.y, this.ghost.root.position);
+    if (this.tool === 'demolish') this.ghost.set('demolish', hovered !== undefined);
+    else this.ghost.set(this.tool, canBuild(s, this.tool, cell.x, cell.y) === null);
   }
 }

@@ -29,7 +29,7 @@ const selection = new SelectionController(view.domElement, {
   techScreenPositions: () => view.techScreenPositions(),
   pickTarget,
   enqueue,
-  ping: (cell, color) => view.ping(cell, color),
+  ping: (cell, kind) => view.ping(cell, kind),
   hint: (message) => state.events.push({ type: 'info', message }),
 });
 const build = new BuildController(
