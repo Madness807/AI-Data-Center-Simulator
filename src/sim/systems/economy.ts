@@ -1,11 +1,13 @@
-import { ECONOMY } from '../balance';
+import { ECONOMY, TECH } from '../balance';
 import type { GameState } from '../state';
 
-/** Facture d'électricité, compte à rebours de faillite et objectif. */
+/** Électricité et salaires, compte à rebours de faillite et objectif. */
 export function updateEconomy(s: GameState, dt: number): void {
   const perS = s.power.loadKW * ECONOMY.electricityPerKWs;
+  const salaries = s.techs.length * TECH.salaryPerS;
   s.economy.electricityPerS = perS;
-  s.money -= perS * dt;
+  s.economy.salariesPerS = salaries;
+  s.money -= (perS + salaries) * dt;
 
   if (s.money < 0) {
     s.economy.bankruptTimer += dt;

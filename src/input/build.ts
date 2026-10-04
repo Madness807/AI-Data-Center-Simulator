@@ -3,17 +3,11 @@ import { CRAC } from '../sim/balance';
 import { canBuild, type Command } from '../sim/commands';
 import type { BuildingKind } from '../sim/entities';
 import { buildingAt, type GameState } from '../sim/state';
-import { cellCenter } from '../render/meshes';
+import { BUILDING_SIZE, cellCenter } from '../render/meshes';
 import { createRadiusRing } from '../render/overlays';
 import { pickGroundCell, rayFromScreen, type Cell } from './picking';
 
 export type Tool = BuildingKind | 'demolish' | null;
-
-const GHOST_SIZE: Record<BuildingKind, [number, number, number]> = {
-  rack: [0.8, 1.6, 0.8],
-  crac: [0.9, 1.4, 0.9],
-  pdu: [0.7, 1.0, 0.55],
-};
 
 /**
  * Mode construction : fantôme sur la case survolée, clic gauche pour poser
@@ -39,6 +33,8 @@ export class BuildController {
     private readonly getState: () => GameState,
     private readonly enqueue: (c: Command) => void,
     private readonly pickBuilding: (ray: THREE.Raycaster) => Cell | null,
+    /** Techniciens sélectionnés : chaque chantier posé leur est confié. */
+    private readonly getAssigned: () => number[],
   ) {
     this.ghostBox = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), this.ghostMat);
     this.ghost.add(this.ghostBox, this.ring);
@@ -60,15 +56,7 @@ export class BuildController {
         this.setTool(null);
         return;
       }
-      if (e.button !== 0) return;
-      if (!this.tool) {
-        // Sans outil, cliquer un rack en panne lance sa réparation (remplacé par les techniciens en v0.1c).
-        const cell = this.hover;
-        if (cell && buildingAt(this.getState(), cell.x, cell.y)?.status === 'failed') {
-          this.enqueue({ type: 'repair', ...cell });
-        }
-        return;
-      }
+      if (e.button !== 0 || !this.tool) return;
       dom.setPointerCapture(e.pointerId);
       this.painting = true;
       this.lastPainted = '';
@@ -107,7 +95,8 @@ export class BuildController {
       return;
     }
     if (explicit || canBuild(s, tool, cell.x, cell.y) === null) {
-      this.enqueue({ type: 'build', kind: tool, ...cell });
+      const assign = this.getAssigned();
+      this.enqueue({ type: 'build', kind: tool, ...cell, ...(assign.length ? { assign } : {}) });
     }
   }
 
@@ -135,7 +124,7 @@ export class BuildController {
       this.ring.visible = false;
       return;
     }
-    const [sx, sy, sz] = GHOST_SIZE[this.tool];
+    const [sx, sy, sz] = BUILDING_SIZE[this.tool];
     this.ghostBox.scale.set(sx, sy, sz);
     this.ghostBox.position.y = sy / 2;
     this.ghostMat.color.set(canBuild(s, this.tool, cell.x, cell.y) === null ? 0x40ff80 : 0xff4040);

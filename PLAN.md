@@ -40,6 +40,7 @@ src/
     balance.ts         toutes les constantes (coûts, kW, °C, taux de panne…)
     commands.ts        types de commandes + application au state
     rng.ts             PRNG à graine (mulberry32)
+    pathfinding.ts     A* sur 4 voisins, accessibilité depuis l'entrée
     entities.ts        types : Rack, Cooler, PowerUnit, Technician, Construction
     sim.ts             step(state, dt) : enchaîne les systèmes dans un ordre fixe
     systems/
@@ -119,6 +120,8 @@ Toutes les valeurs sont dans `balance.ts`.
   - clic droit sur un chantier → construire ;
   - clic droit au sol → se déplacer.
 - Shift + clic droit ajoute l'ordre à la file du technicien.
+- Poser un chantier pendant que des techniciens sont sélectionnés le leur confie (en fin de file).
+- Les pièces d'une réparation sont payées à l'arrivée du technicien ; plusieurs techniciens sur un même chantier additionnent leur travail.
 - Pathfinding A* sur 4 voisins.
 
 ### Construction
@@ -171,7 +174,7 @@ Toutes les valeurs sont dans `balance.ts`.
 
 **But** : la boucle risque/récompense fonctionne.
 
-### v0.1c — Micro RTS
+### v0.1c — Micro RTS ✅
 
 1. Techniciens : entités, A*, contrôle d'accessibilité.
 2. Sélection au clic et au rectangle, clic droit = ordre, file d'ordres.

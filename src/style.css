@@ -59,7 +59,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1015; }
 .tool-cost { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sep { width: 1px; background: var(--border); margin: 0 4px; }
 
-.hud-info { left: 12px; bottom: 12px; padding: 8px 12px; font-size: 13px; line-height: 1.5; }
+.hud-left { position: absolute; left: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 8px; max-width: 300px; }
+.hud-left > .panel { position: static; }
+.hud-info { padding: 8px 12px; font-size: 13px; line-height: 1.5; }
+.hud-selection { padding: 8px 12px; font-size: 12px; line-height: 1.6; }
+.sel-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 2px; }
+.select-rect {
+  position: fixed; display: none; pointer-events: none; z-index: 5;
+  border: 1px solid #3dffa0; background: rgba(61, 255, 160, 0.08);
+}
 .hud-help { right: 12px; bottom: 12px; padding: 8px 12px; font-size: 11px; color: var(--muted); line-height: 1.6; }
 .hud-help b { color: var(--text); font-weight: 600; }
 .hud-legend { left: 12px; top: 76px; padding: 8px 12px 18px; width: 200px; }

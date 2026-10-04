@@ -1,19 +1,45 @@
 import './style.css';
 import { DT, MAX_TICKS_PER_FRAME } from './sim/balance';
-import type { Command } from './sim/commands';
-import { processCommands } from './sim/commands';
+import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
-import { createInitialState, type Speed } from './sim/state';
+import { buildingAt, createInitialState, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
 import { BuildController, type Tool } from './input/build';
+import { pickGroundCell, rayFromScreen } from './input/picking';
+import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
 
 const state = createInitialState(Date.now() >>> 0);
 const enqueue = (c: Command) => state.commands.push(c);
 
 const view = new SceneView(document.getElementById('app')!, state.w, state.h);
-const build = new BuildController(view.scene, () => view.rts.camera, view.domElement, () => state, enqueue, (ray) =>
-  view.pickBuilding(ray),
+
+const pickTarget = (clientX: number, clientY: number) => {
+  const ray = rayFromScreen(view.rts.camera, view.domElement, clientX, clientY);
+  const hit = view.pickBuilding(ray);
+  const building = hit ? buildingAt(state, hit.x, hit.y) : undefined;
+  return { building, cell: hit ?? pickGroundCell(ray, state.w, state.h) };
+};
+
+// La sélection écoute la souris avant la construction : un clic droit qui annule l'outil
+// ne doit pas aussi devenir un ordre.
+const selection = new SelectionController(view.domElement, {
+  getState: () => state,
+  isToolActive: () => build.tool !== null,
+  techScreenPositions: () => view.techScreenPositions(),
+  pickTarget,
+  enqueue,
+  ping: (cell, color) => view.ping(cell, color),
+  hint: (message) => state.events.push({ type: 'info', message }),
+});
+const build = new BuildController(
+  view.scene,
+  () => view.rts.camera,
+  view.domElement,
+  () => state,
+  enqueue,
+  (ray) => view.pickBuilding(ray),
+  () => [...selection.selected],
 );
 
 let lastSpeed: Exclude<Speed, 0> = 1;
@@ -24,7 +50,7 @@ const setSpeed = (speed: Speed) => {
 const setTool = (tool: Tool) => build.setTool(build.tool === tool ? null : tool);
 const toggleHeatmap = () => (view.heatmap.visible = !view.heatmap.visible);
 const toggleEdgePan = () => (view.rts.edgePan = !view.rts.edgePan);
-
+const hire = () => enqueue({ type: 'hire' });
 const acceptJob = (id: number) => enqueue({ type: 'acceptJob', id });
 const rejectJob = (id: number) => enqueue({ type: 'rejectJob', id });
 const restart = () => {
@@ -32,6 +58,7 @@ const restart = () => {
   Object.assign(state, createInitialState(Date.now() >>> 0));
   lastSpeed = 1;
   build.setTool(null);
+  selection.clear();
   hud.reset();
 };
 
@@ -40,6 +67,7 @@ const hud = new Hud(document.getElementById('hud')!, {
   setSpeed,
   toggleHeatmap,
   toggleEdgePan,
+  hire,
   acceptJob,
   rejectJob,
   restart,
@@ -49,7 +77,10 @@ const TOOL_KEYS: Record<string, Tool> = { KeyR: 'rack', KeyC: 'crac', KeyP: 'pdu
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.metaKey || e.ctrlKey) return;
   if (e.code in TOOL_KEYS) setTool(TOOL_KEYS[e.code]);
-  else if (e.code === 'Escape') build.setTool(null);
+  else if (e.code === 'Escape') {
+    if (build.tool) build.setTool(null);
+    else selection.clear();
+  } else if (e.code === 'KeyT') hire();
   else if (e.code === 'KeyH') toggleHeatmap();
   else if (e.code === 'KeyB') toggleEdgePan();
   else if (e.code === 'Space') {
@@ -77,14 +108,21 @@ function frame(now: number) {
   }
   if (ticks === MAX_TICKS_PER_FRAME) acc = 0;
 
+  selection.prune(state);
   build.update();
-  view.render(state, now / 1000, realDt);
-  hud.update(state, { tool: build.tool, heatmap: view.heatmap.visible, edgePan: view.rts.edgePan, hover: build.hover });
+  view.render(state, now / 1000, realDt, acc / DT, selection.selected);
+  hud.update(state, {
+    tool: build.tool,
+    heatmap: view.heatmap.visible,
+    edgePan: view.rts.edgePan,
+    hover: build.hover,
+    selected: selection.selected,
+  });
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
 // Débogage en dev : window.__game.step() fait avancer la simulation depuis la console.
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { state, step: () => step(state) };
+  (window as unknown as { __game: unknown }).__game = { state, step: () => step(state), selection };
 }

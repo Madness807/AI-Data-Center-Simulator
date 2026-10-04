@@ -15,15 +15,9 @@ export function failureProbability(tempC: number, dt: number): number {
 
 export function updateFailures(s: GameState, dt: number): void {
   for (const b of s.buildings) {
+    // Les réparations avancent avec les techniciens (systems/technicians.ts).
     if (b.kind !== 'rack') continue;
-    if (b.status === 'repairing') {
-      b.repairLeft -= dt;
-      if (b.repairLeft <= 0) {
-        b.status = 'ok';
-        b.repairLeft = 0;
-        s.events.push({ type: 'info', message: `Rack ${b.x},${b.y} réparé` });
-      }
-    } else if (b.status === 'ok' && b.powered) {
+    if (b.status === 'ok' && b.powered) {
       const t = s.temp[idx(s, b.x, b.y)];
       if (nextRandom(s) < failureProbability(t, dt)) {
         b.status = 'failed';

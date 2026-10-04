@@ -1,5 +1,7 @@
 export type BuildingKind = 'rack' | 'crac' | 'pdu';
-export type BuildingStatus = 'ok' | 'failed' | 'repairing';
+export type BuildingStatus = 'construction' | 'ok' | 'failed' | 'repairing';
+
+export type Cell = { x: number; y: number };
 
 export interface Building {
   id: number;
@@ -8,10 +10,31 @@ export interface Building {
   y: number;
   /** Mis à jour par le système d'énergie. Un PDU est toujours alimenté. */
   powered: boolean;
-  /** Seuls les racks tombent en panne en v0.1. */
+  /** Seuls les racks tombent en panne en v0.1. Un chantier ne fonctionne pas encore. */
   status: BuildingStatus;
-  /** Secondes de réparation restantes quand status = 'repairing'. */
-  repairLeft: number;
+  /** Secondes de travail restantes, en chantier ou en réparation. */
+  workLeft: number;
+}
+
+export type TechTask =
+  | { type: 'move'; x: number; y: number }
+  | { type: 'build'; target: number }
+  | { type: 'repair'; target: number };
+
+export interface Technician {
+  id: number;
+  /** Position continue en unités de case : (x, y) entier = centre de la case. */
+  x: number;
+  y: number;
+  /** Position au tick précédent, pour l'interpolation du rendu. */
+  prevX: number;
+  prevY: number;
+  /** File d'ordres ; le premier est en cours. */
+  tasks: TechTask[];
+  /** Cases restantes jusqu'au but de la tâche courante, null = à recalculer. */
+  path: Cell[] | null;
+  /** Vrai si le technicien a travaillé (construit/réparé) au dernier tick. */
+  working: boolean;
 }
 
 export type JobStatus = 'offer' | 'active';

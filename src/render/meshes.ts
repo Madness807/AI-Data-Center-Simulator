@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { ENTRANCE } from '../sim/balance';
+import type { BuildingKind } from '../sim/entities';
 
 export const RACK_CAPACITY = 1024;
 
@@ -154,4 +155,81 @@ export function createStatusMarkers(): THREE.InstancedMesh {
   m.count = 0;
   m.frustumCulled = false;
   return m;
+}
+
+/** Encombrement visuel de chaque bâtiment (largeur, hauteur, profondeur). */
+export const BUILDING_SIZE: Record<BuildingKind, [number, number, number]> = {
+  rack: [0.8, 1.6, 0.8],
+  crac: [0.9, 1.4, 0.9],
+  pdu: [0.7, 1.0, 0.55],
+};
+
+const SITE_FILL: Record<BuildingKind, number> = { rack: 0x55657a, crac: 0xaab6c4, pdu: 0xd9a520 };
+
+/** Chantier : échafaudage jaune et volume qui monte avec l'avancement (userData.setProgress). */
+export function createSiteMesh(kind: BuildingKind): THREE.Group {
+  const [w, h, d] = BUILDING_SIZE[kind];
+  const g = new THREE.Group();
+  const frame = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(w + 0.08, h, d + 0.08)),
+    new THREE.LineBasicMaterial({ color: 0xffc83d }),
+  );
+  frame.position.y = h / 2;
+  g.add(frame);
+  const fill = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 1, d).translate(0, 0.5, 0),
+    new THREE.MeshStandardMaterial({ color: SITE_FILL[kind], transparent: true, opacity: 0.75 }),
+  );
+  fill.castShadow = true;
+  g.add(fill);
+  const base = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.96, 0.96),
+    new THREE.MeshBasicMaterial({ color: 0xffc83d, transparent: true, opacity: 0.18, depthWrite: false }),
+  );
+  base.rotation.x = -Math.PI / 2;
+  base.position.y = 0.012;
+  g.add(base);
+  g.userData.setProgress = (p: number) => {
+    fill.scale.y = Math.max(0.02, p) * h;
+  };
+  g.userData.setProgress(0);
+  return g;
+}
+
+/** Technicien : gilet orange et casque jaune ; userData.ring = cercle de sélection. */
+export function createTechMesh(): THREE.Group {
+  const g = new THREE.Group();
+  const figure = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.16, 0.34, 4, 10),
+    new THREE.MeshStandardMaterial({ color: 0xf08a24, roughness: 0.7 }),
+  );
+  body.position.y = 0.42;
+  const stripe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.165, 0.165, 0.05, 14),
+    new THREE.MeshBasicMaterial({ color: 0xe8f4ff }),
+  );
+  stripe.position.y = 0.5;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), new THREE.MeshStandardMaterial({ color: 0xf1c9a5 }));
+  head.position.y = 0.82;
+  const helmet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.14, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.4 }),
+  );
+  helmet.position.y = 0.85;
+  for (const m of [body, head, helmet]) m.castShadow = true;
+  figure.add(body, stripe, head, helmet);
+  g.add(figure);
+
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.28, 0.36, 32),
+    new THREE.MeshBasicMaterial({ color: 0x3dffa0, transparent: true, opacity: 0.9, depthWrite: false }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.025;
+  ring.visible = false;
+  g.add(ring);
+  g.userData.ring = ring;
+  g.userData.figure = figure;
+  return g;
 }

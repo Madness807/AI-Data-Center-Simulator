@@ -1,6 +1,6 @@
-import { ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_MONEY } from './balance';
+import { BUILD_TIME, ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_MONEY, TECH } from './balance';
 import type { Command } from './commands';
-import type { Building, BuildingKind, Job } from './entities';
+import type { Building, BuildingKind, Job, Technician } from './entities';
 
 export type Speed = 0 | 1 | 2 | 4;
 
@@ -18,6 +18,8 @@ export type Outcome = 'playing' | 'won' | 'lost';
 export interface EconomyStats {
   /** $/s d'électricité au dernier tick. */
   electricityPerS: number;
+  /** $/s de salaires au dernier tick. */
+  salariesPerS: number;
   /** Secondes passées d'affilée sous zéro. */
   bankruptTimer: number;
   jobsDone: number;
@@ -39,6 +41,8 @@ export interface GameState {
   occupant: number[];
   buildings: Building[];
   nextId: number;
+  techs: Technician[];
+  nextTechId: number;
   power: PowerStats;
   /** CU/s disponibles (racks actifs) et utilisés par les contrats. */
   compute: { total: number; used: number };
@@ -67,23 +71,26 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H): GameState {
     occupant: new Array(w * h).fill(-1),
     buildings: [],
     nextId: 1,
+    techs: [],
+    nextTechId: 1,
     power: { capacityKW: 0, demandKW: 0, loadKW: 0, shedCount: 0 },
     compute: { total: 0, used: 0 },
     jobs: [],
     nextJobId: 1,
     nextOfferAt: 0,
-    economy: { electricityPerS: 0, bankruptTimer: 0, jobsDone: 0, jobsFailed: 0 },
+    economy: { electricityPerS: 0, salariesPerS: 0, bankruptTimer: 0, jobsDone: 0, jobsFailed: 0 },
     outcome: 'playing',
     commands: [],
     events: [],
   };
 }
 
-/** Partie standard : un PDU, un CRAC et un premier contrat facile pour apprendre la boucle. */
+/** Partie standard : un PDU, un CRAC, deux techniciens et un premier contrat facile. */
 export function createInitialState(seed = 1): GameState {
   const s = createEmptyState(seed);
   addBuilding(s, 'pdu', 1, 1);
   addBuilding(s, 'crac', 8, 8);
+  for (let i = 0; i < TECH.start; i++) addTech(s);
   const rate = 2 * RACK.computeCU;
   const duration = 60;
   s.jobs.push({
@@ -124,11 +131,33 @@ export function buildingAt(s: GameState, x: number, y: number): Building | undef
   return id < 0 ? undefined : s.buildings.find((b) => b.id === id);
 }
 
-export function addBuilding(s: GameState, kind: BuildingKind, x: number, y: number): Building {
-  const b: Building = { id: s.nextId++, kind, x, y, powered: kind === 'pdu', status: 'ok', repairLeft: 0 };
+/** Bâtiment terminé par défaut ; `site` crée un chantier qu'un technicien doit construire. */
+export function addBuilding(s: GameState, kind: BuildingKind, x: number, y: number, site = false): Building {
+  const b: Building = {
+    id: s.nextId++,
+    kind,
+    x,
+    y,
+    powered: false,
+    status: site ? 'construction' : 'ok',
+    workLeft: site ? BUILD_TIME[kind] : 0,
+  };
   s.buildings.push(b);
   s.occupant[idx(s, x, y)] = b.id;
   return b;
+}
+
+export function buildingById(s: GameState, id: number): Building | undefined {
+  return s.buildings.find((b) => b.id === id);
+}
+
+/** Un technicien entre par l'entrée (cases alternées), sauf position donnée (tests). */
+export function addTech(s: GameState, at?: { x: number; y: number }): Technician {
+  const [ex, ey] = ENTRANCE[s.techs.length % ENTRANCE.length];
+  const { x, y } = at ?? { x: ex, y: ey };
+  const t: Technician = { id: s.nextTechId++, x, y, prevX: x, prevY: y, tasks: [], path: null, working: false };
+  s.techs.push(t);
+  return t;
 }
 
 export function removeBuilding(s: GameState, b: Building): void {

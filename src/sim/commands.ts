@@ -1,12 +1,15 @@
-import { BUILD_COST, DEMOLISH_REFUND, REPAIR } from './balance';
-import type { BuildingKind } from './entities';
-import { addBuilding, buildingAt, inBounds, isEntrance, removeBuilding, type GameState, type Speed } from './state';
+import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, TECH } from './balance';
+import type { BuildingKind, TechTask } from './entities';
+import { keepsAccess } from './pathfinding';
+import { addBuilding, addTech, buildingAt, inBounds, isEntrance, removeBuilding, type GameState, type Speed } from './state';
 import { updatePower } from './systems/power';
 
 export type Command =
-  | { type: 'build'; kind: BuildingKind; x: number; y: number }
+  /** `assign` : techniciens à qui confier le chantier (ajouté en fin de file). */
+  | { type: 'build'; kind: BuildingKind; x: number; y: number; assign?: number[] }
   | { type: 'demolish'; x: number; y: number }
-  | { type: 'repair'; x: number; y: number }
+  | { type: 'order'; techs: number[]; task: TechTask; append: boolean }
+  | { type: 'hire' }
   | { type: 'acceptJob'; id: number }
   | { type: 'rejectJob'; id: number }
   | { type: 'setSpeed'; speed: Speed };
@@ -16,7 +19,9 @@ export function canBuild(s: GameState, kind: BuildingKind, x: number, y: number)
   if (!inBounds(s, x, y)) return 'Hors de la salle';
   if (isEntrance(x, y)) return "Zone d'entrée réservée";
   if (buildingAt(s, x, y)) return 'Case occupée';
+  if (s.techs.some((t) => Math.round(t.x) === x && Math.round(t.y) === y)) return 'Un technicien est sur la case';
   if (s.money < BUILD_COST[kind]) return 'Fonds insuffisants';
+  if (!keepsAccess(s, x, y)) return "Bloquerait l'accès d'un équipement";
   return null;
 }
 
@@ -35,28 +40,39 @@ export function processCommands(s: GameState): void {
           break;
         }
         s.money -= BUILD_COST[c.kind];
-        addBuilding(s, c.kind, c.x, c.y);
+        const site = addBuilding(s, c.kind, c.x, c.y, true);
+        for (const t of s.techs) {
+          if (c.assign?.includes(t.id)) t.tasks.push({ type: 'build', target: site.id });
+        }
         break;
       }
       case 'demolish': {
         const b = buildingAt(s, c.x, c.y);
         if (!b) break;
-        s.money += Math.round(BUILD_COST[b.kind] * DEMOLISH_REFUND);
+        // Un chantier pas encore commencé est remboursé en entier.
+        const untouched = b.status === 'construction' && b.workLeft >= BUILD_TIME[b.kind];
+        s.money += Math.round(BUILD_COST[b.kind] * (untouched ? 1 : DEMOLISH_REFUND));
         removeBuilding(s, b);
         break;
       }
-      case 'repair': {
-        const b = buildingAt(s, c.x, c.y);
-        if (!b || b.status !== 'failed') break;
-        if (s.money < REPAIR.cost) {
-          s.events.push({ type: 'error', message: 'Fonds insuffisants pour réparer' });
-          break;
+      case 'order':
+        for (const t of s.techs) {
+          if (!c.techs.includes(t.id)) continue;
+          if (!c.append) {
+            t.tasks = [];
+            t.path = null;
+          }
+          t.tasks.push(c.task);
         }
-        s.money -= REPAIR.cost;
-        b.status = 'repairing';
-        b.repairLeft = REPAIR.seconds;
         break;
-      }
+      case 'hire':
+        if (s.techs.length >= TECH.max) s.events.push({ type: 'error', message: `Équipe complète (${TECH.max} max)` });
+        else if (s.money < TECH.hireCost) s.events.push({ type: 'error', message: "Fonds insuffisants pour embaucher" });
+        else {
+          s.money -= TECH.hireCost;
+          addTech(s);
+        }
+        break;
       case 'acceptJob': {
         const job = s.jobs.find((j) => j.id === c.id && j.status === 'offer');
         if (!job) break;

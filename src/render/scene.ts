@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { RACK } from '../sim/balance';
-import { isRackActive, type Building } from '../sim/entities';
+import { BUILD_TIME, RACK } from '../sim/balance';
+import { isRackActive } from '../sim/entities';
 import type { GameState } from '../sim/state';
 import {
   cellCenter,
@@ -8,7 +8,9 @@ import {
   createFloor,
   createPduMesh,
   createRackMeshes,
+  createSiteMesh,
   createStatusMarkers,
+  createTechMesh,
   type RackMeshes,
 } from './meshes';
 import { Heatmap } from './overlays';
@@ -122,6 +124,8 @@ export class SceneView {
   private readonly others = new Map<number, THREE.Group>();
   /** Case du bâtiment de chaque instance de rack, pour le picking. */
   private rackCells: Cell[] = [];
+  private readonly techs = new Map<number, THREE.Group>();
+  private readonly pings: { mesh: THREE.Mesh; age: number }[] = [];
   private readonly tmpMatrix = new THREE.Matrix4();
   private readonly tmpVec = new THREE.Vector3();
 
@@ -173,12 +177,90 @@ export class SceneView {
     return this.renderer.domElement;
   }
 
-  render(s: GameState, realTime: number, realDt: number): void {
+  /**
+   * `alpha` (0..1) : fraction du tick suivant déjà écoulée, pour interpoler les techniciens
+   * entre leur position au tick précédent et l'actuelle.
+   */
+  render(s: GameState, realTime: number, realDt: number, alpha: number, selected: ReadonlySet<number>): void {
     this.syncRacks(s, realTime);
     this.syncOthers(s, realDt);
+    this.syncTechs(s, realTime, alpha, selected);
+    this.updatePings(realDt);
     this.heatmap.update(s);
     this.rts.update(realDt);
     this.renderer.render(this.scene, this.rts.camera);
+  }
+
+  /** Position écran (px, repère client) de chaque technicien, telle que dessinée à la dernière frame. */
+  techScreenPositions(): { id: number; x: number; y: number }[] {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const out: { id: number; x: number; y: number }[] = [];
+    for (const [id, obj] of this.techs) {
+      this.tmpVec.copy(obj.position).setY(0.5).project(this.rts.camera);
+      out.push({
+        id,
+        x: rect.left + ((this.tmpVec.x + 1) / 2) * rect.width,
+        y: rect.top + ((1 - this.tmpVec.y) / 2) * rect.height,
+      });
+    }
+    return out;
+  }
+
+  /** Cercle bref au sol pour confirmer un ordre. */
+  ping(cell: Cell, color: number): void {
+    const mesh = new THREE.Mesh(
+      new THREE.RingGeometry(0.3, 0.42, 32),
+      new THREE.MeshBasicMaterial({ color, transparent: true, depthWrite: false }),
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    cellCenter(cell.x, cell.y, mesh.position).setY(0.04);
+    mesh.renderOrder = 3;
+    this.scene.add(mesh);
+    this.pings.push({ mesh, age: 0 });
+  }
+
+  private updatePings(realDt: number): void {
+    for (let i = this.pings.length - 1; i >= 0; i--) {
+      const p = this.pings[i];
+      p.age += realDt;
+      const k = p.age / 0.6;
+      if (k >= 1) {
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        this.pings.splice(i, 1);
+        continue;
+      }
+      p.mesh.scale.setScalar(1.4 - 0.6 * k);
+      (p.mesh.material as THREE.MeshBasicMaterial).opacity = 1 - k;
+    }
+  }
+
+  private syncTechs(s: GameState, realTime: number, alpha: number, selected: ReadonlySet<number>): void {
+    const seen = new Set<number>();
+    for (const t of s.techs) {
+      seen.add(t.id);
+      let obj = this.techs.get(t.id);
+      if (!obj) {
+        obj = createTechMesh();
+        this.techs.set(t.id, obj);
+        this.scene.add(obj);
+      }
+      const x = t.prevX + (t.x - t.prevX) * alpha;
+      const y = t.prevY + (t.y - t.prevY) * alpha;
+      obj.position.set(x + 0.5, 0, y + 0.5);
+      const dx = t.x - t.prevX;
+      const dy = t.y - t.prevY;
+      if (dx || dy) obj.rotation.y = Math.atan2(dx, dy);
+      const figure = obj.userData.figure as THREE.Object3D;
+      // Au travail : il s'agite ; en marche : petit rebond.
+      figure.position.y = t.working ? Math.abs(Math.sin(realTime * 12)) * 0.06 : dx || dy ? Math.abs(Math.sin(realTime * 9)) * 0.04 : 0;
+      (obj.userData.ring as THREE.Object3D).visible = selected.has(t.id);
+    }
+    for (const [id, obj] of this.techs) {
+      if (seen.has(id)) continue;
+      this.scene.remove(obj);
+      this.techs.delete(id);
+    }
   }
 
   private syncRacks(s: GameState, realTime: number): void {
@@ -191,7 +273,7 @@ export class SceneView {
     let m = 0;
     this.rackCells.length = 0;
     for (const b of s.buildings) {
-      if (b.kind !== 'rack' || n >= body.instanceMatrix.count) continue;
+      if (b.kind !== 'rack' || b.status === 'construction' || n >= body.instanceMatrix.count) continue;
       this.rackCells.push({ x: b.x, y: b.y });
       this.tmpMatrix.makeTranslation(cellCenter(b.x, b.y, this.tmpVec));
       body.setMatrixAt(n, this.tmpMatrix);
@@ -223,23 +305,30 @@ export class SceneView {
     body.computeBoundingSphere();
   }
 
+  /** CRAC, PDU et tous les chantiers (les racks terminés sont instanciés à part). */
   private syncOthers(s: GameState, realDt: number): void {
     const seen = new Set<number>();
     for (const b of s.buildings) {
-      if (b.kind === 'rack') continue;
+      const site = b.status === 'construction';
+      if (b.kind === 'rack' && !site) continue;
       seen.add(b.id);
+      const key = site ? `site:${b.kind}` : b.kind;
       let obj = this.others.get(b.id);
-      // Les id repartent de 1 après « Recommencer » : un id connu peut désigner un autre bâtiment.
+      // Un chantier terminé change de modèle ; et les id repartent de 1 après « Recommencer ».
       const cell = obj?.userData.cell as Cell | undefined;
-      if (obj && (obj.userData.kind !== b.kind || cell?.x !== b.x || cell?.y !== b.y)) {
+      if (obj && (obj.userData.key !== key || cell?.x !== b.x || cell?.y !== b.y)) {
         this.scene.remove(obj);
         obj = undefined;
       }
       if (!obj) {
-        obj = this.createObject(b);
+        obj = site ? createSiteMesh(b.kind) : b.kind === 'crac' ? createCracMesh() : createPduMesh();
+        cellCenter(b.x, b.y, obj.position);
+        obj.userData.cell = { x: b.x, y: b.y };
+        obj.userData.key = key;
         this.others.set(b.id, obj);
         this.scene.add(obj);
       }
+      if (site) (obj.userData.setProgress as (p: number) => void)(1 - b.workLeft / BUILD_TIME[b.kind]);
       const fan = obj.userData.fan as THREE.Object3D | undefined;
       if (fan && b.powered) fan.rotation.y += realDt * 10 * Math.max(s.speed, 0.15);
     }
@@ -248,14 +337,6 @@ export class SceneView {
       this.scene.remove(obj);
       this.others.delete(id);
     }
-  }
-
-  private createObject(b: Building): THREE.Group {
-    const obj = b.kind === 'crac' ? createCracMesh() : createPduMesh();
-    cellCenter(b.x, b.y, obj.position);
-    obj.userData.cell = { x: b.x, y: b.y };
-    obj.userData.kind = b.kind;
-    return obj;
   }
 
   private resize(): void {

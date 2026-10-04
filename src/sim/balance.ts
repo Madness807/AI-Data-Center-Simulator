@@ -71,3 +71,15 @@ export const JOBS = {
   pricePerCU: 0.4,
   penaltyRatio: 0.5,
 };
+
+/** Secondes de travail d'un technicien pour terminer un chantier. */
+export const BUILD_TIME: Record<BuildingKind, number> = { rack: 6, crac: 8, pdu: 5 };
+
+export const TECH = {
+  /** Cases par seconde. */
+  speed: 3,
+  start: 2,
+  max: 10,
+  hireCost: 2000,
+  salaryPerS: 0.4,
+};

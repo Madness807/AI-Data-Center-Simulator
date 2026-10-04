@@ -1,17 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { BUILD_COST, DEMOLISH_REFUND, ENTRANCE } from '../src/sim/balance';
+import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, ENTRANCE } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
 import { buildingAt, createEmptyState, createInitialState } from '../src/sim/state';
 import { nextRandom } from '../src/sim/rng';
 
 describe('commands', () => {
-  it('construire débite le coût et occupe la case', () => {
+  it('construire débite le coût et pose un chantier sur la case', () => {
     const s = createEmptyState();
     const money = s.money;
     s.commands.push({ type: 'build', kind: 'rack', x: 4, y: 4 });
     processCommands(s);
-    expect(buildingAt(s, 4, 4)?.kind).toBe('rack');
+    const site = buildingAt(s, 4, 4);
+    expect(site?.kind).toBe('rack');
+    expect(site?.status).toBe('construction');
+    expect(site?.workLeft).toBe(BUILD_TIME.rack);
     expect(s.money).toBe(money - BUILD_COST.rack);
+  });
+
+  it('annuler un chantier non commencé rembourse tout', () => {
+    const s = createEmptyState();
+    const money = s.money;
+    s.commands.push({ type: 'build', kind: 'crac', x: 4, y: 4 }, { type: 'demolish', x: 4, y: 4 });
+    processCommands(s);
+    expect(buildingAt(s, 4, 4)).toBeUndefined();
+    expect(s.money).toBe(money);
   });
 
   it('refuse case occupée, entrée, hors grille et fonds insuffisants', () => {
@@ -46,12 +58,12 @@ describe('commands', () => {
     expect(s.money).toBe(money + BUILD_COST.pdu * DEMOLISH_REFUND);
   });
 
-  it('la construction met à jour l’alimentation immédiatement (même en pause)', () => {
+  it('un chantier ne consomme ni ne fonctionne avant d’être construit', () => {
     const s = createInitialState();
-    s.speed = 0;
     s.commands.push({ type: 'build', kind: 'rack', x: 4, y: 4 });
     processCommands(s);
-    expect(buildingAt(s, 4, 4)?.powered).toBe(true);
+    expect(buildingAt(s, 4, 4)?.powered).toBe(false);
+    expect(s.power.demandKW).toBe(4); // le CRAC de départ seulement
   });
 
   it('le state est sérialisable et le RNG déterministe', () => {

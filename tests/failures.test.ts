@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { FAILURE, REPAIR } from '../src/sim/balance';
-import { processCommands } from '../src/sim/commands';
 import { addBuilding, createEmptyState, idx } from '../src/sim/state';
 import { failureProbability, failureRate, updateFailures } from '../src/sim/systems/failures';
 import { updateHeat } from '../src/sim/systems/heat';
@@ -53,33 +52,11 @@ describe('failures', () => {
     expect(s.temp[idx(s, 5, 5)]).toBeCloseTo(22, 9);
   });
 
-  it('réparer coûte, prend du temps, puis remet le rack en service', () => {
+  it('les réparations sont faites par les techniciens (voir technicians.test.ts)', () => {
     const s = createEmptyState();
-    addBuilding(s, 'pdu', 0, 0);
     const r = addBuilding(s, 'rack', 5, 5);
     r.status = 'failed';
-    const money = s.money;
-    s.commands.push({ type: 'repair', x: 5, y: 5 });
-    processCommands(s);
-    expect(r.status).toBe('repairing');
-    expect(s.money).toBe(money - REPAIR.cost);
-    runSeconds(s, REPAIR.seconds - 1);
-    expect(r.status).toBe('repairing');
-    runSeconds(s, 1.5);
-    expect(r.status).toBe('ok');
-    expect(r.powered).toBe(true);
-  });
-
-  it('on ne répare ni un rack sain ni sans fonds', () => {
-    const s = createEmptyState();
-    const ok = addBuilding(s, 'rack', 5, 5);
-    const broken = addBuilding(s, 'rack', 6, 5);
-    broken.status = 'failed';
-    s.money = REPAIR.cost - 1;
-    s.commands.push({ type: 'repair', x: 5, y: 5 }, { type: 'repair', x: 6, y: 5 });
-    processCommands(s);
-    expect(ok.status).toBe('ok');
-    expect(broken.status).toBe('failed');
-    expect(s.money).toBe(REPAIR.cost - 1);
+    runSeconds(s, REPAIR.seconds * 2);
+    expect(r.status).toBe('failed');
   });
 });

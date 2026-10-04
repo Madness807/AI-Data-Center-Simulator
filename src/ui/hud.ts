@@ -1,6 +1,6 @@
-import { BUILD_COST, CRAC, ECONOMY, FAILURE, PDU, RACK, REPAIR } from '../sim/balance';
-import type { BuildingKind, Job } from '../sim/entities';
-import { buildingAt, idx, type GameEvent, type GameState, type Speed } from '../sim/state';
+import { BUILD_COST, BUILD_TIME, CRAC, ECONOMY, FAILURE, PDU, RACK, REPAIR, TECH } from '../sim/balance';
+import type { BuildingKind, Job, Technician } from '../sim/entities';
+import { buildingAt, buildingById, idx, type GameEvent, type GameState, type Speed } from '../sim/state';
 import { tempStats } from '../sim/stats';
 import type { Tool } from '../input/build';
 import { HEAT_STOPS } from '../render/overlays';
@@ -10,6 +10,7 @@ export interface HudActions {
   setSpeed: (speed: Speed) => void;
   toggleHeatmap: () => void;
   toggleEdgePan: () => void;
+  hire: () => void;
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
   restart: () => void;
@@ -31,6 +32,18 @@ const SPEEDS: { speed: Speed; label: string; key: string }[] = [
 ];
 
 const money = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} $`;
+
+/** Ce que fait le technicien, en clair. */
+function describeTask(s: GameState, t: Technician): string {
+  const task = t.tasks[0];
+  if (!task) return '<span class="muted">inactif</span>';
+  const more = t.tasks.length > 1 ? ` <span class="muted">(+${t.tasks.length - 1})</span>` : '';
+  if (task.type === 'move') return `se déplace vers ${task.x},${task.y}${more}`;
+  const b = buildingById(s, task.target);
+  const what = b ? `${LABEL[b.kind]} ${b.x},${b.y}` : '?';
+  const verb = task.type === 'build' ? 'construit' : 'répare';
+  return `${t.working ? verb : `va ${task.type === 'build' ? 'construire' : 'réparer'}`} ${what}${more}`;
+}
 const seconds = (n: number) => `${Math.max(0, Math.ceil(n))} s`;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -51,13 +64,15 @@ interface JobCard {
 }
 
 export class Hud {
-  private readonly stat: Record<'money' | 'time' | 'power' | 'compute' | 'elec' | 'temp', HTMLElement>;
+  private readonly stat: Record<'money' | 'time' | 'power' | 'compute' | 'costs' | 'team' | 'temp', HTMLElement>;
   private readonly goalBar: HTMLElement;
   private readonly toolButtons = new Map<Tool, HTMLButtonElement>();
   private readonly speedButtons = new Map<Speed, HTMLButtonElement>();
   private readonly heatButton: HTMLButtonElement;
   private readonly edgeButton: HTMLButtonElement;
   private readonly info: HTMLElement;
+  private readonly selection: HTMLElement;
+  private readonly hireButton: HTMLButtonElement;
   private readonly legend: HTMLElement;
   private readonly jobsList: HTMLElement;
   private readonly jobsEmpty: HTMLElement;
@@ -90,7 +105,8 @@ export class Hud {
       time: stat('Temps').v,
       power: stat('Énergie').v,
       compute: stat('Calcul utilisé').v,
-      elec: stat('Électricité').v,
+      costs: stat('Charges').v,
+      team: stat('Équipe').v,
       temp: stat('Température').v,
     };
     const speeds = el('div', 'speeds');
@@ -113,7 +129,11 @@ export class Hud {
       bar.append(b);
       this.toolButtons.set(t.tool, b);
     }
-    bar.append(el('div', 'sep'));
+    this.hireButton = el('button', 'btn tool');
+    this.hireButton.append(el('span', 'tool-key', 'T'), el('span', 'tool-label', 'Embaucher'), el('span', 'tool-cost', money(TECH.hireCost)));
+    this.hireButton.title = `Un technicien de plus (salaire ${TECH.salaryPerS} $/s, ${TECH.max} max)`;
+    this.hireButton.onclick = actions.hire;
+    bar.append(this.hireButton, el('div', 'sep'));
     this.heatButton = el('button', 'btn tool');
     this.heatButton.append(el('span', 'tool-key', 'H'), el('span', 'tool-label', 'Heatmap'));
     this.heatButton.onclick = actions.toggleHeatmap;
@@ -132,6 +152,9 @@ export class Hud {
     jobs.append(head, this.jobsList, this.jobsEmpty);
 
     this.info = el('div', 'hud-info panel');
+    this.selection = el('div', 'hud-selection panel');
+    const left = el('div', 'hud-left');
+    left.append(this.selection, this.info);
     this.legend = el('div', 'hud-legend panel');
     this.legend.append(el('div', 'legend-title', 'Température'));
     const ramp = el('div', 'legend-ramp');
@@ -153,8 +176,9 @@ export class Hud {
     const help = el('div', 'hud-help panel');
     help.innerHTML =
       '<b>WASD</b> déplacer · <b>molette</b> zoom · <b>Q/E</b> pivoter<br>' +
-      '<b>clic</b> poser (glisser pour enchaîner) · <b>clic droit/Échap</b> annuler<br>' +
-      '<b>clic sur un rack en panne</b> réparer';
+      '<b>clic/glisser</b> sélectionner des techniciens · <b>Maj</b> ajouter<br>' +
+      '<b>clic droit</b> ordre : déplacer, construire, réparer · <b>Maj</b> en file<br>' +
+      'en construction : <b>clic</b> poser · <b>clic droit/Échap</b> annuler';
 
     this.bankrupt = el('div', 'bankrupt');
 
@@ -167,10 +191,13 @@ export class Hud {
     this.gameOver.append(card);
 
     this.toasts = el('div', 'toasts');
-    root.append(top, bar, jobs, this.info, this.legend, help, this.bankrupt, this.gameOver, this.toasts);
+    root.append(top, bar, jobs, left, this.legend, help, this.bankrupt, this.gameOver, this.toasts);
   }
 
-  update(s: GameState, ui: { tool: Tool; heatmap: boolean; edgePan: boolean; hover: { x: number; y: number } | null }): void {
+  update(
+    s: GameState,
+    ui: { tool: Tool; heatmap: boolean; edgePan: boolean; hover: { x: number; y: number } | null; selected: ReadonlySet<number> },
+  ): void {
     const p = s.power;
     const t = tempStats(s);
     this.stat.money.textContent = money(s.money);
@@ -182,7 +209,11 @@ export class Hud {
       `${p.loadKW} / ${p.capacityKW} kW` + (p.shedCount ? ` · ${p.shedCount} délesté${p.shedCount > 1 ? 's' : ''}` : '');
     this.stat.power.classList.toggle('warn', p.shedCount > 0);
     this.stat.compute.textContent = `${s.compute.used} / ${s.compute.total} CU/s`;
-    this.stat.elec.textContent = `−${s.economy.electricityPerS.toFixed(1)} $/s`;
+    const { electricityPerS: elec, salariesPerS: salaries } = s.economy;
+    this.stat.costs.textContent = `−${(elec + salaries).toFixed(1)} $/s`;
+    this.stat.costs.title = `Électricité ${elec.toFixed(1)} $/s · salaires ${salaries.toFixed(1)} $/s`;
+    const idle = s.techs.filter((t) => t.tasks.length === 0).length;
+    this.stat.team.textContent = `${s.techs.length} tech · ${idle} libre${idle > 1 ? 's' : ''}`;
     this.stat.temp.textContent = `max ${t.max.toFixed(1)}° · moy ${t.avg.toFixed(1)}°`;
     this.stat.temp.classList.toggle('warn', t.max >= FAILURE.thresholdC);
     this.stat.temp.classList.toggle('danger', t.max >= FAILURE.thresholdC + 15);
@@ -191,12 +222,14 @@ export class Hud {
       b.classList.toggle('active', tool === ui.tool);
       b.disabled = tool !== 'demolish' && tool !== null && s.money < BUILD_COST[tool];
     }
+    this.hireButton.disabled = s.money < TECH.hireCost || s.techs.length >= TECH.max;
     for (const [sp, b] of this.speedButtons) b.classList.toggle('active', sp === s.speed);
     this.heatButton.classList.toggle('active', ui.heatmap);
     this.edgeButton.classList.toggle('active', ui.edgePan);
     this.legend.style.display = ui.heatmap ? '' : 'none';
 
     this.updateHover(s, ui.hover);
+    this.updateSelection(s, ui.selected);
     this.updateJobs(s);
 
     const timer = s.economy.bankruptTimer;
@@ -225,11 +258,24 @@ export class Hud {
     const { x, y } = hover;
     const b = buildingAt(s, x, y);
     let state = '';
-    if (b?.kind === 'pdu') state = ' · en service';
-    else if (b?.status === 'failed') state = ` · <span class="danger">en panne</span><br><span class="muted">clic pour réparer (${money(REPAIR.cost)}, ${REPAIR.seconds} s)</span>`;
-    else if (b?.status === 'repairing') state = ` · <span class="warn">réparation ${seconds(b.repairLeft)}</span>`;
+    if (b?.status === 'construction') {
+      const pct = Math.round((1 - b.workLeft / BUILD_TIME[b.kind]) * 100);
+      state = ` · <span class="warn">chantier ${pct} %</span><br><span class="muted">technicien + clic droit pour construire</span>`;
+    } else if (b?.kind === 'pdu') state = ' · en service';
+    else if (b?.status === 'failed') {
+      state = ` · <span class="danger">en panne</span><br><span class="muted">technicien + clic droit pour réparer (${money(REPAIR.cost)}, ${REPAIR.seconds} s)</span>`;
+    } else if (b?.status === 'repairing') state = ` · <span class="warn">réparation ${seconds(b.workLeft)}</span>`;
     else if (b) state = b.powered ? ' · alimenté' : ' · <span class="danger">délesté</span>';
     this.info.innerHTML = `Case ${x},${y} · <b>${s.temp[idx(s, x, y)].toFixed(1)} °C</b>` + (b ? `<br>${LABEL[b.kind]}${state}` : '');
+  }
+
+  private updateSelection(s: GameState, selected: ReadonlySet<number>): void {
+    const techs = s.techs.filter((t) => selected.has(t.id));
+    this.selection.style.display = techs.length ? '' : 'none';
+    if (!techs.length) return;
+    const rows = techs.map((t) => `<div><b>Tech ${t.id}</b> · ${describeTask(s, t)}</div>`).join('');
+    const html = `<div class="sel-title">${techs.length} technicien${techs.length > 1 ? 's' : ''} sélectionné${techs.length > 1 ? 's' : ''}</div>${rows}`;
+    if (this.selection.innerHTML !== html) this.selection.innerHTML = html;
   }
 
   private updateJobs(s: GameState): void {

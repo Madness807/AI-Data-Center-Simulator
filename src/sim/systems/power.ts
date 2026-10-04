@@ -11,10 +11,12 @@ export function updatePower(s: GameState): void {
   const cracs: Building[] = [];
   const racks: Building[] = [];
   for (const b of s.buildings) {
-    if (b.kind === 'pdu') capacity += PDU.capacityKW;
-    else if (b.kind === 'crac') cracs.push(b);
-    else if (b.status === 'ok') racks.push(b);
-    else b.powered = false; // en panne ou en réparation : ne consomme rien
+    if (b.status !== 'ok') b.powered = false; // chantier, panne, réparation : ne consomme rien
+    else if (b.kind === 'pdu') {
+      capacity += PDU.capacityKW;
+      b.powered = true;
+    } else if (b.kind === 'crac') cracs.push(b);
+    else racks.push(b);
   }
 
   let remaining = capacity;
