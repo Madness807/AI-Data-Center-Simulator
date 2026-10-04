@@ -1,51 +1,86 @@
-import type { BuildingKind } from '../../sim/entities';
-
 /**
- * Toutes les couleurs de la direction artistique. Aucun autre fichier ne doit
- * écrire une couleur en dur : on change le style ici, en un seul endroit.
+ * Toutes les couleurs de la direction artistique (low-poly stylisé). Aucun autre fichier
+ * ne doit écrire une couleur en dur : on change le style ici, en un seul endroit.
  */
 export const PALETTE = {
-  background: 0x0d1015,
-  lightSky: 0xbfd4ff,
-  lightGround: 0x1a1d24,
-  lightSun: 0xffffff,
+  background: 0x0b0e14,
+  lightSky: 0xd6e4ff,
+  lightGround: 0x2a2f3a,
+  lightSun: 0xfff1de,
+  lightFill: 0x86a9ff,
 
-  floor: 0x1d222b,
-  floorGrid: 0x343b48,
-  entrance: 0xc9a227,
-  wall: 0x3a4250,
+  // Salle
+  floorTile: 0x3b4352,
+  floorSeam: 0x1f242d,
+  floorHole: 0x161a21,
+  floorSlab: 0x161a21,
+  wallPanel: 0x4b5566,
+  wallSeam: 0x3a4351,
+  wallSkirting: 0x1d222a,
+  wallCap: 0x2b313b,
+  wallTray: 0x252b34,
+  wallLight: 0xfff3d6,
+  hazardA: 0xf2c230,
+  hazardB: 0x1b1d21,
 
-  rackBody: 0x2b313c,
+  // Rack
+  rackFoot: 0x0e1115,
+  rackFrame: 0x1d222a,
+  rackPanel: 0x272d37,
+  rackDoor: 0x313846,
+  rackServer: 0x151920,
+  rackServerAlt: 0x1d222b,
+  rackHandle: 0x8d99ab,
+  rackVent: 0x0f1216,
 
-  cracBody: 0xc7d0da,
-  cracGrille: 0x1b1f26,
-  cracBlade: 0x7fd4ff,
-  cracBladeGlow: 0x1a5a80,
+  // CRAC
+  cracBase: 0x262b33,
+  cracBody: 0xdde3ea,
+  cracPanel: 0xc3cbd5,
+  cracGrille: 0x2a313b,
+  cracLouver: 0x48515e,
+  cracAccent: 0x3a9cff,
+  cracFan: 0xa9bccf,
+  cracScreenOn: 0x5fe3ff,
+  cracScreenOff: 0x1b2730,
 
-  pduBody: 0xd9a520,
-  pduStripe: 0x151515,
+  // PDU
+  pduBody: 0xe7b52e,
+  pduDark: 0x262b33,
+  pduBreaker: 0x3f4652,
+  pduToggle: 0xd6dbe2,
+  pduConduit: 0x5b6573,
+  pduLampOn: 0x3dffa0,
 
-  techVest: 0xf08a24,
-  techStripe: 0xe8f4ff,
+  // Technicien
+  techVest: 0xff7a1a,
+  techReflective: 0xeef5ff,
+  techShirt: 0x2f4f86,
+  techTrousers: 0x27344b,
+  techBoots: 0x17191d,
   techSkin: 0xf1c9a5,
   techHelmet: 0xffd23f,
 
-  siteFrame: 0xffc83d,
-  siteFill: { rack: 0x55657a, crac: 0xaab6c4, pdu: 0xd9a520 } satisfies Record<BuildingKind, number>,
+  // Chantier
+  scaffold: 0xffc83d,
+  blueprint: 0x4fd1ff,
+  blueprintGlow: 0x0f4d6b,
 
+  // Interface dans le monde
   selection: 0x3dffa0,
   cracRange: 0x7fd4ff,
   ghostOk: 0x40ff80,
   ghostBad: 0xff4040,
   ghostNeutral: 0x666666,
+  markerSymbol: 0x15171b,
 
   /** Couleurs d'état : elles portent l'information de jeu, à garder très contrastées. */
   status: {
     busy: 0x3dffa0,
-    idle: 0x2a7fa8,
+    idle: 0x2a8fd0,
     shed: 0xff3b3b,
     shedOff: 0x3a1414,
-    dead: 0x15181d,
+    dead: 0x111419,
     failed: 0xff3b3b,
     repairing: 0xffa23b,
   },

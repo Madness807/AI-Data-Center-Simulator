@@ -10,7 +10,8 @@ src/render/assets/
 ├─ types.ts            contrats AssetModel, TechnicianModel, ModelState
 ├─ palette.ts          toutes les couleurs
 ├─ materials.ts        tous les matériaux, partagés
-├─ geometry.ts         outils de géométrie (fusion, comptage de triangles…)
+├─ geometry.ts         outils de géométrie (pavés, fusion, cuisson des couleurs, triangles)
+├─ textures.ts         textures générées en pur JS (DataTexture) : dalles, rayures, panneaux
 ├─ cache.ts            once / onceBy : créer une fois, partager ensuite
 ├─ dimensions.ts       BUILDING_SIZE, l'encombrement de chaque bâtiment
 ├─ props/              équipements : rack (instancié), crac, pdu
@@ -21,6 +22,15 @@ public/assets/
 ├─ models/             réservé aux futurs .glb
 └─ textures/           réservé aux futures images
 ```
+
+## Style
+
+Low-poly stylisé, lisible en vue isométrique :
+- **Modèles « cuits »** : chaque modèle fixe est une liste de pièces (`box(...)` + couleur de la palette) fusionnées par `bake()` en une seule géométrie à couleurs de sommets. Tous ces modèles partagent un seul matériau, `MATERIALS.vertexColored`.
+- **Pièces à part** : seules les pièces animées (ventilateur, membres du technicien) ou à matériau particulier (écran, voyant, bande de danger) sont des maillages séparés.
+- **Couleurs lumineuses** : LEDs, anneaux, panneaux d'alerte et heatmap échappent au tone mapping (`toneMapped: false`) pour garder des couleurs d'état franches.
+- **Textures** : générées par le code (`textures.ts`) en `DataTexture`, sans aucun fichier image, donc testables sans navigateur.
+- **Murs en coupe** : les murs côté caméra s'abaissent, ceux du fond montent et portent les détails (chemin de câbles, appliques).
 
 ## Conventions
 

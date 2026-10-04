@@ -39,7 +39,7 @@ export class Heatmap {
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(w, h),
-      new THREE.MeshBasicMaterial({ map: this.texture, transparent: true, opacity: 0.85, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ map: this.texture, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false }),
     );
     this.mesh.rotation.x = -Math.PI / 2;
     this.mesh.position.set(w / 2, 0.02, h / 2);

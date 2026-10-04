@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import { CRAC } from '../../../sim/balance';
 import type { BuildingKind } from '../../../sim/entities';
 import { once } from '../cache';
-import { BUILDING_SIZE } from '../dimensions';
 import { MATERIALS } from '../materials';
 import { PALETTE } from '../palette';
+import { cracStaticGeometry } from '../props/crac';
+import { pduStaticGeometry } from '../props/pdu';
+import { rackBodyGeometry } from '../props/rack';
 import { createRangeRing } from './rings';
 
 export type GhostKind = BuildingKind | 'demolish';
@@ -18,31 +20,29 @@ export interface BuildGhost {
   set(kind: GhostKind, valid: boolean): void;
 }
 
-const unitBox = once(() => new THREE.BoxGeometry(1, 1, 1));
+const demolishBox = once(() => new THREE.BoxGeometry(1, 2, 1).translate(0, 1, 0));
 
+/** Fantôme de construction : la vraie silhouette du modèle, teintée et translucide. */
 export function createBuildGhost(): BuildGhost {
   const material = MATERIALS.ghost();
-  const box = new THREE.Mesh(unitBox(), material);
+  const shapes: Record<GhostKind, THREE.Mesh> = {
+    rack: new THREE.Mesh(rackBodyGeometry(), material),
+    crac: new THREE.Mesh(cracStaticGeometry(), material),
+    pdu: new THREE.Mesh(pduStaticGeometry(), material),
+    demolish: new THREE.Mesh(demolishBox(), material),
+  };
   const ring = createRangeRing(CRAC.radius, 'strong');
   const root = new THREE.Group();
-  root.add(box, ring);
+  root.add(...Object.values(shapes), ring);
   root.visible = false;
 
   return {
     root,
     set(kind, valid) {
-      if (kind === 'demolish') {
-        box.scale.set(1, 2, 1);
-        box.position.y = 1;
-        material.color.set(valid ? PALETTE.ghostBad : PALETTE.ghostNeutral);
-        ring.visible = false;
-        return;
-      }
-      const [sx, sy, sz] = BUILDING_SIZE[kind];
-      box.scale.set(sx, sy, sz);
-      box.position.y = sy / 2;
-      material.color.set(valid ? PALETTE.ghostOk : PALETTE.ghostBad);
+      for (const [k, mesh] of Object.entries(shapes)) mesh.visible = k === kind;
       ring.visible = kind === 'crac';
+      if (kind === 'demolish') material.color.set(valid ? PALETTE.ghostBad : PALETTE.ghostNeutral);
+      else material.color.set(valid ? PALETTE.ghostOk : PALETTE.ghostBad);
     },
   };
 }

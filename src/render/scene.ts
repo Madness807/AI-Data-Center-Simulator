@@ -125,6 +125,7 @@ const LED_OFF = new THREE.Color(PALETTE.status.shedOff);
 const LED_DEAD = new THREE.Color(PALETTE.status.dead);
 const MARK_FAILED = new THREE.Color(PALETTE.status.failed);
 const MARK_REPAIR = new THREE.Color(PALETTE.status.repairing);
+const UP = new THREE.Vector3(0, 1, 0);
 
 /** Modèle d'un bâtiment non instancié, avec ce qui permet de savoir s'il est encore à jour. */
 interface PlacedModel {
@@ -150,12 +151,17 @@ export class SceneView {
   private readonly pings: Ping[] = [];
   private readonly tmpMatrix = new THREE.Matrix4();
   private readonly tmpVec = new THREE.Vector3();
+  private readonly tmpColor = new THREE.Color();
+  private readonly tmpQuat = new THREE.Quaternion();
+  private readonly tmpScale = new THREE.Vector3();
 
   constructor(container: HTMLElement, w: number, h: number) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
     container.appendChild(this.renderer.domElement);
 
     this.scene.background = new THREE.Color(PALETTE.background);
@@ -280,15 +286,20 @@ export class SceneView {
       let color: THREE.Color;
       if (b.status !== 'ok') color = LED_DEAD;
       else if (!b.powered) color = blink ? LED_SHED : LED_OFF;
-      else if (isRackActive(b) && busyLeft-- > 0) color = LED_BUSY;
-      else color = LED_IDLE;
+      else if (isRackActive(b) && busyLeft-- > 0) {
+        // Un rack qui calcule scintille légèrement, chacun à son rythme.
+        color = this.tmpColor.copy(LED_BUSY).multiplyScalar(0.78 + 0.22 * Math.sin(realTime * 7 + b.id * 1.7));
+      } else color = LED_IDLE;
       led.setColorAt(n, color);
       n++;
 
       if (b.status !== 'ok') {
+        // Panneau tourné vers la caméra ; il palpite tant que le rack est en panne.
         const failed = b.status === 'failed';
-        this.tmpVec.y = 2.05 + Math.sin(realTime * 3 + b.id) * 0.08;
-        this.tmpMatrix.makeRotationY(failed ? 0 : realTime * 4).setPosition(this.tmpVec);
+        this.tmpVec.y = 2.05 + Math.sin(realTime * 3 + b.id) * 0.06;
+        this.tmpQuat.setFromAxisAngle(UP, this.rts.yaw);
+        this.tmpScale.setScalar(failed ? 1 + 0.1 * Math.sin(realTime * 6 + b.id) : 1);
+        this.tmpMatrix.compose(this.tmpVec, this.tmpQuat, this.tmpScale);
         markers.setMatrixAt(m, this.tmpMatrix);
         markers.setColorAt(m, failed ? MARK_FAILED : MARK_REPAIR);
         m++;

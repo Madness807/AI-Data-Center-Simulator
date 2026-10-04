@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { BUILD_COST } from '../src/sim/balance';
+import { BUILD_COST, ENTRANCE, GRID_H, GRID_W } from '../src/sim/balance';
 import type { BuildingKind } from '../src/sim/entities';
 import {
   BUILDING_SIZE,
@@ -8,9 +8,11 @@ import {
   createBuildingModel,
   createRackInstances,
   createTechnician,
+  PALETTE,
   PROP_MODELS,
   type AssetModel,
 } from '../src/render/assets';
+import { FLOOR_TEXELS, floorPixels, isPerforatedTile } from '../src/render/assets/textures';
 import { rackBodyGeometry, rackLedGeometry } from '../src/render/assets/props/rack';
 
 /** Tous les types de bâtiment du jeu, lus depuis l'équilibrage (source de vérité). */
@@ -105,5 +107,39 @@ describe('assets', () => {
         expect(m.material).toBe(mb[i].material);
       });
     }
+  });
+});
+
+describe('textures générées', () => {
+  it('le sol a une dalle par case, des joints plus sombres et quelques dalles perforées', () => {
+    const w = 6;
+    const h = 4;
+    const T = FLOOR_TEXELS;
+    const p = floorPixels(w, h);
+    expect([p.width, p.height]).toEqual([w * T, h * T]);
+    const lum = (x: number, y: number) => {
+      const o = (y * p.width + x) * 4;
+      return p.data[o] + p.data[o + 1] + p.data[o + 2];
+    };
+    // Case (2, 1) : au centre de la dalle vs sur son joint.
+    const row = (h - 1 - 1) * T;
+    expect(lum(2 * T, row + T / 2)).toBeLessThan(lum(2 * T + T / 2, row + T / 2));
+    let perforated = 0;
+    for (let y = 0; y < 30; y++) for (let x = 0; x < 30; x++) if (isPerforatedTile(x, y)) perforated++;
+    expect(perforated).toBeGreaterThan(30);
+    expect(perforated).toBeLessThan(250);
+  });
+
+  it('l’entrée est hachurée aux deux couleurs de sécurité', () => {
+    const [ex, ey] = ENTRANCE[0];
+    const p = floorPixels(GRID_W, GRID_H);
+    const T = FLOOR_TEXELS;
+    const seen = new Set<string>();
+    for (let v = 8; v < T - 8; v++) {
+      const o = (((GRID_H - 1 - ey) * T + v) * p.width + ex * T + T / 2) * 4;
+      seen.add(`${p.data[o]},${p.data[o + 1]},${p.data[o + 2]}`);
+    }
+    const hex = (c: number) => `${(c >> 16) & 255},${(c >> 8) & 255},${c & 255}`;
+    expect(seen).toEqual(new Set([hex(PALETTE.hazardA), hex(PALETTE.hazardB)]));
   });
 });
