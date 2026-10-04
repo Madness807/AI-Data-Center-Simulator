@@ -1,6 +1,8 @@
 import { FAILURE } from '../balance';
 import { isRackActive, type Building } from '../entities';
-import { researchReserve } from '../progression';
+import { modifiers, researchReserve } from '../progression';
+import { rackRiskPerMinute } from './failures';
+import { PREDICTIVE } from '../balance';
 import { upsAutonomy } from './power';
 import { rackTemp } from '../climate';
 import { notify, type GameState } from '../state';
@@ -34,6 +36,26 @@ export function updateAlerts(s: GameState): void {
   cash(s);
   unattended(s);
   upsLow(s);
+  predictive(s);
+}
+
+/** Maintenance prédictive (recherche) : un rack dont le risque dépasse le seuil est signalé avant la casse. */
+function predictive(s: GameState): void {
+  if (!modifiers(s).predictive) return;
+  const known = new Set(s.alerts.wornRacks);
+  const next: number[] = [];
+  for (const b of s.buildings) {
+    if (!isRackActive(b)) continue;
+    const risk = rackRiskPerMinute(s, b);
+    // Réarmement sous la moitié du seuil (après un entretien, typiquement).
+    if (known.has(b.id) ? risk >= PREDICTIVE.warnPerMin / 2 : risk >= PREDICTIVE.warnPerMin) {
+      next.push(b.id);
+      if (!known.has(b.id)) {
+        notify(s, 'warning', `Rack ${b.x},${b.y} : panne probable (${Math.round(risk * 100)} %/min, usure ${Math.round(b.wear ?? 0)} %) — entretien conseillé`, { cell: b, code: 'wearRisk' });
+      }
+    }
+  }
+  s.alerts.wornRacks = next;
 }
 
 /** Pendant une coupure, quand les batteries tiennent encore moins de 20 s sans groupe pour les relayer. */

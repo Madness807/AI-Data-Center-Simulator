@@ -33,6 +33,10 @@ export interface ResearchEffect {
   retrofit?: true;
   checkpoints?: true;
   optical?: true;
+  autoMaintain?: true;
+  spareParts?: true;
+  specialties?: true;
+  predictive?: true;
   /** Équipements qui deviennent constructibles. */
   unlocks?: BuildingKind[];
 }
@@ -228,6 +232,46 @@ export const RESEARCH: readonly ResearchNode[] = [
     cost: 300,
     requires: [],
     effect: { autoRepair: true },
+  },
+  {
+    id: 'planned-maintenance',
+    branch: 'ops',
+    level: 2,
+    name: 'Maintenance planifiée',
+    description: 'Les techniciens libres entretiennent d’eux-mêmes les racks usés à plus de 50 %.',
+    cost: 900,
+    requires: ['auto-repair'],
+    effect: { autoMaintain: true },
+  },
+  {
+    id: 'spare-parts',
+    branch: 'ops',
+    level: 2,
+    name: 'Stock de pièces',
+    description: 'Des pièces d’avance : une réparation coûte 250 $ au lieu de 400 et dure 5 s au lieu de 8.',
+    cost: 600,
+    requires: [],
+    effect: { spareParts: true },
+  },
+  {
+    id: 'specialties',
+    branch: 'ops',
+    level: 3,
+    name: 'Spécialités',
+    description: 'Embauchez des électriciens, frigoristes et informaticiens : deux fois plus rapides dans leur domaine.',
+    cost: 1200,
+    requires: [],
+    effect: { specialties: true },
+  },
+  {
+    id: 'predictive',
+    branch: 'ops',
+    level: 4,
+    name: 'Maintenance prédictive',
+    description: 'Les capteurs annoncent les pannes : alerte avant la casse, et 30 % de pannes en moins.',
+    cost: 2000,
+    requires: ['planned-maintenance'],
+    effect: { predictive: true },
   },
   {
     id: 'fast-techs',

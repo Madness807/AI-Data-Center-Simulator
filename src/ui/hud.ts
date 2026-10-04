@@ -1,5 +1,5 @@
 import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, PDU, REPAIR, TECH, UPS } from '../sim/balance';
-import type { Gen } from '../sim/entities';
+import type { Gen, Specialty } from '../sim/entities';
 import type { Cell } from '../sim/entities';
 import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
@@ -73,6 +73,11 @@ export interface HudActions {
   rotateBuilding: (id: number) => void;
   /** Carrière : modernise un rack, confié au technicien le plus proche. */
   upgradeBuilding: (id: number) => void;
+  /** Carrière : entretien d'un rack, confié au technicien le plus proche. */
+  maintainBuilding: (id: number) => void;
+  /** Carrière : embauche d'un spécialiste ; réglage de la maintenance planifiée. */
+  hireSpecialist: (specialty: Specialty) => void;
+  setAutoMaintain: (on: boolean) => void;
 }
 
 /** État d'interface (hors simulation) transmis à chaque image. */
@@ -162,7 +167,13 @@ export class Hud {
       dashboard: (tab) => this.togglePanel('dashboard', tab),
       team: () => this.togglePanel('team'),
     });
-    this.team = new TeamPanel({ select: actions.selectTechs, hire: actions.hire, setAutoRepair: actions.setAutoRepair });
+    this.team = new TeamPanel({
+      select: actions.selectTechs,
+      hire: actions.hire,
+      hireSpecialist: actions.hireSpecialist,
+      setAutoRepair: actions.setAutoRepair,
+      setAutoMaintain: actions.setAutoMaintain,
+    });
     this.research = new ResearchPanel({ setShare: actions.setResearchShare, start: actions.startResearch });
     this.tier = new TierScreen(() => {
       this.tierOpen = false;
@@ -208,6 +219,7 @@ export class Hud {
       close: actions.closeInspector,
       rotate: actions.rotateBuilding,
       upgrade: actions.upgradeBuilding,
+      maintain: actions.maintainBuilding,
     });
     this.overlay = region('overlay', this.title.root, this.tier.root, this.victory.root, this.defeat.root);
     this.overlay.classList.add('interactive');

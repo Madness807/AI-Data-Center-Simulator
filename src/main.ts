@@ -236,6 +236,17 @@ const sendTechnician = (id: number) => {
 const demolishAt = (cell: { x: number; y: number }) => enqueue({ type: 'demolish', ...cell });
 const closeInspector = () => (selection.inspected = null);
 const rotateBuilding = (id: number) => enqueue({ type: 'rotate', id });
+/** Entretien : le technicien le plus proche (de préférence libre) part remettre le rack à neuf. */
+const maintainBuilding = (id: number) => {
+  const b = state.buildings.find((o) => o.id === id);
+  if (!b || !state.techs.length) return;
+  const idle = state.techs.filter((t) => t.tasks.length === 0);
+  const pool = idle.length ? idle : state.techs;
+  const dist = (t: { x: number; y: number }) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
+  const tech = pool.reduce((best, t) => (dist(t) < dist(best) ? t : best));
+  enqueue({ type: 'order', techs: [tech.id], task: { type: 'maintain', target: id }, append: idle.length === 0 });
+  view.ping(b, 'maintain');
+};
 /** Modernisation : le rack repasse en chantier, confié au technicien le plus proche (de préférence libre). */
 const upgradeBuilding = (id: number) => {
   const b = state.buildings.find((o) => o.id === id);
@@ -279,6 +290,9 @@ const hud = new Hud(
     closeInspector,
     rotateBuilding,
     upgradeBuilding,
+    maintainBuilding,
+    hireSpecialist: (specialty) => enqueue({ type: 'hire', specialty }),
+    setAutoMaintain: (on) => enqueue({ type: 'setPolicy', autoMaintain: on }),
     reportBug: () =>
       copyText(report()).then(
         () => true,

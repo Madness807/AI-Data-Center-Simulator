@@ -111,6 +111,9 @@ export class SelectionController {
       task = { type: 'build', target: building.id };
     } else if (building?.status === 'failed' || building?.status === 'repairing') {
       task = { type: 'repair', target: building.id };
+    } else if (building?.kind === 'rack' && building.status === 'ok' && (building.wear ?? 0) >= 1) {
+      // Carrière : un rack usé en service, c'est un entretien.
+      task = { type: 'maintain', target: building.id };
     } else if (building) {
       task = { type: 'move', x: building.x, y: building.y };
     } else if (cell) {

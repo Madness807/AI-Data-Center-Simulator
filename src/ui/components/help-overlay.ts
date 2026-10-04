@@ -15,7 +15,7 @@ const SECTIONS: { title: string; lines: [string, string[]][] }[] = [
     lines: [
       ['Sélectionner', ['Clic', 'Glisser']],
       ['Ajouter à la sélection', ['Maj']],
-      ['Déplacer, construire, réparer', ['Clic droit']],
+      ['Déplacer, construire, réparer, entretenir', ['Clic droit']],
       ['Mettre l’ordre en file', ['Maj', 'Clic droit']],
       ['Embaucher', ['T']],
     ],

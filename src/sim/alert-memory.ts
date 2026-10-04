@@ -15,8 +15,10 @@ export interface AlertMemory {
   unattended: { id: number; since: number; notified: boolean }[];
   /** Batteries des onduleurs signalées basses pendant la coupure en cours. */
   upsLow: boolean;
+  /** Maintenance prédictive : racks déjà signalés à risque. */
+  wornRacks: number[];
 }
 
 export function emptyAlerts(): AlertMemory {
-  return { hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [], upsLow: false };
+  return { hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [], upsLow: false, wornRacks: [] };
 }

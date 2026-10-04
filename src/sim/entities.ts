@@ -35,12 +35,19 @@ export interface Building {
   facing?: Facing;
   /** Rack : génération de GPU (absente = 1). */
   gen?: Gen;
+  /** Rack (carrière) : usure de 0 à 100 ; elle augmente le risque de panne, l'entretien la remet à zéro. */
+  wear?: number;
 }
 
 export type TechTask =
   | { type: 'move'; x: number; y: number }
   | { type: 'build'; target: number }
-  | { type: 'repair'; target: number };
+  | { type: 'repair'; target: number }
+  /** Entretien d'un rack en service : remet son usure à zéro ; `left` : secondes restantes une fois commencé. */
+  | { type: 'maintain'; target: number; left?: number };
+
+/** Spécialité d'un technicien (recherche) : il travaille deux fois plus vite dans son domaine. */
+export type Specialty = 'electrician' | 'hvac' | 'it';
 
 export interface Technician {
   id: number;
@@ -56,6 +63,8 @@ export interface Technician {
   path: Cell[] | null;
   /** Vrai si le technicien a travaillé (construit/réparé) au dernier tick. */
   working: boolean;
+  /** Spécialité, absente pour un polyvalent. */
+  specialty?: Specialty;
 }
 
 export type JobStatus = 'offer' | 'active';

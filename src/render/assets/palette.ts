@@ -118,5 +118,5 @@ export const PALETTE = {
     repairing: 0xffa23b,
   },
 
-  ping: { move: 0x3dffa0, build: 0xffc83d, repair: 0xffa23b, focus: 0x4fd1ff },
+  ping: { move: 0x3dffa0, build: 0xffc83d, repair: 0xffa23b, maintain: 0x5ef2c6, focus: 0x4fd1ff },
 } as const;

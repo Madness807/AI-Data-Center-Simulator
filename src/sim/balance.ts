@@ -33,6 +33,21 @@ export function rackSpec(b: Pick<Building, 'gen'>): (typeof GPU)[Gen] {
   return GPU[b.gen ?? 1];
 }
 
+/**
+ * Usure (carrière, à partir du palier minTier) : un rack en service s'use (deux fois plus vite
+ * quand il aspire de l'air chaud) ; à 100 % d'usure, son taux de panne est triplé. L'âge
+ * l'augmente aussi lentement (+60 % par heure de service).
+ */
+export const WEAR = { minTier: 1, perS: 100 / 1500, hotC: 32, hotMult: 2, failureMult: 2, agePerHour: 0.6 };
+/** Entretien : court et peu cher ; la maintenance planifiée s'en charge au-delà de autoAbove. */
+export const MAINTENANCE = { cost: 100, seconds: 4, autoAbove: 50 };
+/** Stock de pièces (recherche) : réparations moins chères et plus courtes. */
+export const SPARE_PARTS = { cost: 250, seconds: 5 };
+/** Un spécialiste va deux fois plus vite dans son domaine. */
+export const SPECIALTY = { speed: 2 };
+/** Maintenance prédictive (recherche) : pannes −30 %, alerte au-delà de 5 % de risque par minute. */
+export const PREDICTIVE = { failureMult: 0.7, warnPerMin: 0.05 };
+
 /** Moderniser un rack coûte la différence de prix, majorée. */
 export const RETROFIT = { surcharge: 1.2 };
 

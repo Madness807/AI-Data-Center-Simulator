@@ -40,10 +40,15 @@ Lots suivants de la feuille de route v1.0, en cours.
   - **contrats d'entraînement** à partir du Labo d'IA : un bloc de 3 à 8 racks **côte à côte**, dédié au contrat ; une panne dans le bloc fait reculer la progression de 25 % (5 % avec les **points de contrôle**) ; l'**interconnexion optique** laisse un bloc enjamber une allée ;
   - **contrats avec SLA** : mieux payés, pénalisés si le débit promis manque plus de 1 % du temps ;
   - cartes de contrat : bloc demandé et plus grand bloc libre ; calque activité : racks en entraînement.
+- **Personnel et maintenance** (carrière, à partir de Scale-up) :
+  - **usure** : un rack en service s'use (deux fois plus vite à chaud) ; à 100 %, son risque de panne est triplé ; l'âge l'augmente aussi lentement ;
+  - **entretien** : clic droit sur un rack usé (ou bouton de l'inspecteur), 100 $ et 4 s, le rack continue de tourner ;
+  - recherche : **maintenance planifiée** (entretien automatique au-delà de 50 % d'usure, réglable), **stock de pièces** (réparation à 250 $ en 5 s), **spécialités** (électricien, frigoriste, informaticien : deux fois plus rapides dans leur domaine), **maintenance prédictive** (pannes −30 %, alerte avant la casse) ;
+  - panneau Équipe : spécialité de chacun, embauche par métier, réglages automatiques ; calque risque et tableau de bord tiennent compte de l'usure.
 
 ### Modifié
 
-- Sauvegarde au format 6. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
+- Sauvegarde au format 7. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
 
 ## [0.10.0-beta] — 2026-10-04
 

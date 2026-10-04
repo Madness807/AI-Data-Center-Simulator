@@ -1,5 +1,5 @@
 import { BUILD_TIME, buildCost, DEMOLISH_REFUND, GPU, RETROFIT, TECH } from './balance';
-import type { BuildingKind, Facing, Gen, TechTask } from './entities';
+import type { BuildingKind, Facing, Gen, Specialty, TechTask } from './entities';
 import { MAX_RESEARCH_SHARE } from './career';
 import { keepsAccess } from './pathfinding';
 import { isUnlocked, modifiers, researchBlocker, unlockedBy } from './progression';
@@ -16,7 +16,8 @@ export type Command =
   | { type: 'rotate'; id: number }
   | { type: 'demolish'; x: number; y: number }
   | { type: 'order'; techs: number[]; task: TechTask; append: boolean }
-  | { type: 'hire' }
+  /** `specialty` (recherche Spécialités) : électricien, frigoriste ou informaticien. */
+  | { type: 'hire'; specialty?: Specialty }
   /** Tutoriel uniquement : met en panne un rack en service, pour apprendre à réparer. */
   | { type: 'forceFailure'; id: number }
   | { type: 'acceptJob'; id: number }
@@ -25,7 +26,7 @@ export type Command =
   /** Carrière : part du calcul consacrée à la R&D, nœud à étudier (null : aucun). */
   | { type: 'setResearchShare'; share: number }
   | { type: 'startResearch'; id: string | null }
-  | { type: 'setPolicy'; autoRepair: boolean };
+  | { type: 'setPolicy'; autoRepair?: boolean; autoMaintain?: boolean };
 
 /** Raison du refus, ou null si la construction est possible. */
 export function canBuild(s: GameState, kind: BuildingKind, x: number, y: number, gen: Gen = 1): string | null {
@@ -86,9 +87,11 @@ export function processCommands(s: GameState): void {
       case 'hire':
         if (s.techs.length >= TECH.max) notify(s, 'error', `Équipe complète (${TECH.max} max)`, { code: 'refused' });
         else if (s.money < TECH.hireCost) notify(s, 'error', 'Fonds insuffisants pour embaucher', { code: 'refused' });
+        else if (c.specialty && !modifiers(s).specialties) notify(s, 'error', 'Recherche requise : Spécialités', { code: 'refused' });
         else {
           spend(s, 'hiring', TECH.hireCost);
-          addTech(s);
+          const t = addTech(s);
+          if (c.specialty) t.specialty = c.specialty;
         }
         break;
       case 'forceFailure': {
@@ -150,7 +153,8 @@ export function processCommands(s: GameState): void {
         break;
       }
       case 'setPolicy':
-        s.policies.autoRepair = c.autoRepair;
+        if (c.autoRepair !== undefined) s.policies.autoRepair = c.autoRepair;
+        if (c.autoMaintain !== undefined) s.policies.autoMaintain = c.autoMaintain;
         break;
     }
   }

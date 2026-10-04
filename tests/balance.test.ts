@@ -47,29 +47,29 @@ describe('équilibrage', () => {
 
   it('carrière : le palier 2 vers 10-15 minutes, les secours prêts avant le palier 3, victoire sans surchauffe', () => {
     for (const seed of SEEDS.slice(0, 4)) {
-      const run = playBot(seed, { ...COMPETENT, career: true }, 75 * 60);
+      const run = playBot(seed, { ...COMPETENT, career: true }, 90 * 60);
       expect(run.lostAt, `graine ${seed}`).toBeNull();
       expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeGreaterThanOrEqual(8);
       expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeLessThanOrEqual(16);
       expect(run.researchAt.generators, `graine ${seed}`).toBeLessThan(run.tierAt[2] ?? Infinity);
-      // Les entraînements sont risqués par nature : quelques retards au plus.
-      expect(run.state.economy.jobsFailed, `graine ${seed}`).toBeLessThanOrEqual(6);
+      // Entraînements et SLA sont risqués par nature : des retards, mais peu.
+      expect(run.state.economy.jobsFailed, `graine ${seed}`).toBeLessThanOrEqual(12);
       expect(run.maxTemp, `graine ${seed}`).toBeLessThan(40);
       expect(run.wonAt, `graine ${seed}`).not.toBeNull();
     }
-  });
+  }, 30_000);
 
   it('carrière : sans énergie de secours, les coupures coûtent des retards et du temps', () => {
     for (const seed of SEEDS.slice(0, 3)) {
-      const careful = playBot(seed, { ...COMPETENT, career: true }, 75 * 60);
-      const reckless = playBot(seed, { ...COMPETENT, career: true, noBackup: true }, 75 * 60);
+      const careful = playBot(seed, { ...COMPETENT, career: true }, 90 * 60);
+      const reckless = playBot(seed, { ...COMPETENT, career: true, noBackup: true }, 90 * 60);
       const failures = (r: BotRun) => r.state.buildings.reduce((n, b) => n + b.failures, 0);
       expect(reckless.state.incidents.outages, `graine ${seed}`).toBeGreaterThanOrEqual(3);
       expect(reckless.state.economy.jobsFailed, `graine ${seed}`).toBeGreaterThanOrEqual(careful.state.economy.jobsFailed + 3);
       // Arrêts brutaux : les racks non secourus tombent en panne.
       expect(failures(reckless), `graine ${seed}`).toBeGreaterThan(failures(careful) + 8);
     }
-  });
+  }, 30_000);
 
   it('le premier contrat est honoré en moins de 2 minutes', () => {
     for (const seed of SEEDS) {

@@ -6,7 +6,7 @@ import type { Building, Job, Technician } from './sim/entities';
 import type { GameState, Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 6;
+export const SAVE_FORMAT = 7;
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export const SAVE_SLOTS: readonly SaveSlot[] = ['auto', 1, 2, 3];
@@ -69,12 +69,14 @@ function checkBuilding(b: unknown, w: number, h: number): asserts b is Building 
   need(b.warmup === undefined || isNum(b.warmup), 'état de groupe électrogène invalide');
   need(b.facing === undefined || [0, 1, 2, 3].includes(b.facing as number), 'orientation invalide');
   need(b.gen === undefined || [1, 2, 3].includes(b.gen as number), 'génération de GPU invalide');
+  need(b.wear === undefined || isNum(b.wear), 'usure invalide');
 }
 
 function checkTech(t: unknown): asserts t is Technician {
   need(isObject(t) && isInt(t.id) && isNum(t.x) && isNum(t.y) && isNum(t.prevX) && isNum(t.prevY), 'technicien illisible');
   need(Array.isArray(t.tasks) && typeof t.working === 'boolean', 'technicien incomplet');
   need(t.path === null || Array.isArray(t.path), 'chemin de technicien invalide');
+  need(t.specialty === undefined || ['electrician', 'hvac', 'it'].includes(t.specialty as string), 'spécialité inconnue');
 }
 
 function checkJob(j: unknown): asserts j is Job {
@@ -126,6 +128,12 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
   },
   // 5 → 6 (lot 5) : générations de GPU, contrats d'entraînement et avec SLA (champs facultatifs).
   5: () => {},
+  // 6 → 7 (lot 6) : usure, entretien, spécialités, maintenance planifiée.
+  6: (state) => {
+    if (isObject(state.rules)) state.rules.wear = state.mode === 'career';
+    if (isObject(state.policies)) state.policies.autoMaintain = true;
+    if (isObject(state.alerts)) state.alerts.wornRacks = [];
+  },
 };
 
 function migrate(file: RawState): void {
@@ -164,10 +172,10 @@ function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'even
   const r = s.research;
   need(isObject(r) && isNum(r.share) && (r.current === null || typeof r.current === 'string'), 'recherche illisible');
   need(Array.isArray(r.done) && r.done.every((d) => typeof d === 'string') && isObject(r.progress) && isNum(r.ratePerS), 'recherche incomplète');
-  need(isObject(s.policies) && typeof s.policies.autoRepair === 'boolean', 'réglages illisibles');
+  need(isObject(s.policies) && typeof s.policies.autoRepair === 'boolean' && typeof s.policies.autoMaintain === 'boolean', 'réglages illisibles');
   const inc = s.incidents;
   need(isObject(inc) && (inc.outageEndsAt === null || isNum(inc.outageEndsAt)) && (inc.nextOutageAt === null || isNum(inc.nextOutageAt)) && isInt(inc.outages), 'incidents illisibles');
-  need(typeof s.rules.incidents === 'boolean' && typeof s.rules.aisles === 'boolean' && typeof s.rules.weather === 'boolean', 'règles incomplètes');
+  need(typeof s.rules.incidents === 'boolean' && typeof s.rules.aisles === 'boolean' && typeof s.rules.weather === 'boolean' && typeof s.rules.wear === 'boolean', 'règles incomplètes');
   need((inc.heatwaveEndsAt === null || isNum(inc.heatwaveEndsAt)) && (inc.nextHeatwaveAt === null || isNum(inc.nextHeatwaveAt)), 'canicules illisibles');
   need(isObject(s.cooling) && isNum(s.cooling.liquidKW) && isNum(s.cooling.cracFactor), 'refroidissement illisible');
 }

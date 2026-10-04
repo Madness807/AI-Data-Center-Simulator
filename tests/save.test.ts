@@ -78,7 +78,7 @@ describe('sauvegarde', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.file.format).toBe(SAVE_FORMAT);
-    expect(r.state.alerts).toEqual({ hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [], upsLow: false });
+    expect(r.state.alerts).toEqual({ hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [], upsLow: false, wornRacks: [] });
     expect(r.state.economy.failures).toBe(s.buildings.reduce((n, b) => n + b.failures, 0));
     expect(r.state.economy.rackSecondsActive).toBe(0);
     runSeconds(r.state, 60);

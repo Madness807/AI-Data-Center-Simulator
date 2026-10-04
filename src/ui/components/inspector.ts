@@ -1,5 +1,7 @@
 import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, rackSpec, REPAIR, UPS } from '../../sim/balance';
 import { upgradeBlocker, upgradeCost } from '../../sim/commands';
+import { MAINTENANCE } from '../../sim/balance';
+import { rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
 import { isRackActive, type Building, type BuildingKind, type Cell, type Technician } from '../../sim/entities';
 import { modifiers } from '../../sim/progression';
@@ -25,6 +27,8 @@ export interface InspectorActions {
   rotate: (buildingId: number) => void;
   /** Carrière : modernise un rack (génération suivante), confié au technicien le plus proche. */
   upgrade: (buildingId: number) => void;
+  /** Carrière : entretien d'un rack usé, confié au technicien le plus proche. */
+  maintain: (buildingId: number) => void;
 }
 
 type Tone = '' | 'ok' | 'warn' | 'danger';
@@ -110,6 +114,7 @@ export class Inspector {
   private readonly gridLoad = new Gauge('Charge du réseau', 'power');
   private readonly battery = new Gauge('Charge de la batterie', 'ups');
   private readonly liquidLoad = new Gauge('Chaleur captée', 'cdu');
+  private readonly wearGauge = new Gauge('Usure', 'repair');
 
   private readonly risk = new Row('Risque de panne', 'alert');
   private readonly intake = new Row('Air aspiré', 'temperature');
@@ -133,6 +138,7 @@ export class Inspector {
   private readonly sendButton = el('button', 'btn btn-primary');
   private readonly rotateButton = el('button', 'btn btn-icon', icon('rotate', 15));
   private readonly upgradeButton = el('button', 'btn insp-upgrade');
+  private readonly maintainButton = el('button', 'btn');
   private readonly demolishButton = el('button', 'btn btn-ghost insp-demolish');
   /** Vignettes par type d'équipement, et par génération pour les racks (rack2, rack3). */
   private readonly thumbnails: Partial<Record<string, string>> = {};
@@ -159,6 +165,9 @@ export class Inspector {
     this.rotateButton.title = 'Pivoter d’un quart de tour (F)';
     this.rotateButton.onclick = () => this.current && actions.rotate(this.current.id);
     this.upgradeButton.onclick = () => this.current && actions.upgrade(this.current.id);
+    this.maintainButton.replaceChildren(icon('repair', 14), `Entretien · ${money(MAINTENANCE.cost)}`);
+    this.maintainButton.title = 'Remet l’usure à zéro ; le rack continue de tourner (clic droit avec un technicien sélectionné)';
+    this.maintainButton.onclick = () => this.current && actions.maintain(this.current.id);
     this.demolishButton.onclick = () => {
       if (!this.current) return;
       if (performance.now() < this.confirmUntil) {
@@ -176,6 +185,7 @@ export class Inspector {
       this.gridLoad.root,
       this.battery.root,
       this.liquidLoad.root,
+      this.wearGauge.root,
       this.tempBlock,
       el(
         'div',
@@ -201,7 +211,7 @@ export class Inspector {
         ].map((r) => r.root),
       ),
       this.hint,
-      el('div', 'insp-actions', this.sendButton, this.upgradeButton, this.rotateButton, focus, this.demolishButton),
+      el('div', 'insp-actions', this.sendButton, this.maintainButton, this.upgradeButton, this.rotateButton, focus, this.demolishButton),
     );
     this.root.hidden = true;
   }
@@ -313,7 +323,16 @@ export class Inspector {
     const running = isRackActive(b);
     // En carrière, le risque se lit sur l'air aspiré (devant le rack), pas sur sa case.
     const intakeTemp = rackTemp(s, b);
-    const risk = failureRiskPerMinute(intakeTemp);
+    // Risque réel : air aspiré, puis usure et âge (carrière).
+    const risk = b.status === 'ok' ? rackRiskPerMinute(s, b) : failureRiskPerMinute(intakeTemp);
+    const worn = wearActive(s);
+    this.wearGauge.show(worn);
+    if (worn) {
+      const w = b.wear ?? 0;
+      this.wearGauge.set(w / 100, `${Math.round(w)} %`, w >= 70 ? 'danger' : w >= MAINTENANCE.autoAbove ? 'warn' : 'ok');
+    }
+    const servicing = s.techs.some((t) => t.tasks.some((k) => k.type === 'maintain' && k.target === b.id));
+    setHidden(this.maintainButton, !(worn && b.status === 'ok' && (b.wear ?? 0) >= 10 && !servicing));
     if (s.rules.aisles) {
       const own = idx(s, b.x, b.y);
       this.intake.set(`${celsius(intakeTemp)} · ${intakeIndex(s, b) === own ? 'sur sa case (avant bouché)' : 'devant'}`, intakeTemp >= FAILURE.thresholdC ? 'danger' : intakeTemp >= FAILURE.thresholdC - 3 ? 'warn' : '');
@@ -346,6 +365,7 @@ export class Inspector {
     // Une astuce quand la situation appelle une décision.
     const cduNear = s.buildings.some((c) => c.kind === 'cdu' && c.status === 'ok' && (c.x - b.x) ** 2 + (c.y - b.y) ** 2 <= CDU.radius ** 2);
     if ((b.gen ?? 1) === 3 && !cduNear) return `Un rack G3 dégage ${GPU[3].heatKW} kW : sans CDU à ${CDU.radius} cases, il surchauffe.`;
+    if (worn && (b.wear ?? 0) >= 70 && b.status === 'ok') return `Usure ${Math.round(b.wear ?? 0)} % : le risque de panne est ${(1 + ((b.wear ?? 0) / 100) * 2).toFixed(1).replace('.', ',')} fois plus élevé. Un entretien le remet à neuf.`;
     if (breathesExhaust(s, b)) return 'Ce rack aspire l’air chaud qu’un autre souffle : pivotez-le (F) pour former des allées chaude et froide, dos à dos.';
     if (!coolers.length && temp >= FAILURE.thresholdC) return `Au-delà de ${FAILURE.thresholdC} °C les pannes se multiplient : posez un CRAC à portée.`;
     if (b.status === 'ok' && !b.powered) return 'Capacité électrique insuffisante : ajoutez un PDU.';
@@ -354,6 +374,10 @@ export class Inspector {
   }
 
   private renderCrac(s: GameState, b: Building, on: boolean): string {
+    if (b.kind !== 'rack') {
+      this.wearGauge.show(false);
+      setHidden(this.maintainButton, true);
+    }
     this.zoneLoad.show(on);
     this.coverage.show(on);
     if (!on) return '';

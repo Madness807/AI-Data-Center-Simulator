@@ -4,7 +4,7 @@ import { OPERATING, type ExpenseKind } from '../../sim/ledger';
 import type { GameState } from '../../sim/state';
 import { availability, pue, tempStats } from '../../sim/stats';
 import { ALERTS } from '../../sim/systems/alerts';
-import { failureRiskPerMinute } from '../../sim/systems/failures';
+import { rackRiskPerMinute } from '../../sim/systems/failures';
 import { rackTemp } from '../../sim/climate';
 import { el, icon, setText } from '../dom';
 import { celsius, clock, decimal, money, moneyRate, percent, percentFine, plural, signedMoney } from '../format';
@@ -224,7 +224,7 @@ export class Dashboard {
     const racks = s.buildings.filter(isRackActive);
     const hot = racks.filter((b) => rackTemp(s, b) >= ALERTS.hotC).length;
     setKpi(this.thermal.hot, String(hot), `sur ${racks.length} ${plural(racks.length, 'rack')} en service`, hot ? 'warn' : '');
-    const risk = racks.reduce((m, b) => Math.max(m, failureRiskPerMinute(rackTemp(s, b))), 0);
+    const risk = racks.reduce((m, b) => Math.max(m, rackRiskPerMinute(s, b)), 0);
     setKpi(this.thermal.risk, `${percentFine(risk)} / min`, 'rack le plus exposé', risk >= 0.05 ? 'danger' : risk >= 0.02 ? 'warn' : '');
 
     this.tempChart.update(

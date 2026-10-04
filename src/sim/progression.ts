@@ -1,4 +1,4 @@
-import { CRAC, GENERATOR, PDU, TECH, UPS } from './balance';
+import { CRAC, GENERATOR, PDU, REPAIR, SPARE_PARTS, TECH, UPS } from './balance';
 import type { BuildingKind, Gen, Job } from './entities';
 import { RESEARCH, RESEARCH_POINTS_PER_CU, researchById } from './research';
 import { notify, type GameState } from './state';
@@ -27,6 +27,7 @@ export const TIERS: readonly Tier[] = [
       'Contrats jusqu’à 8 racks, payés 10 % de plus',
       'Recherche de niveau 2 : GPU G2, onduleurs, groupes électrogènes, confinement d’allée',
       'Attention : le réseau électrique peut désormais être coupé',
+      'Les racks s’usent : un entretien (clic droit sur un rack) évite bien des pannes',
     ],
   },
   {
@@ -97,6 +98,12 @@ export interface Modifiers {
   retrofit: boolean;
   checkpoints: boolean;
   optical: boolean;
+  autoMaintain: boolean;
+  specialties: boolean;
+  predictive: boolean;
+  /** Réparation : prix et durée (le stock de pièces les réduit). */
+  repairCost: number;
+  repairSeconds: number;
 }
 
 const BASE: Modifiers = {
@@ -117,6 +124,11 @@ const BASE: Modifiers = {
   retrofit: false,
   checkpoints: false,
   optical: false,
+  autoMaintain: false,
+  specialties: false,
+  predictive: false,
+  repairCost: REPAIR.cost,
+  repairSeconds: REPAIR.seconds,
 };
 
 const cache = new WeakMap<GameState, { key: string; value: Modifiers }>();
@@ -148,6 +160,13 @@ export function modifiers(s: GameState): Modifiers {
     if (e.retrofit) m.retrofit = true;
     if (e.checkpoints) m.checkpoints = true;
     if (e.optical) m.optical = true;
+    if (e.autoMaintain) m.autoMaintain = true;
+    if (e.specialties) m.specialties = true;
+    if (e.predictive) m.predictive = true;
+    if (e.spareParts) {
+      m.repairCost = SPARE_PARTS.cost;
+      m.repairSeconds = SPARE_PARTS.seconds;
+    }
   }
   cache.set(s, { key, value: m });
   return m;

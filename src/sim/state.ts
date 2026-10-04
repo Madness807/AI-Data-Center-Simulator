@@ -87,7 +87,9 @@ export type EventCode =
   | 'heatwave'
   | 'heatwaveEnd'
   | 'trainingBroken'
-  | 'slaBreach';
+  | 'slaBreach'
+  | 'maintained'
+  | 'wearRisk';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';

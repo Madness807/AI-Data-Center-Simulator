@@ -47,7 +47,7 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
 |---|---|
 | Déplacer la caméra / pivoter / zoomer | W A S D · Q E · molette |
 | Sélectionner des techniciens | clic, ou glisser un rectangle (Maj pour ajouter) |
-| Ordonner : aller, construire, réparer | clic droit (Maj + clic droit : mettre en file) |
+| Ordonner : aller, construire, réparer, entretenir un rack usé (carrière) | clic droit (Maj + clic droit : mettre en file) |
 | Construire un rack, un CRAC, un PDU | R, C, P, puis clic (glisser pour enchaîner) ; réappuyer passe à la variante suivante (en carrière : racks G2 et G3, CDU, onduleur, groupe électrogène) |
 | Pivoter un rack (carrière : avant = air aspiré, arrière = chaleur soufflée) | F |
 | Démolir | X |

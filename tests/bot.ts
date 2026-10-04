@@ -28,8 +28,9 @@ export interface BotProfile {
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
 const RESEARCH_ORDER = [
-  'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'containment', 'gpu-g2', 'opportunistic', 'retrofit',
-  'fast-techs', 'checkpoints', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3', 'switchover-2n', 'heat-reuse', 'optical',
+  'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'spare-parts', 'containment', 'planned-maintenance', 'gpu-g2',
+  'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3',
+  'specialties', 'switchover-2n', 'predictive', 'heat-reuse', 'optical',
 ];
 export const CAREER_RESEARCH_SHARE = 0.2;
 
@@ -132,6 +133,7 @@ class Bot {
   think(s: GameState): void {
     if (this.profile.career) this.research(s);
     this.repair(s);
+    if (this.profile.career) this.maintain(s);
     this.contracts(s);
     if (this.profile.career && !this.profile.noBackup && this.backup(s)) return;
     if (this.profile.career && this.retrofit(s)) return;
@@ -173,6 +175,17 @@ class Bot {
     if (!spot) return false;
     this.build(s, { kind, ...spot });
     return true;
+  }
+
+  /** Entretien manuel (avant la maintenance planifiée) : un rack usé à 60 % part chez un technicien libre. */
+  private maintain(s: GameState): void {
+    for (const b of s.buildings) {
+      if (b.kind !== 'rack' || b.status !== 'ok' || (b.wear ?? 0) < 60) continue;
+      if (s.techs.some((t) => t.tasks.some((k) => k.type === 'maintain' && k.target === b.id))) continue;
+      const idle = s.techs.find((t) => t.tasks.length === 0);
+      if (!idle) return;
+      s.commands.push({ type: 'order', techs: [idle.id], task: { type: 'maintain', target: b.id }, append: true });
+    }
   }
 
   private repair(s: GameState): void {

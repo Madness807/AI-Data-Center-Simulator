@@ -2,9 +2,9 @@ import { CRAC, OUTAGE, rackSpec } from '../sim/balance';
 import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
 import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
-import { failureRiskPerMinute } from '../sim/systems/failures';
+import { rackRiskPerMinute } from '../sim/systems/failures';
 import { inCoolingRange } from '../sim/systems/heat';
-import { hotAisleCells, liquidCapture, rackTemp } from '../sim/climate';
+import { hotAisleCells, liquidCapture } from '../sim/climate';
 import { plannedGeneratorKW, plannedUpsKW } from '../sim/systems/power';
 import { statusColor, type StatusName } from './assets/status-colors';
 
@@ -186,7 +186,7 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
   if (mode === 'risk') {
     for (const b of s.buildings) {
       if (b.kind !== 'rack') continue;
-      if (isRackActive(b)) put(cell(b), riskToRgb(failureRiskPerMinute(rackTemp(s, b))), 235);
+      if (isRackActive(b)) put(cell(b), riskToRgb(rackRiskPerMinute(s, b)), 235);
       else put(cell(b), status(b.status === 'failed' ? 'failed' : 'idle'), 120);
     }
     return;

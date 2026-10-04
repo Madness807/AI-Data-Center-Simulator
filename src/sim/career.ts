@@ -11,6 +11,8 @@ export interface Rules {
   aisles: boolean;
   /** Température extérieure qui agit sur les CRAC (selon le palier). */
   weather: boolean;
+  /** Usure et vieillissement des racks (selon le palier). */
+  wear: boolean;
 }
 
 export interface CareerState {
@@ -37,13 +39,15 @@ export interface ResearchState {
 export interface Policies {
   /** Les techniciens libres partent d'eux-mêmes réparer les pannes. */
   autoRepair: boolean;
+  /** Les techniciens libres entretiennent d'eux-mêmes les racks usés. */
+  autoMaintain: boolean;
 }
 
 export const MAX_RESEARCH_SHARE = 0.5;
 
 export function rulesFor(mode: GameMode): Rules {
   const career = mode === 'career';
-  return { progression: career, incidents: career, aisles: career, weather: career };
+  return { progression: career, incidents: career, aisles: career, weather: career, wear: career };
 }
 
 export function emptyCareer(): CareerState {
@@ -55,5 +59,5 @@ export function emptyResearch(): ResearchState {
 }
 
 export function defaultPolicies(): Policies {
-  return { autoRepair: true };
+  return { autoRepair: true, autoMaintain: true };
 }
