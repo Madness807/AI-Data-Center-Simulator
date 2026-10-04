@@ -1,4 +1,10 @@
-export type BuildingKind = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator';
+export type BuildingKind = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu';
+
+/** Orientation de la façade (prise d'air) : 0 = +y, 1 = +x, 2 = −y, 3 = −x. */
+export type Facing = 0 | 1 | 2 | 3;
+
+/** Pas de grille vers l'avant de chaque orientation. */
+export const FACING_STEP: Record<Facing, readonly [number, number]> = { 0: [0, 1], 1: [1, 0], 2: [0, -1], 3: [-1, 0] };
 export type BuildingStatus = 'construction' | 'ok' | 'failed' | 'repairing';
 
 export type Cell = { x: number; y: number };
@@ -22,6 +28,8 @@ export interface Building {
   charge?: number;
   /** Groupe électrogène : secondes avant de produire ; absent tant qu'il est à l'arrêt. */
   warmup?: number;
+  /** Rack : côté de la prise d'air ; la chaleur ressort de l'autre côté (carrière). */
+  facing?: Facing;
 }
 
 export type TechTask =

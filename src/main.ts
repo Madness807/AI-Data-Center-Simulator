@@ -235,6 +235,13 @@ const sendTechnician = (id: number) => {
 };
 const demolishAt = (cell: { x: number; y: number }) => enqueue({ type: 'demolish', ...cell });
 const closeInspector = () => (selection.inspected = null);
+const rotateBuilding = (id: number) => enqueue({ type: 'rotate', id });
+/** F (carrière) : pivote le fantôme pendant la pose d'un rack, sinon le rack inspecté. */
+const rotate = () => {
+  if (!state.rules.aisles) return;
+  if (build.tool === 'rack') build.rotate();
+  else if (selection.inspected !== null) rotateBuilding(selection.inspected);
+};
 
 const hud = new Hud(
   document.getElementById('hud')!,
@@ -259,6 +266,7 @@ const hud = new Hud(
     sendTechnician,
     demolishAt,
     closeInspector,
+    rotateBuilding,
     reportBug: () =>
       copyText(report()).then(
         () => true,
@@ -317,6 +325,7 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'KeyT') hire();
   else if (e.code === 'KeyH') cycleOverlay(e.shiftKey ? -1 : 1);
   else if (e.code === 'KeyB') toggleEdgePan();
+  else if (e.code === 'KeyF') rotate();
   else if (e.code === 'Space') {
     e.preventDefault();
     setSpeed(state.speed === 0 ? lastSpeed : 0);

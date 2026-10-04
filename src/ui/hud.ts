@@ -1,4 +1,4 @@
-import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, GENERATOR, PDU, RACK, REPAIR, TECH, UPS } from '../sim/balance';
+import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, PDU, RACK, REPAIR, TECH, UPS } from '../sim/balance';
 import type { Cell } from '../sim/entities';
 import { availableResearch, isUnlocked, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
@@ -67,6 +67,8 @@ export interface HudActions {
   sendTechnician: (buildingId: number) => void;
   demolishAt: (cell: Cell) => void;
   closeInspector: () => void;
+  /** Carrière : pivote un rack d'un quart de tour. */
+  rotateBuilding: (id: number) => void;
 }
 
 /** État d'interface (hors simulation) transmis à chaque image. */
@@ -200,6 +202,7 @@ export class Hud {
       demolish: actions.demolishAt,
       focus: actions.focusCell,
       close: actions.closeInspector,
+      rotate: actions.rotateBuilding,
     });
     this.overlay = region('overlay', this.title.root, this.tier.root, this.victory.root, this.defeat.root);
     this.overlay.classList.add('interactive');
@@ -496,6 +499,14 @@ export class Hud {
           ['Carburant', `${GENERATOR.fuelPerKWs} $ par kW·s`],
           ['Chantier', `${BUILD_TIME.generator} s`],
         ], 'Tient toute la coupure ; un onduleur couvre son démarrage.'),
+      cdu: () =>
+        tip(`CDU (refroidissement liquide) · ${money(BUILD_COST.cdu)}`, [
+          ['Capte', `${CDU.captured * 100} % de la chaleur des racks`],
+          ['Portée', `${CDU.radius} cases`],
+          ['Capacité', `${CDU.capacityKW} kW`],
+          ['Consommation', `${CDU.powerKW} kW (pompes)`],
+          ['Chantier', `${BUILD_TIME.cdu} s`],
+        ], 'La chaleur captée part dehors : indispensable aux racks les plus denses.'),
       demolish: () =>
         tip('Démolir', [['Remboursement', `${DEMOLISH_REFUND * 100} %`]], 'Un chantier pas encore commencé est remboursé en entier.'),
     };

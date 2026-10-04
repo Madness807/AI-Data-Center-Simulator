@@ -25,6 +25,9 @@ export interface ResearchEffect {
   /** Capacités nouvelles. */
   autoRepair?: true;
   opportunistic?: true;
+  containment?: true;
+  freeCooling?: true;
+  heatReuse?: true;
   /** Équipements qui deviennent constructibles. */
   unlocks?: BuildingKind[];
 }
@@ -70,6 +73,46 @@ export const RESEARCH: readonly ResearchNode[] = [
     cost: 400,
     requires: [],
     effect: { cracCooling: 1.2 },
+  },
+  {
+    id: 'containment',
+    branch: 'cooling',
+    level: 2,
+    name: 'Confinement d’allée chaude',
+    description: 'Des panneaux enferment l’air soufflé : un CRAC près d’une allée chaude refroidit 25 % de plus.',
+    cost: 700,
+    requires: ['crac-he'],
+    effect: { containment: true },
+  },
+  {
+    id: 'liquid-cooling',
+    branch: 'cooling',
+    level: 3,
+    name: 'Refroidissement liquide',
+    description: 'Le CDU capte 75 % de la chaleur des racks à 2 cases, et la rejette dehors.',
+    cost: 1200,
+    requires: [],
+    effect: { unlocks: ['cdu'] },
+  },
+  {
+    id: 'free-cooling',
+    branch: 'cooling',
+    level: 3,
+    name: 'Free cooling',
+    description: 'Quand il fait moins de 18 °C dehors, les CRAC consomment moitié moins.',
+    cost: 1000,
+    requires: [],
+    effect: { freeCooling: true },
+  },
+  {
+    id: 'heat-reuse',
+    branch: 'cooling',
+    level: 4,
+    name: 'Récupération de chaleur',
+    description: 'La chaleur captée par les CDU chauffe le quartier : elle est revendue au réseau de chaleur urbain.',
+    cost: 2000,
+    requires: ['liquid-cooling'],
+    effect: { heatReuse: true },
   },
   {
     id: 'pdu-hc',

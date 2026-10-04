@@ -1,5 +1,5 @@
 import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, TECH } from './balance';
-import type { BuildingKind, TechTask } from './entities';
+import type { BuildingKind, Facing, TechTask } from './entities';
 import { MAX_RESEARCH_SHARE } from './career';
 import { keepsAccess } from './pathfinding';
 import { isUnlocked, researchBlocker, unlockedBy } from './progression';
@@ -9,7 +9,9 @@ import { updatePower } from './systems/power';
 
 export type Command =
   /** `assign` : techniciens à qui confier le chantier (ajouté en fin de file). */
-  | { type: 'build'; kind: BuildingKind; x: number; y: number; assign?: number[] }
+  | { type: 'build'; kind: BuildingKind; x: number; y: number; assign?: number[]; facing?: Facing }
+  /** Carrière : fait pivoter un rack d'un quart de tour (prise d'air et soufflage). */
+  | { type: 'rotate'; id: number }
   | { type: 'demolish'; x: number; y: number }
   | { type: 'order'; techs: number[]; task: TechTask; append: boolean }
   | { type: 'hire' }
@@ -51,6 +53,7 @@ export function processCommands(s: GameState): void {
         }
         spend(s, 'construction', BUILD_COST[c.kind]);
         const site = addBuilding(s, c.kind, c.x, c.y, true);
+        if (c.kind === 'rack' && s.rules.aisles && c.facing !== undefined) site.facing = c.facing;
         for (const t of s.techs) {
           if (c.assign?.includes(t.id)) t.tasks.push({ type: 'build', target: site.id });
         }
@@ -116,6 +119,11 @@ export function processCommands(s: GameState): void {
         const reason = researchBlocker(s, c.id);
         if (reason) notify(s, 'error', reason, { code: 'refused' });
         else s.research.current = c.id;
+        break;
+      }
+      case 'rotate': {
+        const b = s.buildings.find((o) => o.id === c.id);
+        if (b?.kind === 'rack' && s.rules.aisles) b.facing = (((b.facing ?? 0) + 1) % 4) as Facing;
         break;
       }
       case 'setPolicy':

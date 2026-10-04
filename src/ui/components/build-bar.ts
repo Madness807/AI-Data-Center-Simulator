@@ -40,6 +40,7 @@ export const TOOL_INFO: Record<BuildTool, { label: string; icon: IconName }> = {
   pdu: { label: 'PDU', icon: 'pdu' },
   ups: { label: 'Onduleur', icon: 'ups' },
   generator: { label: 'Groupe', icon: 'generator' },
+  cdu: { label: 'CDU', icon: 'cdu' },
   demolish: { label: 'Démolir', icon: 'demolish' },
 };
 
@@ -49,7 +50,7 @@ export const TOOL_INFO: Record<BuildTool, { label: string; icon: IconName }> = {
  */
 export const BUILD_FAMILIES: { id: FamilyId; key: string; variants: BuildTool[] }[] = [
   { id: 'compute', key: 'R', variants: ['rack'] },
-  { id: 'cooling', key: 'C', variants: ['crac'] },
+  { id: 'cooling', key: 'C', variants: ['crac', 'cdu'] },
   { id: 'power', key: 'P', variants: ['pdu', 'ups', 'generator'] },
   { id: 'demolish', key: 'X', variants: ['demolish'] },
 ];

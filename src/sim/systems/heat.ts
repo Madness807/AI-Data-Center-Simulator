@@ -1,4 +1,6 @@
-import { CRAC, DT, HEAT, RACK, UPS } from '../balance';
+import { AISLE, CRAC, DT, HEAT, RACK, UPS } from '../balance';
+import { cracWeatherFactor, EXHAUST_SHARE, exhaustIndex, hotAisleCells, liquidCapture, outsideTemp } from '../climate';
+import type { Building } from '../entities';
 import { modifiers } from '../progression';
 import { idx, type GameState } from '../state';
 
@@ -7,17 +9,42 @@ if (HEAT.diffusion * DT > 0.2) {
   throw new Error(`HEAT.diffusion × DT = ${HEAT.diffusion * DT} > 0.2 : diffusion instable`);
 }
 
+/**
+ * Sources et puits dans l'ordre des bâtiments, puis diffusion. En carrière : les CDU captent
+ * une part de la chaleur des racks (rejetée dehors), un rack souffle l'essentiel de la sienne
+ * sur sa case arrière, la météo module les CRAC, et le confinement les renforce près d'une
+ * allée chaude. En partie rapide, rien de tout cela : le calcul est celui de la bêta.
+ */
 export function updateHeat(s: GameState, dt: number): void {
   const { w, h, temp } = s;
   const C = HEAT.cellCapacity;
-  const coolingKW = modifiers(s).cracCoolingKW;
+  const m = modifiers(s);
+  const factor = cracWeatherFactor(s);
+  const coolingKW = m.cracCoolingKW * factor;
+  const capture = liquidCapture(s);
+  const hot = m.containment ? hotAisleCells(s) : null;
+  let liquidKW = 0;
 
   for (const b of s.buildings) {
     if (!b.powered) continue;
-    if (b.kind === 'rack') temp[idx(s, b.x, b.y)] += (RACK.heatKW * dt) / C;
-    else if (b.kind === 'ups') temp[idx(s, b.x, b.y)] += (UPS.heatKW * dt) / C;
-    else if (b.kind === 'crac') cool(s, b.x, b.y, coolingKW * dt);
+    if (b.kind === 'rack') {
+      const captured = capture.get(b.id) ?? 0;
+      liquidKW += captured;
+      const air = ((RACK.heatKW - captured) * dt) / C;
+      const own = idx(s, b.x, b.y);
+      const ex = exhaustIndex(s, b);
+      if (ex === null) temp[own] += air;
+      else {
+        temp[ex] += air * EXHAUST_SHARE;
+        temp[own] += air * (1 - EXHAUST_SHARE);
+      }
+    } else if (b.kind === 'ups') temp[idx(s, b.x, b.y)] += (UPS.heatKW * dt) / C;
+    else if (b.kind === 'crac') {
+      const boost = hot && nearHotAisle(b, hot, w) ? AISLE.containmentBoost : 1;
+      cool(s, b.x, b.y, coolingKW * boost * dt);
+    }
   }
+  s.cooling = { liquidKW, outsideC: outsideTemp(s), cracFactor: factor };
 
   // Bords isolants : on n'échange qu'avec les voisines dans la grille.
   const next = temp.slice();
@@ -39,6 +66,12 @@ export function updateHeat(s: GameState, dt: number): void {
   for (let i = 0; i < next.length; i++) {
     temp[i] = next[i] + (HEAT.ambient - next[i]) * loss;
   }
+}
+
+/** Une case d'allée chaude est-elle à portée de ce CRAC ? */
+function nearHotAisle(crac: Building, hot: Set<number>, w: number): boolean {
+  for (const i of hot) if (inCoolingRange(crac.x, crac.y, i % w, Math.floor(i / w))) return true;
+  return false;
 }
 
 /** Vrai si la case (x, y) est dans la portée du CRAC posé en (cx, cy) (disque de rayon CRAC.radius). */

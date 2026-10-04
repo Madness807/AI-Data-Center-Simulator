@@ -3,7 +3,7 @@ import { BUILDING_SIZE, createTechnician, PALETTE, PROP_MODELS } from './assets'
 import { MATERIALS } from './assets/materials';
 import { rackBodyGeometry, rackLedGeometry } from './assets/props/rack';
 
-export type ThumbnailKey = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator' | 'technician';
+export type ThumbnailKey = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu' | 'technician';
 
 /**
  * Vignettes des vrais modèles 3D pour la barre de construction, rendues une seule fois
@@ -32,7 +32,8 @@ export function renderThumbnails(size = 128): Record<ThumbnailKey, string> {
   const pdu = PROP_MODELS.pdu();
   const ups = PROP_MODELS.ups();
   const generator = PROP_MODELS.generator();
-  for (const m of [crac, pdu]) m.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1 });
+  const cdu = PROP_MODELS.cdu();
+  for (const m of [crac, pdu, cdu]) m.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1 });
   // Onduleur chargé, groupe en marche : voyants allumés.
   ups.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1, charge: 1 });
   generator.update({ time: 0, dt: 0, speed: 0, powered: true, progress: 1, running: true });
@@ -42,6 +43,7 @@ export function renderThumbnails(size = 128): Record<ThumbnailKey, string> {
     pdu: pdu.root,
     ups: ups.root,
     generator: generator.root,
+    cdu: cdu.root,
     technician: createTechnician().root,
   };
 

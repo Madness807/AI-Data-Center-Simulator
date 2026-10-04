@@ -1,4 +1,5 @@
-import { CRAC, DT, GENERATOR, RACK, UPS } from '../balance';
+import { CDU, DT, GENERATOR, RACK, UPS } from '../balance';
+import { cracPowerKW } from '../climate';
 import type { Building } from '../entities';
 import { modifiers } from '../progression';
 import type { GameState } from '../state';
@@ -27,7 +28,7 @@ export function updatePower(s: GameState): void {
     else if (b.kind === 'pdu') {
       capacity += pduKW;
       b.powered = true;
-    } else if (b.kind === 'crac') cracs.push(b);
+    } else if (b.kind === 'crac' || b.kind === 'cdu') cracs.push(b);
     else if (b.kind === 'rack') racks.push(b);
     else {
       // Onduleurs et groupes : sources de secours, toujours « en service » quand ils sont construits.
@@ -47,14 +48,17 @@ export function updatePower(s: GameState): void {
     if (b.powered) remaining -= kw;
     else shed++;
   };
-  for (const c of cracs) serve(c, CRAC.powerKW);
+  // Le refroidissement passe avant le calcul : CRAC et CDU d'abord, puis les racks.
+  const cracKW = cracPowerKW(s);
+  const coolerKW = (b: Building) => (b.kind === 'cdu' ? CDU.powerKW : cracKW);
+  for (const c of cracs) serve(c, coolerKW(c));
   for (const r of racks.sort(byRackPriority)) serve(r, RACK.powerKW);
 
   const load = supply - remaining;
   const fromGenerators = grid ? 0 : Math.min(load, generatorKW);
   s.power = {
     capacityKW: capacity,
-    demandKW: cracs.length * CRAC.powerKW + racks.length * RACK.powerKW,
+    demandKW: cracs.reduce((sum, c) => sum + coolerKW(c), 0) + racks.length * RACK.powerKW,
     loadKW: load,
     shedCount: shed,
     grid,

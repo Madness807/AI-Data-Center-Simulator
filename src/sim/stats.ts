@@ -1,6 +1,7 @@
 import { GENERATOR, RACK } from './balance';
 import { isRackActive, type Building } from './entities';
 import type { GameState } from './state';
+import { cracWeatherFactor } from './climate';
 import { modifiers, researchReserve } from './progression';
 import { inCoolingRange } from './systems/heat';
 
@@ -59,9 +60,9 @@ export function freeCapacity(s: GameState): number {
   return s.compute.total - researchReserve(s) - committedCompute(s);
 }
 
-/** Puissance de froid d'un CRAC, recherche comprise. */
+/** Puissance de froid d'un CRAC, recherche et météo comprises. */
 export function cracCoolingKW(s: GameState): number {
-  return modifiers(s).cracCoolingKW;
+  return modifiers(s).cracCoolingKW * cracWeatherFactor(s);
 }
 
 /**

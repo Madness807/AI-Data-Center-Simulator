@@ -5,8 +5,12 @@ export type GameMode = 'quick' | 'career';
 export interface Rules {
   /** Réputation, paliers et arbre de recherche. */
   progression: boolean;
-  /** Incidents (coupures du réseau…), selon le palier atteint. */
+  /** Incidents (coupures du réseau, canicules), selon le palier atteint. */
   incidents: boolean;
+  /** Orientation des racks : prise d'air à l'avant, chaleur soufflée à l'arrière. */
+  aisles: boolean;
+  /** Température extérieure qui agit sur les CRAC (selon le palier). */
+  weather: boolean;
 }
 
 export interface CareerState {
@@ -38,7 +42,8 @@ export interface Policies {
 export const MAX_RESEARCH_SHARE = 0.5;
 
 export function rulesFor(mode: GameMode): Rules {
-  return { progression: mode === 'career', incidents: mode === 'career' };
+  const career = mode === 'career';
+  return { progression: career, incidents: career, aisles: career, weather: career };
 }
 
 export function emptyCareer(): CareerState {

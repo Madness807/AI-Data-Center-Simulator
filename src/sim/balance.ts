@@ -23,11 +23,43 @@ export const PDU = { cost: 2500, capacityKW: 40 };
 export const UPS = { cost: 3500, storeKJ: 2400, powerKW: 40, rechargeKW: 8, heatKW: 1 };
 /** Groupe électrogène : démarre en quelques secondes et tient toute la coupure, au prix du carburant. */
 export const GENERATOR = { cost: 6000, powerKW: 60, startS: 15, fuelPerKWs: 0.25 };
+/** CDU : refroidissement liquide des racks proches, rejeté dehors (pas dans la salle). */
+export const CDU = { cost: 7000, radius: 2, capacityKW: 80, powerKW: 6, captured: 0.75 };
+
+/** Allées (carrière) : part de la chaleur d'un rack soufflée sur la case arrière. */
+export const AISLE = { exhaustShare: 0.7, containmentBoost: 1.25 };
+
+/** Météo (carrière, à partir du palier minTier) : cycle de la température extérieure et canicules. */
+export const WEATHER = {
+  minTier: 2,
+  meanC: 20,
+  swingC: 8,
+  periodS: 720,
+  /** Efficacité des CRAC : +1,5 % par °C sous 20 °C, −1,5 % au-dessus, bornée. */
+  cracPerC: 0.015,
+  cracMin: 0.7,
+  cracMax: 1.15,
+  /** En dessous, le free cooling (recherche) divise par deux la consommation des CRAC. */
+  freeCoolingBelowC: 18,
+};
+export const HEATWAVE = { firstDelayS: 360, interval: [600, 1080] as const, duration: [120, 240] as const, boostC: 14 };
+
+/** Récupération de chaleur (recherche) : $ par kW·s de chaleur captée par les CDU. */
+export const HEAT_REUSE = { pricePerKWs: 0.03 };
+
 /**
  * Coupures du réseau (carrière, à partir du palier minTier). La première, plus tardive et
  * courte, laisse le temps d'étudier et de poser des onduleurs après l'avertissement du palier.
  */
-export const OUTAGE = { minTier: 1, firstDelayS: 480, firstDurationS: 30, interval: [360, 720] as const, duration: [30, 120] as const };
+export const OUTAGE = {
+  minTier: 1,
+  firstDelayS: 480,
+  firstDurationS: 30,
+  interval: [360, 720] as const,
+  duration: [30, 120] as const,
+  /** Risque de panne d'un rack qui perd brutalement le courant (non couvert par les onduleurs). */
+  crashChance: 0.2,
+};
 
 export const BUILD_COST: Record<BuildingKind, number> = {
   rack: RACK.cost,
@@ -35,6 +67,7 @@ export const BUILD_COST: Record<BuildingKind, number> = {
   pdu: PDU.cost,
   ups: UPS.cost,
   generator: GENERATOR.cost,
+  cdu: CDU.cost,
 };
 
 export const HEAT = {
@@ -85,7 +118,7 @@ export const JOBS = {
 };
 
 /** Secondes de travail d'un technicien pour terminer un chantier. */
-export const BUILD_TIME: Record<BuildingKind, number> = { rack: 6, crac: 8, pdu: 5, ups: 6, generator: 10 };
+export const BUILD_TIME: Record<BuildingKind, number> = { rack: 6, crac: 8, pdu: 5, ups: 6, generator: 10, cdu: 9 };
 
 export const TECH = {
   /** Cases par seconde. */

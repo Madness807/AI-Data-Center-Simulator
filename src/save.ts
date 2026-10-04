@@ -1,12 +1,12 @@
 import type { KeyValueStore } from './settings';
 import { emptyAlerts } from './sim/alert-memory';
 import { defaultPolicies, emptyCareer, emptyResearch, rulesFor } from './sim/career';
-import { emptyIncidents, emptyPower } from './sim/state';
+import { emptyCooling, emptyIncidents, emptyPower } from './sim/state';
 import type { Building, Job, Technician } from './sim/entities';
 import type { GameState, Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 4;
+export const SAVE_FORMAT = 5;
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export const SAVE_SLOTS: readonly SaveSlot[] = ['auto', 1, 2, 3];
@@ -60,13 +60,14 @@ function need(cond: boolean, what: string): asserts cond {
 
 function checkBuilding(b: unknown, w: number, h: number): asserts b is Building {
   need(isObject(b), 'équipement illisible');
-  need(isInt(b.id) && ['rack', 'crac', 'pdu', 'ups', 'generator'].includes(b.kind as string), 'équipement inconnu');
+  need(isInt(b.id) && ['rack', 'crac', 'pdu', 'ups', 'generator', 'cdu'].includes(b.kind as string), 'équipement inconnu');
   need(isInt(b.x) && isInt(b.y) && (b.x as number) >= 0 && (b.y as number) >= 0 && (b.x as number) < w && (b.y as number) < h, 'équipement hors de la salle');
   need(['construction', 'ok', 'failed', 'repairing'].includes(b.status as string), 'état d’équipement inconnu');
   need(isNum(b.workLeft) && isInt(b.failures) && typeof b.powered === 'boolean', 'équipement incomplet');
   need(b.builtAt === null || isNum(b.builtAt), 'date de mise en service invalide');
   need(b.charge === undefined || isNum(b.charge), 'charge d’onduleur invalide');
   need(b.warmup === undefined || isNum(b.warmup), 'état de groupe électrogène invalide');
+  need(b.facing === undefined || [0, 1, 2, 3].includes(b.facing as number), 'orientation invalide');
 }
 
 function checkTech(t: unknown): asserts t is Technician {
@@ -113,6 +114,12 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
     if (isObject(state.economy) && isObject(state.economy.ledger)) state.economy.ledger.fuel = 0;
     if (isObject(state.alerts)) state.alerts.upsLow = false;
   },
+  // 4 → 5 (lot 4) : orientation des racks, météo, canicules, CDU.
+  4: (state) => {
+    if (isObject(state.rules)) Object.assign(state.rules, { aisles: state.mode === 'career', weather: state.mode === 'career' });
+    if (isObject(state.incidents)) Object.assign(state.incidents, { heatwaveEndsAt: null, nextHeatwaveAt: null });
+    state.cooling = emptyCooling();
+  },
 };
 
 function migrate(file: RawState): void {
@@ -154,7 +161,9 @@ function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'even
   need(isObject(s.policies) && typeof s.policies.autoRepair === 'boolean', 'réglages illisibles');
   const inc = s.incidents;
   need(isObject(inc) && (inc.outageEndsAt === null || isNum(inc.outageEndsAt)) && (inc.nextOutageAt === null || isNum(inc.nextOutageAt)) && isInt(inc.outages), 'incidents illisibles');
-  need(typeof s.rules.incidents === 'boolean', 'règles incomplètes');
+  need(typeof s.rules.incidents === 'boolean' && typeof s.rules.aisles === 'boolean' && typeof s.rules.weather === 'boolean', 'règles incomplètes');
+  need((inc.heatwaveEndsAt === null || isNum(inc.heatwaveEndsAt)) && (inc.nextHeatwaveAt === null || isNum(inc.nextHeatwaveAt)), 'canicules illisibles');
+  need(isObject(s.cooling) && isNum(s.cooling.liquidKW) && isNum(s.cooling.cracFactor), 'refroidissement illisible');
 }
 
 /** Relit une sauvegarde ; tout problème donne un refus explicite, jamais un état bancal. */

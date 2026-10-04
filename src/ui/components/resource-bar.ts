@@ -50,6 +50,8 @@ export class ResourceBar {
   private readonly pauseBanner = el('div', 'banner banner-pause', icon('pause', 14), 'PAUSE — Espace pour reprendre');
   private readonly bankruptBanner = el('div', 'banner banner-bankrupt', icon('alert', 15));
   private readonly outageBanner = el('div', 'banner banner-outage', icon('power', 15));
+  private readonly heatBanner = el('div', 'banner banner-heatwave', icon('weather', 15));
+  private readonly heatText = el('span');
   private readonly outageText = el('span');
   private readonly bankruptText = el('span');
 
@@ -98,7 +100,8 @@ export class ResourceBar {
     );
     this.bankruptBanner.append(this.bankruptText);
     this.outageBanner.append(this.outageText);
-    this.root = el('div', 'region-top-stack', bar, this.pauseBanner, this.outageBanner, this.bankruptBanner);
+    this.heatBanner.append(this.heatText);
+    this.root = el('div', 'region-top-stack', bar, this.pauseBanner, this.outageBanner, this.heatBanner, this.bankruptBanner);
     this.root.style.display = 'contents';
   }
 
@@ -151,7 +154,10 @@ export class ResourceBar {
     const t = tempStats(s);
     setText(this.temp.value, celsius(t.max));
     this.temp.value.className = `res-value ${t.max >= FAILURE.thresholdC + 15 ? 'danger' : t.max >= FAILURE.thresholdC ? 'warn' : ''}`;
-    setText(this.temp.sub, `moy. ${celsius(t.avg)}`);
+    // Carrière, palier de la météo : la température extérieure remplace la moyenne de la salle.
+    const outside = s.cooling.outsideC;
+    setText(this.temp.sub, outside === null ? `moy. ${celsius(t.avg)}` : `ext. ${celsius(outside)}`);
+    this.temp.sub.classList.toggle('warn', s.incidents.heatwaveEndsAt !== null);
 
     const idle = s.techs.filter((tech) => tech.tasks.length === 0).length;
     setText(this.team.value, `${s.techs.length} tech.`);
@@ -161,6 +167,11 @@ export class ResourceBar {
     for (const [sp, b] of this.speedButtons) b.classList.toggle('active', sp === s.speed);
 
     setHidden(this.pauseBanner, s.speed !== 0 || s.outcome === 'lost');
+    const wave = s.incidents.heatwaveEndsAt;
+    setHidden(this.heatBanner, wave === null || s.outcome === 'lost');
+    if (wave !== null) {
+      setText(this.heatText, `Canicule : ${Math.round(s.cooling.outsideC ?? 0)} °C dehors · CRAC à ${Math.round(s.cooling.cracFactor * 100)} % · fin dans ${seconds(wave - s.time)}`);
+    }
     const ends = s.incidents.outageEndsAt;
     setHidden(this.outageBanner, ends === null || s.outcome === 'lost');
     if (ends !== null) {

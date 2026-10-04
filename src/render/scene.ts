@@ -12,6 +12,7 @@ import {
   createRackInstances,
   createRangeRing,
   createSelectionBrackets,
+  createContainmentPanels,
   createShedMarkers,
   createStatusMarkers,
   createTechnician,
@@ -31,6 +32,10 @@ import {
 } from './assets';
 import { cellCenter } from './grid';
 import { FloorOverlay } from './overlays';
+import { hotAisleCells } from '../sim/climate';
+import { FACING_ANGLE } from './assets/fx/build-ghost';
+
+const UNIT_SCALE = new THREE.Vector3(1, 1, 1);
 import { modifiers } from '../sim/progression';
 
 const ELEVATION = Math.atan(1 / Math.SQRT2); // isométrie vraie
@@ -209,6 +214,8 @@ export class SceneView {
   private readonly racks: RackInstances;
   private readonly markers = createStatusMarkers(RACK_CAPACITY);
   private readonly shedMarkers = createShedMarkers(RACK_CAPACITY);
+  /** Confinement d'allée chaude (recherche) : toit vitré au-dessus de chaque case où soufflent des racks. */
+  private readonly containment: THREE.InstancedMesh;
   private readonly walls: WallsModel;
   private readonly others = new Map<number, PlacedModel>();
   /** Case du bâtiment de chaque instance de rack, pour le picking. */
@@ -244,6 +251,7 @@ export class SceneView {
     this.walls = createWalls(w, h);
     this.overlay = new FloorOverlay(w, h);
     this.racks = createRackInstances(RACK_CAPACITY);
+    this.containment = createContainmentPanels(w * h);
     this.inspectRange.visible = false;
     this.scene.add(
       this.walls.root,
@@ -252,6 +260,7 @@ export class SceneView {
       this.racks.led,
       this.markers,
       this.shedMarkers,
+      this.containment,
       this.inspectBrackets,
       this.inspectRange,
     );
@@ -297,6 +306,7 @@ export class SceneView {
   ): void {
     this.syncInspected(inspected, realTime);
     this.syncRacks(s, realTime);
+    this.syncContainment(s);
     this.syncOthers(s, realTime, realDt);
     this.syncTechs(s, realTime, alpha, selected);
     this.updatePings(realDt);
@@ -341,6 +351,19 @@ export class SceneView {
   }
 
   /** Crochets pulsants autour de l'équipement inspecté ; portée en plus pour un CRAC. */
+  private syncContainment(s: GameState): void {
+    let n = 0;
+    if (s.rules.aisles && modifiers(s).containment) {
+      for (const i of hotAisleCells(s)) {
+        if (n >= this.containment.instanceMatrix.count) break;
+        this.tmpMatrix.makeTranslation(cellCenter(i % s.w, Math.floor(i / s.w), this.tmpVec));
+        this.containment.setMatrixAt(n++, this.tmpMatrix);
+      }
+    }
+    this.containment.count = n;
+    this.containment.instanceMatrix.needsUpdate = true;
+  }
+
   private syncInspected(b: Building | null, realTime: number): void {
     this.inspectBrackets.visible = b !== null;
     this.inspectRange.visible = b?.kind === 'crac';
@@ -392,7 +415,8 @@ export class SceneView {
     for (const b of s.buildings) {
       if (b.kind !== 'rack' || b.status === 'construction' || n >= body.instanceMatrix.count) continue;
       this.rackCells.push({ x: b.x, y: b.y });
-      this.tmpMatrix.makeTranslation(cellCenter(b.x, b.y, this.tmpVec));
+      this.tmpQuat.setFromAxisAngle(UP, FACING_ANGLE[b.facing ?? 0]);
+      this.tmpMatrix.compose(cellCenter(b.x, b.y, this.tmpVec), this.tmpQuat, UNIT_SCALE);
       body.setMatrixAt(n, this.tmpMatrix);
       led.setMatrixAt(n, this.tmpMatrix);
       let color: THREE.Color;

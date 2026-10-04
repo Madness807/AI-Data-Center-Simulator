@@ -25,7 +25,7 @@ export const TIERS: readonly Tier[] = [
     priceMult: 1.1,
     perks: [
       'Contrats jusqu’à 8 racks, payés 10 % de plus',
-      'Recherche de niveau 2 : onduleurs, groupes électrogènes',
+      'Recherche de niveau 2 : onduleurs, groupes électrogènes, confinement d’allée',
       'Attention : le réseau électrique peut désormais être coupé',
     ],
   },
@@ -34,7 +34,11 @@ export const TIERS: readonly Tier[] = [
     reputation: 450,
     maxUnits: 12,
     priceMult: 1.2,
-    perks: ['Contrats jusqu’à 12 racks, payés 20 % de plus', 'Recherche de niveau 3'],
+    perks: [
+      'Contrats jusqu’à 12 racks, payés 20 % de plus',
+      'Recherche de niveau 3 : refroidissement liquide, free cooling, énergie verte',
+      'Attention : la météo compte désormais, et les canicules affaiblissent les CRAC',
+    ],
   },
   {
     name: 'Hyperscaler',
@@ -84,6 +88,9 @@ export interface Modifiers {
   reputationMult: number;
   upsStoreKJ: number;
   generatorStartS: number;
+  containment: boolean;
+  freeCooling: boolean;
+  heatReuse: boolean;
 }
 
 const BASE: Modifiers = {
@@ -97,6 +104,9 @@ const BASE: Modifiers = {
   reputationMult: 1,
   upsStoreKJ: UPS.storeKJ,
   generatorStartS: GENERATOR.startS,
+  containment: false,
+  freeCooling: false,
+  heatReuse: false,
 };
 
 const cache = new WeakMap<GameState, { key: string; value: Modifiers }>();
@@ -121,6 +131,9 @@ export function modifiers(s: GameState): Modifiers {
     if (e.reputation) m.reputationMult *= e.reputation;
     if (e.upsStore) m.upsStoreKJ *= e.upsStore;
     if (e.generatorStartS !== undefined) m.generatorStartS = Math.min(m.generatorStartS, e.generatorStartS);
+    if (e.containment) m.containment = true;
+    if (e.freeCooling) m.freeCooling = true;
+    if (e.heatReuse) m.heatReuse = true;
   }
   cache.set(s, { key, value: m });
   return m;

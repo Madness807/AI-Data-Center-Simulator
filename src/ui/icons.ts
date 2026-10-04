@@ -51,6 +51,9 @@ import {
   BatteryCharging,
   Fuel,
   Lock,
+  Droplets,
+  RotateCw,
+  ThermometerSun,
   type IconNode,
 } from 'lucide';
 
@@ -108,6 +111,9 @@ export const ICONS = {
   ups: BatteryCharging,
   generator: Fuel,
   lock: Lock,
+  cdu: Droplets,
+  rotate: RotateCw,
+  weather: ThermometerSun,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;

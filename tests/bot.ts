@@ -1,6 +1,6 @@
 import { BUILD_COST, CRAC, GENERATOR, PDU, RACK, TECH, UPS } from '../src/sim/balance';
 import { canBuild } from '../src/sim/commands';
-import type { Building, BuildingKind, Technician } from '../src/sim/entities';
+import type { Building, BuildingKind, Facing, Technician } from '../src/sim/entities';
 import { step } from '../src/sim/sim';
 import { availableResearch, isUnlocked } from '../src/sim/progression';
 import { createInitialState, type GameState } from '../src/sim/state';
@@ -26,7 +26,10 @@ export interface BotProfile {
 }
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
-const RESEARCH_ORDER = ['auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'opportunistic', 'fast-techs', 'green-power', 'switchover-2n'];
+const RESEARCH_ORDER = [
+  'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'containment', 'opportunistic', 'fast-techs',
+  'free-cooling', 'green-power', 'liquid-cooling', 'switchover-2n', 'heat-reuse',
+];
 export const CAREER_RESEARCH_SHARE = 0.2;
 
 export const COMPETENT: BotProfile = { cooling: true, contracts: true, maxRacks: 14, reserve: 4000 };
@@ -47,9 +50,14 @@ export interface BotRun {
   timeline: string[];
 }
 
-type Item = { kind: BuildingKind; x: number; y: number };
+type Item = { kind: BuildingKind; x: number; y: number; facing?: Facing };
 
-const row = (y: number, items: Array<[BuildingKind, number]>): Item[] => items.map(([kind, x]) => ({ kind, x, y }));
+/**
+ * Une rangée : en carrière, les racks tournent le dos à l'allée centrale (y = 8), où soufflent
+ * les deux rangées et où se trouve le CRAC de départ ; ils aspirent côté mur.
+ */
+const row = (y: number, items: Array<[BuildingKind, number]>): Item[] =>
+  items.map(([kind, x]) => ({ kind, x, y, facing: (y < 8 ? 2 : 0) as Facing }));
 
 /**
  * Disposition visée : deux rangées de racks (y = 10 puis y = 6), un CRAC tous les 3 racks,
@@ -204,7 +212,7 @@ class Bot {
 
   private build(s: GameState, item: Item): void {
     const tech = pickTech(s, item);
-    s.commands.push({ type: 'build', kind: item.kind, x: item.x, y: item.y, assign: tech ? [tech.id] : [] });
+    s.commands.push({ type: 'build', kind: item.kind, x: item.x, y: item.y, facing: item.facing, assign: tech ? [tech.id] : [] });
   }
 
   /** Un technicien de plus tous les 8 racks. */

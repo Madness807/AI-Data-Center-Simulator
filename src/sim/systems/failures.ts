@@ -1,5 +1,6 @@
 import { FAILURE } from '../balance';
-import { idx, notify, type GameState } from '../state';
+import { rackTemp } from '../climate';
+import { notify, type GameState } from '../state';
 import { nextRandom } from '../rng';
 
 /** Pannes par seconde d'un rack actif à la température donnée. */
@@ -23,7 +24,7 @@ export function updateFailures(s: GameState, dt: number): void {
     // Les réparations avancent avec les techniciens (systems/technicians.ts).
     if (b.kind !== 'rack') continue;
     if (b.status === 'ok' && b.powered) {
-      const t = s.temp[idx(s, b.x, b.y)];
+      const t = rackTemp(s, b);
       if (nextRandom(s) < failureProbability(t, dt)) {
         b.status = 'failed';
         b.failures++;

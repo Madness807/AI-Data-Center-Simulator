@@ -61,9 +61,12 @@ describe('équilibrage', () => {
     for (const seed of SEEDS.slice(0, 3)) {
       const careful = playBot(seed, { ...COMPETENT, career: true }, 75 * 60);
       const reckless = playBot(seed, { ...COMPETENT, career: true, noBackup: true }, 75 * 60);
+      const failures = (r: BotRun) => r.state.buildings.reduce((n, b) => n + b.failures, 0);
       expect(reckless.state.incidents.outages, `graine ${seed}`).toBeGreaterThanOrEqual(3);
       expect(reckless.state.economy.jobsFailed, `graine ${seed}`).toBeGreaterThanOrEqual(3);
-      expect(wonAt(reckless), `graine ${seed}`).toBeGreaterThan(wonAt(careful) + 5);
+      // Arrêts brutaux : les racks non secourus tombent en panne.
+      expect(failures(reckless), `graine ${seed}`).toBeGreaterThan(failures(careful) + 8);
+      expect(wonAt(reckless), `graine ${seed}`).toBeGreaterThan(wonAt(careful) + 3);
     }
   });
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { CRAC } from '../sim/balance';
 import { canBuild, type Command } from '../sim/commands';
-import type { BuildingKind } from '../sim/entities';
+import type { BuildingKind, Facing } from '../sim/entities';
 import { buildingAt, type GameState } from '../sim/state';
 import { createBuildGhost, createRangeRing } from '../render/assets';
 import { cellCenter } from '../render/grid';
@@ -15,6 +15,8 @@ export type Tool = BuildingKind | 'demolish' | null;
  */
 export class BuildController {
   tool: Tool = null;
+  /** Orientation des racks posés (carrière) : F la fait tourner d'un quart de tour. */
+  facing: Facing = 0;
   private groundHover: Cell | null = null;
   private buildingHover: Cell | null = null;
   onToolChange: (tool: Tool) => void = () => {};
@@ -68,6 +70,10 @@ export class BuildController {
     return this.buildingHover ?? this.groundHover;
   }
 
+  rotate(): void {
+    this.facing = ((this.facing + 1) % 4) as Facing;
+  }
+
   setTool(tool: Tool): void {
     this.tool = tool;
     this.painting = false;
@@ -89,7 +95,8 @@ export class BuildController {
     }
     if (explicit || canBuild(s, tool, cell.x, cell.y) === null) {
       const assign = this.getAssigned();
-      this.enqueue({ type: 'build', kind: tool, ...cell, ...(assign.length ? { assign } : {}) });
+      const facing = tool === 'rack' && s.rules.aisles ? { facing: this.facing } : {};
+      this.enqueue({ type: 'build', kind: tool, ...cell, ...facing, ...(assign.length ? { assign } : {}) });
     }
   }
 
@@ -109,6 +116,6 @@ export class BuildController {
     this.ghost.root.visible = true;
     cellCenter(cell.x, cell.y, this.ghost.root.position);
     if (this.tool === 'demolish') this.ghost.set('demolish', hovered !== undefined);
-    else this.ghost.set(this.tool, canBuild(s, this.tool, cell.x, cell.y) === null);
+    else this.ghost.set(this.tool, canBuild(s, this.tool, cell.x, cell.y) === null, s.rules.aisles ? this.facing : undefined);
   }
 }

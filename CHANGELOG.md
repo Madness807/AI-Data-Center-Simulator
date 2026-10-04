@@ -26,11 +26,18 @@ Lots suivants de la feuille de route v1.0, en cours.
   - **groupe électrogène** : démarre en 15 s et tient toute la coupure, au prix d'un carburant cher (nouveau poste du grand livre) ;
   - recherche : onduleurs, groupes électrogènes, énergie verte (facture −15 %, réputation +10 %), bascule 2N ;
   - bannière de coupure, alerte de batterie basse, indicateur de redondance N+1, calque énergie qui montre les racks sans secours ;
-  - la barre regroupe les équipements par famille : P passe du PDU à l'onduleur puis au groupe.
+  - la barre regroupe les équipements par famille : P passe du PDU à l'onduleur puis au groupe ;
+  - un rack non secouru qui perd brutalement le courant risque la panne (20 %).
+- **Refroidissement avancé** (carrière) :
+  - **orientation des racks** : un rack aspire par l'avant et souffle 70 % de sa chaleur par l'arrière ; son risque de panne se lit sur l'air aspiré. F fait pivoter le rack à poser (fantôme avec repères bleu et orange) ou le rack inspecté. Deux rangées dos à dos forment une allée chaude ; des rangées qui se soufflent dessus surchauffent (l'inspecteur le signale) ;
+  - **confinement d'allée chaude** (recherche) : toit vitré, CRAC 25 % plus efficaces près d'une allée chaude ;
+  - **CDU** (refroidissement liquide, recherche) : capte 75 % de la chaleur des racks à 2 cases (80 kW au plus) et la rejette dehors ;
+  - **météo** à partir du palier Labo d'IA : la température extérieure module les CRAC (de −30 % à +15 %), des **canicules** les affaiblissent ; le **free cooling** halve leur consommation quand il fait frais ; la **récupération de chaleur** revend la chaleur des CDU ;
+  - calque froid : allées chaudes et racks refroidis par liquide ; bandeau : température extérieure, bannière de canicule.
 
 ### Modifié
 
-- Sauvegarde au format 4. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
+- Sauvegarde au format 5. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
 
 ## [0.10.0-beta] — 2026-10-04
 

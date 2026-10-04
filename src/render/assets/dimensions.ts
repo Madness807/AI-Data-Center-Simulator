@@ -10,4 +10,5 @@ export const BUILDING_SIZE: Record<BuildingKind, readonly [number, number, numbe
   pdu: [0.7, 1.0, 0.55],
   ups: [0.7, 1.2, 0.6],
   generator: [0.9, 1.06, 0.62],
+  cdu: [0.7, 1.45, 0.6],
 };

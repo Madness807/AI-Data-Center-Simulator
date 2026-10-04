@@ -4,6 +4,7 @@
  */
 import type { BuildingKind } from '../../sim/entities';
 import { createConstructionSite } from './fx/construction-site';
+import { createCdu } from './props/cdu';
 import { createCrac } from './props/crac';
 import { createGenerator } from './props/generator';
 import { createPdu } from './props/pdu';
@@ -19,10 +20,10 @@ export { createTechnician } from './characters/technician';
 export { createFloor } from './environment/floor';
 export { createWalls, type WallsModel } from './environment/walls';
 export { createLighting } from './environment/lighting';
-export { createShedMarkers, createStatusMarkers } from './fx/status-markers';
+export { createContainmentPanels, createShedMarkers, createStatusMarkers } from './fx/status-markers';
 export { isColorblind, setColorblind, statusColor, statusVersion, type StatusName } from './status-colors';
 export { createPing, createRangeRing, createSelectionBrackets, createSelectionRing, type Ping, type PingKind } from './fx/rings';
-export { createBuildGhost, type BuildGhost, type GhostKind } from './fx/build-ghost';
+export { createBuildGhost, FACING_ANGLE, type BuildGhost, type GhostKind } from './fx/build-ghost';
 export { createConstructionSite };
 
 /**
@@ -35,6 +36,7 @@ export const PROP_MODELS: Record<Exclude<BuildingKind, 'rack'>, () => AssetModel
   pdu: createPdu,
   ups: createUps,
   generator: createGenerator,
+  cdu: createCdu,
 };
 
 /** Modèle d'un bâtiment non instancié, ou de son chantier tant qu'il est en construction. */

@@ -70,6 +70,14 @@ export const PALETTE = {
   genLampRun: 0x3dffa0,
   genLampStart: 0xffb020,
 
+  // CDU (refroidissement liquide)
+  cduBody: 0x9aaec2,
+  cduDark: 0x262b33,
+  cduPanel: 0x2f3640,
+  cduPipeCold: 0x3a9cff,
+  cduPipeHot: 0xff7a3a,
+  cduImpeller: 0xd6dbe2,
+
   // Technicien
   techVest: 0xff7a1a,
   techReflective: 0xeef5ff,
@@ -90,6 +98,9 @@ export const PALETTE = {
   inspect: 0x4fd1ff,
   cracRange: 0x7fd4ff,
   ghostOk: 0x40ff80,
+  aisleCold: 0x4fc3ff,
+  aisleHot: 0xff8a3d,
+  containmentGlass: 0x9fd8ff,
   ghostBad: 0xff4040,
   ghostNeutral: 0x666666,
   markerSymbol: 0x15171b,

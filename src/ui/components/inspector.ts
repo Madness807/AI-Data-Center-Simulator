@@ -1,4 +1,5 @@
-import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, HEAT, RACK, REPAIR, UPS } from '../../sim/balance';
+import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, HEAT, RACK, REPAIR, UPS } from '../../sim/balance';
+import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
 import { isRackActive, type Building, type BuildingKind, type Cell, type Technician } from '../../sim/entities';
 import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
@@ -19,11 +20,13 @@ export interface InspectorActions {
   demolish: (cell: Cell) => void;
   focus: (cell: Cell) => void;
   close: () => void;
+  /** Carrière : fait pivoter un rack d'un quart de tour. */
+  rotate: (buildingId: number) => void;
 }
 
 type Tone = '' | 'ok' | 'warn' | 'danger';
 
-const KIND_ICON: Record<BuildingKind, IconName> = { rack: 'rack', crac: 'crac', pdu: 'pdu', ups: 'ups', generator: 'generator' };
+const KIND_ICON: Record<BuildingKind, IconName> = { rack: 'rack', crac: 'crac', pdu: 'pdu', ups: 'ups', generator: 'generator', cdu: 'cdu' };
 const CONFIRM_MS = 3000;
 
 /** Ligne « libellé / valeur », mise à jour en place. */
@@ -103,8 +106,11 @@ export class Inspector {
   private readonly zoneLoad = new Gauge('Chaleur de la zone', 'temperature');
   private readonly gridLoad = new Gauge('Charge du réseau', 'power');
   private readonly battery = new Gauge('Charge de la batterie', 'ups');
+  private readonly liquidLoad = new Gauge('Chaleur captée', 'cdu');
 
   private readonly risk = new Row('Risque de panne', 'alert');
+  private readonly intake = new Row('Air aspiré', 'temperature');
+  private readonly exhaust = new Row('Soufflage', 'heatmap');
   private readonly cooling = new Row('Refroidissement', 'crac');
   private readonly power = new Row('Énergie', 'power');
   private readonly shedOrder = new Row('Ordre de délestage', 'power');
@@ -122,6 +128,7 @@ export class Inspector {
   private readonly hint = el('div', 'insp-hint');
 
   private readonly sendButton = el('button', 'btn btn-primary');
+  private readonly rotateButton = el('button', 'btn btn-icon', icon('rotate', 15));
   private readonly demolishButton = el('button', 'btn btn-ghost insp-demolish');
   private readonly thumbnails: Partial<Record<BuildingKind, string>> = {};
   private current: Building | null = null;
@@ -144,6 +151,8 @@ export class Inspector {
     focus.title = 'Centrer la caméra';
     focus.onclick = () => this.current && actions.focus(this.current);
     this.sendButton.onclick = () => this.current && actions.sendTechnician(this.current.id);
+    this.rotateButton.title = 'Pivoter d’un quart de tour (F)';
+    this.rotateButton.onclick = () => this.current && actions.rotate(this.current.id);
     this.demolishButton.onclick = () => {
       if (!this.current) return;
       if (performance.now() < this.confirmUntil) {
@@ -160,12 +169,15 @@ export class Inspector {
       this.zoneLoad.root,
       this.gridLoad.root,
       this.battery.root,
+      this.liquidLoad.root,
       this.tempBlock,
       el(
         'div',
         'insp-rows',
         ...[
           this.risk,
+          this.intake,
+          this.exhaust,
           this.cooling,
           this.power,
           this.shedOrder,
@@ -183,7 +195,7 @@ export class Inspector {
         ].map((r) => r.root),
       ),
       this.hint,
-      el('div', 'insp-actions', this.sendButton, focus, this.demolishButton),
+      el('div', 'insp-actions', this.sendButton, this.rotateButton, focus, this.demolishButton),
     );
     this.root.hidden = true;
   }
@@ -224,12 +236,14 @@ export class Inspector {
       this.renderPdu(s, b.kind === 'pdu' && !site),
       this.renderUps(s, b, b.kind === 'ups' && !site),
       this.renderGenerator(s, b, b.kind === 'generator' && !site),
+      this.renderCdu(s, b, b.kind === 'cdu' && !site),
       this.renderSite(s, b, site),
     ];
     const hint = hints.find((h) => h) ?? '';
     setText(this.hint, hint);
     setHidden(this.hint, !hint);
 
+    setHidden(this.rotateButton, !(b.kind === 'rack' && s.rules.aisles));
     this.uptime.show(!site);
     if (!site) this.uptime.set(b.builtAt === null ? '—' : clock(s.time - b.builtAt));
 
@@ -285,15 +299,25 @@ export class Inspector {
 
   private renderRack(s: GameState, b: Building, temp: number, on: boolean): string {
     for (const row of [this.risk, this.cooling, this.power, this.shedOrder, this.compute, this.failures]) row.show(on);
+    this.intake.show(on && s.rules.aisles);
+    this.exhaust.show(on && s.rules.aisles);
     if (!on) return '';
     const running = isRackActive(b);
-    const risk = failureRiskPerMinute(temp);
+    // En carrière, le risque se lit sur l'air aspiré (devant le rack), pas sur sa case.
+    const intakeTemp = rackTemp(s, b);
+    const risk = failureRiskPerMinute(intakeTemp);
+    if (s.rules.aisles) {
+      const own = idx(s, b.x, b.y);
+      this.intake.set(`${celsius(intakeTemp)} · ${intakeIndex(s, b) === own ? 'sur sa case (avant bouché)' : 'devant'}`, intakeTemp >= FAILURE.thresholdC ? 'danger' : intakeTemp >= FAILURE.thresholdC - 3 ? 'warn' : '');
+      const ex = exhaustIndex(s, b);
+      this.exhaust.set(ex === null ? 'gardée (mur ou équipement derrière)' : 'vers l’arrière', ex === null ? 'warn' : '');
+    }
     this.risk.show(b.status === 'ok');
     this.risk.set(risk < 0.001 ? '< 0,1 % / min' : `${percentFine(risk)} / min`, risk < 0.02 ? '' : risk < 0.15 ? 'warn' : 'danger');
 
     const coolers = coolersCovering(s, b.x, b.y);
     this.cooling.set(
-      coolers.length ? `${coolers.length} CRAC · ${Math.round(coolers.length * modifiers(s).cracCoolingKW)} kW` : 'aucun CRAC à portée',
+      coolers.length ? `${coolers.length} CRAC · ${Math.round(coolers.length * modifiers(s).cracCoolingKW * cracWeatherFactor(s))} kW` : 'aucun CRAC à portée',
       coolers.length ? 'ok' : 'danger',
     );
     this.power.set(running ? `${RACK.powerKW} kW` : b.status === 'ok' ? '0 kW (délesté)' : '0 kW', running ? '' : 'danger');
@@ -309,6 +333,7 @@ export class Inspector {
     this.failures.set(String(b.failures), b.failures ? 'warn' : '');
 
     // Une astuce quand la situation appelle une décision.
+    if (breathesExhaust(s, b)) return 'Ce rack aspire l’air chaud qu’un autre souffle : pivotez-le (F) pour former des allées chaude et froide, dos à dos.';
     if (!coolers.length && temp >= FAILURE.thresholdC) return `Au-delà de ${FAILURE.thresholdC} °C les pannes se multiplient : posez un CRAC à portée.`;
     if (b.status === 'ok' && !b.powered) return 'Capacité électrique insuffisante : ajoutez un PDU.';
     if (b.status === 'failed') return 'Un technicien doit venir le réparer ; les pièces sont payées à son arrivée.';
@@ -320,7 +345,8 @@ export class Inspector {
     this.coverage.show(on);
     if (!on) return '';
     const { racks, heatKW } = cracHeatLoad(s, b);
-    const capacity = Math.round(modifiers(s).cracCoolingKW);
+    // Capacité réelle : recherche et météo comprises (une canicule l'abaisse).
+    const capacity = Math.round(modifiers(s).cracCoolingKW * cracWeatherFactor(s));
     const ratio = heatKW / capacity;
     this.zoneLoad.set(
       ratio,
@@ -363,6 +389,19 @@ export class Inspector {
     const r = redundancy(s);
     this.n1.set(r.backup ? 'oui' : 'non', r.backup ? 'ok' : 'warn');
     return r.backup ? '' : 'Sans N+1, la panne d’un groupe pendant une coupure délesterait des racks : ajoutez-en un.';
+  }
+
+  private renderCdu(s: GameState, b: Building, on: boolean): string {
+    this.liquidLoad.show(on);
+    if (!on) return '';
+    const kw = liquidLoads(s).byCdu.get(b.id) ?? 0;
+    const ratio = kw / CDU.capacityKW;
+    this.liquidLoad.set(ratio, `${Math.round(kw)} / ${CDU.capacityKW} kW`, ratio > 0.95 ? 'warn' : 'ok');
+    this.coverage.show(true);
+    const racks = s.buildings.filter((r) => r.kind === 'rack' && (r.x - b.x) ** 2 + (r.y - b.y) ** 2 <= CDU.radius ** 2).length;
+    this.coverage.set(`${CDU.radius} cases · ${racks} ${plural(racks, 'rack')}`);
+    if (!b.powered) return 'Sans courant, la pompe s’arrête : la chaleur revient dans la salle.';
+    return ratio > 0.95 ? 'Capacité atteinte : un second CDU soulagerait les racks de la zone.' : '';
   }
 
   /** La ligne N+1 sert au PDU comme au groupe : visible si l'un des deux l'a demandée. */

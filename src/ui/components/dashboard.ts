@@ -1,10 +1,11 @@
 import { FAILURE } from '../../sim/balance';
 import { isRackActive } from '../../sim/entities';
 import { OPERATING, type ExpenseKind } from '../../sim/ledger';
-import { idx, type GameState } from '../../sim/state';
+import type { GameState } from '../../sim/state';
 import { availability, pue, tempStats } from '../../sim/stats';
 import { ALERTS } from '../../sim/systems/alerts';
 import { failureRiskPerMinute } from '../../sim/systems/failures';
+import { rackTemp } from '../../sim/climate';
 import { el, icon, setText } from '../dom';
 import { celsius, clock, decimal, money, moneyRate, percent, percentFine, plural, signedMoney } from '../format';
 import type { IconName } from '../icons';
@@ -221,9 +222,9 @@ export class Dashboard {
     setKpi(this.thermal.max, celsius(t.max), `seuil de panne ${FAILURE.thresholdC} °C`, t.max >= FAILURE.thresholdC ? 'danger' : t.max >= ALERTS.hotC ? 'warn' : 'ok');
     setKpi(this.thermal.avg, celsius(t.avg), 'sur toute la salle');
     const racks = s.buildings.filter(isRackActive);
-    const hot = racks.filter((b) => s.temp[idx(s, b.x, b.y)] >= ALERTS.hotC).length;
+    const hot = racks.filter((b) => rackTemp(s, b) >= ALERTS.hotC).length;
     setKpi(this.thermal.hot, String(hot), `sur ${racks.length} ${plural(racks.length, 'rack')} en service`, hot ? 'warn' : '');
-    const risk = racks.reduce((m, b) => Math.max(m, failureRiskPerMinute(s.temp[idx(s, b.x, b.y)])), 0);
+    const risk = racks.reduce((m, b) => Math.max(m, failureRiskPerMinute(rackTemp(s, b))), 0);
     setKpi(this.thermal.risk, `${percentFine(risk)} / min`, 'rack le plus exposé', risk >= 0.05 ? 'danger' : risk >= 0.02 ? 'warn' : '');
 
     this.tempChart.update(

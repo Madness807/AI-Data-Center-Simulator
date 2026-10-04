@@ -57,3 +57,12 @@ export function createShedMarkers(capacity: number): THREE.InstancedMesh {
   m.frustumCulled = false;
   return m;
 }
+
+/** Toit vitré du confinement d'allée chaude, posé au-dessus des racks, une instance par case. */
+export function createContainmentPanels(capacity: number): THREE.InstancedMesh {
+  const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.03, 1).translate(0, 1.72, 0), MATERIALS.containment(), capacity);
+  mesh.count = 0;
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 2;
+  return mesh;
+}

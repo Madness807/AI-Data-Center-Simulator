@@ -1,7 +1,7 @@
-import { ECONOMY, GENERATOR, TECH } from '../balance';
+import { ECONOMY, GENERATOR, HEAT_REUSE, TECH } from '../balance';
 import { modifiers } from '../progression';
 import { isRackActive } from '../entities';
-import { spend } from '../ledger';
+import { earn, spend } from '../ledger';
 import { notify, type GameState } from '../state';
 
 /** Électricité et salaires, compte à rebours de faillite et objectif. */
@@ -15,6 +15,8 @@ export function updateEconomy(s: GameState, dt: number): void {
   s.economy.salariesPerS = salaries;
   spend(s, 'electricity', perS * dt);
   if (fuelPerS > 0) spend(s, 'fuel', fuelPerS * dt);
+  // Récupération de chaleur (recherche) : la chaleur des CDU est revendue au réseau de chaleur urbain.
+  if (modifiers(s).heatReuse && s.cooling.liquidKW > 0) earn(s, s.cooling.liquidKW * HEAT_REUSE.pricePerKWs * dt);
   spend(s, 'salaries', salaries * dt);
 
   // Disponibilité : temps de service des racks installés (une panne ou un délestage la fait baisser).

@@ -97,7 +97,7 @@ describe('sauvegarde', () => {
     const r = deserialize(JSON.stringify(file));
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.state.incidents).toEqual({ outageEndsAt: null, nextOutageAt: null, outages: 0 });
+    expect(r.state.incidents).toEqual({ outageEndsAt: null, nextOutageAt: null, outages: 0, heatwaveEndsAt: null, nextHeatwaveAt: null });
     expect(r.state.rules.incidents).toBe(false);
     expect(r.state.economy.ledger.fuel).toBe(0);
     runSeconds(r.state, 10);

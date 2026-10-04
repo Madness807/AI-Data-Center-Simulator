@@ -2,7 +2,8 @@ import { FAILURE } from '../balance';
 import { isRackActive, type Building } from '../entities';
 import { researchReserve } from '../progression';
 import { upsAutonomy } from './power';
-import { idx, notify, type GameState } from '../state';
+import { rackTemp } from '../climate';
+import { notify, type GameState } from '../state';
 
 /** Seuils des alertes préventives : prévenir avant la casse, une fois par épisode. */
 export const ALERTS = {
@@ -48,7 +49,7 @@ function upsLow(s: GameState): void {
   notify(s, 'warning', `Batteries des onduleurs : environ ${Math.max(1, Math.round(left))} s d’autonomie`, { code: 'upsLow' });
 }
 
-const tempOf = (s: GameState, b: Building) => s.temp[idx(s, b.x, b.y)];
+const tempOf = (s: GameState, b: Building) => rackTemp(s, b);
 const where = (b: Building) => `${b.x},${b.y}`;
 
 function hotRacks(s: GameState): void {

@@ -29,6 +29,19 @@ export function emptyPower(): PowerStats {
   return { capacityKW: 0, demandKW: 0, loadKW: 0, shedCount: 0, grid: true, backupKW: 0, generatorKW: 0, upsKW: 0, chargeKW: 0 };
 }
 
+/** Refroidissement au dernier tick : chaleur captée par les CDU, météo. */
+export interface CoolingStats {
+  liquidKW: number;
+  /** Température extérieure, null sans météo. */
+  outsideC: number | null;
+  /** Efficacité des CRAC due à la météo (1 sans météo). */
+  cracFactor: number;
+}
+
+export function emptyCooling(): CoolingStats {
+  return { liquidKW: 0, outsideC: null, cracFactor: 1 };
+}
+
 /** Incidents en cours et à venir (carrière). */
 export interface Incidents {
   /** Coupure du réseau en cours : fin (temps de jeu), ou null. */
@@ -37,10 +50,13 @@ export interface Incidents {
   nextOutageAt: number | null;
   /** Coupures déjà subies (la première est courte). */
   outages: number;
+  /** Canicule en cours : fin, ou null ; prochaine (null : pas encore programmée). */
+  heatwaveEndsAt: number | null;
+  nextHeatwaveAt: number | null;
 }
 
 export function emptyIncidents(): Incidents {
-  return { outageEndsAt: null, nextOutageAt: null, outages: 0 };
+  return { outageEndsAt: null, nextOutageAt: null, outages: 0, heatwaveEndsAt: null, nextHeatwaveAt: null };
 }
 
 /** Nature de l'événement, pour réagir sans analyser le texte (son, routage dans le HUD). */
@@ -67,7 +83,9 @@ export type EventCode =
   // Incidents.
   | 'outage'
   | 'gridBack'
-  | 'upsLow';
+  | 'upsLow'
+  | 'heatwave'
+  | 'heatwaveEnd';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';
@@ -136,6 +154,7 @@ export interface GameState {
   techs: Technician[];
   nextTechId: number;
   power: PowerStats;
+  cooling: CoolingStats;
   incidents: Incidents;
   /** CU/s disponibles (racks actifs) et utilisés par les contrats. */
   compute: { total: number; used: number };
@@ -175,6 +194,7 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H, mode: GameMod
     techs: [],
     nextTechId: 1,
     power: emptyPower(),
+    cooling: emptyCooling(),
     incidents: emptyIncidents(),
     compute: { total: 0, used: 0 },
     jobs: [],

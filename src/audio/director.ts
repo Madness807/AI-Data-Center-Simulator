@@ -61,7 +61,10 @@ export function soundForEvent(code: EventCode | undefined): SoundId | null {
     case 'gridBack':
       return 'gridBack';
     case 'upsLow':
+    case 'heatwave':
       return 'caution';
+    case 'heatwaveEnd':
+      return 'gridBack';
     default:
       return null;
   }

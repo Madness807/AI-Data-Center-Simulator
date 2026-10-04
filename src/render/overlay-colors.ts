@@ -4,6 +4,7 @@ import type { GameState } from '../sim/state';
 import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
 import { failureRiskPerMinute } from '../sim/systems/failures';
 import { inCoolingRange } from '../sim/systems/heat';
+import { hotAisleCells, liquidCapture, rackTemp } from '../sim/climate';
 import { plannedGeneratorKW, plannedUpsKW } from '../sim/systems/power';
 import { statusColor, type StatusName } from './assets/status-colors';
 
@@ -43,6 +44,9 @@ const mix = (a: Rgb, b: Rgb, f: number): Rgb => [a[0] + (b[0] - a[0]) * f, a[1] 
 
 /** Froid disponible : la couleur d'accent du HUD, distincte des états des racks. */
 const COOL: Rgb = [79, 209, 255];
+/** Allée chaude (air soufflé par les racks) et refroidissement liquide. */
+const HOT_AISLE: Rgb = [255, 138, 61];
+const LIQUID: Rgb = [150, 120, 255];
 /** Sol assombri sous les calques par équipement : les cases colorées ressortent. */
 const DIM = [8, 12, 18, 130] as const;
 
@@ -91,11 +95,13 @@ export function overlayLegend(mode: Exclude<OverlayMode, 'heat'>): { title: stri
       };
     case 'cooling':
       return {
-        title: `Froid · ${CRAC.coolingKW} kW par CRAC`,
+        title: 'Froid · portée des CRAC',
         items: [
           { label: 'Marge', rgb: COOL },
           { label: 'À la limite', rgb: status('repairing') },
           { label: 'Débordé, sans froid', rgb: status('failed') },
+          { label: 'Allée chaude', rgb: HOT_AISLE },
+          { label: 'Liquide', rgb: LIQUID },
         ],
       };
     case 'occupancy':
@@ -172,7 +178,7 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
   if (mode === 'risk') {
     for (const b of s.buildings) {
       if (b.kind !== 'rack') continue;
-      if (isRackActive(b)) put(cell(b), riskToRgb(failureRiskPerMinute(s.temp[cell(b)])), 235);
+      if (isRackActive(b)) put(cell(b), riskToRgb(failureRiskPerMinute(rackTemp(s, b))), 235);
       else put(cell(b), status(b.status === 'failed' ? 'failed' : 'idle'), 120);
     }
     return;
@@ -190,11 +196,15 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
     }
   }
   for (let i = 0; i < best.length; i++) if (best[i] > -Infinity) put(i, headroomToRgb(best[i]), 85);
+  // Carrière : les allées chaudes (là où les racks soufflent) et les racks refroidis par liquide.
+  if (s.rules.aisles) for (const i of hotAisleCells(s)) put(i, HOT_AISLE, 120);
   for (const c of cracs) put(cell(c), headroomToRgb(cracHeadroom(s, c)), 240);
+  const liquid = liquidCapture(s);
   for (const b of s.buildings) {
+    if (b.kind === 'cdu' && b.status === 'ok') put(cell(b), LIQUID, 240);
     if (!isRackActive(b)) continue;
     const h = best[cell(b)];
-    put(cell(b), h === -Infinity ? status('failed') : headroomToRgb(h), 235);
+    put(cell(b), liquid.has(b.id) ? LIQUID : h === -Infinity ? status('failed') : headroomToRgb(h), 235);
   }
 }
 
