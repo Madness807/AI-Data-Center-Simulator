@@ -23,6 +23,8 @@ const SECTIONS: { title: string; lines: [string, string[]][] }[] = [
   {
     title: 'Construction',
     lines: [
+      ['Inspecter un équipement', ['Clic']],
+      ['Fermer l’inspecteur', ['Échap']],
       ['Rack, CRAC, PDU', ['R', 'C', 'P']],
       ['Démolir', ['X']],
       ['Poser (glisser pour enchaîner)', ['Clic']],

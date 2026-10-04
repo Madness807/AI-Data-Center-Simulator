@@ -68,6 +68,8 @@ export const PALETTE = {
 
   // Interface dans le monde
   selection: 0x3dffa0,
+  /** Équipement inspecté : cyan, pour le distinguer des techniciens sélectionnés (vert). */
+  inspect: 0x4fd1ff,
   cracRange: 0x7fd4ff,
   ghostOk: 0x40ff80,
   ghostBad: 0xff4040,

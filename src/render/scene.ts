@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { BUILD_TIME, RACK } from '../sim/balance';
-import { isRackActive } from '../sim/entities';
+import { BUILD_TIME, CRAC } from '../sim/balance';
+import type { Building } from '../sim/entities';
+import { busyRackIds } from '../sim/stats';
 import type { GameState } from '../sim/state';
 import type { Cell } from '../input/picking';
 import {
@@ -9,6 +10,8 @@ import {
   createLighting,
   createPing,
   createRackInstances,
+  createRangeRing,
+  createSelectionBrackets,
   createStatusMarkers,
   createTechnician,
   createWalls,
@@ -192,6 +195,8 @@ export class SceneView {
   private rackCells: Cell[] = [];
   private readonly techs = new Map<number, TechnicianModel>();
   private readonly pings: Ping[] = [];
+  private readonly inspectBrackets = createSelectionBrackets();
+  private readonly inspectRange = createRangeRing(CRAC.radius, 'soft');
   private readonly tmpMatrix = new THREE.Matrix4();
   private readonly tmpVec = new THREE.Vector3();
   private readonly tmpColor = new THREE.Color();
@@ -214,7 +219,8 @@ export class SceneView {
     this.walls = createWalls(w, h);
     this.heatmap = new Heatmap(w, h);
     this.racks = createRackInstances(RACK_CAPACITY);
-    this.scene.add(this.walls.root, this.heatmap.mesh, this.racks.body, this.racks.led, this.markers);
+    this.inspectRange.visible = false;
+    this.scene.add(this.walls.root, this.heatmap.mesh, this.racks.body, this.racks.led, this.markers, this.inspectBrackets, this.inspectRange);
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -240,7 +246,15 @@ export class SceneView {
    * `alpha` (0..1) : fraction du tick suivant déjà écoulée, pour interpoler les techniciens
    * entre leur position au tick précédent et l'actuelle.
    */
-  render(s: GameState, realTime: number, realDt: number, alpha: number, selected: ReadonlySet<number>): void {
+  render(
+    s: GameState,
+    realTime: number,
+    realDt: number,
+    alpha: number,
+    selected: ReadonlySet<number>,
+    inspected: Building | null = null,
+  ): void {
+    this.syncInspected(inspected, realTime);
     this.syncRacks(s, realTime);
     this.syncOthers(s, realTime, realDt);
     this.syncTechs(s, realTime, alpha, selected);
@@ -285,6 +299,16 @@ export class SceneView {
     }
   }
 
+  /** Crochets pulsants autour de l'équipement inspecté ; portée en plus pour un CRAC. */
+  private syncInspected(b: Building | null, realTime: number): void {
+    this.inspectBrackets.visible = b !== null;
+    this.inspectRange.visible = b?.kind === 'crac';
+    if (!b) return;
+    cellCenter(b.x, b.y, this.inspectBrackets.position).setY(0.012);
+    this.inspectBrackets.scale.setScalar(1.04 + Math.sin(realTime * 5) * 0.04);
+    cellCenter(b.x, b.y, this.inspectRange.position).setY(0.03);
+  }
+
   private syncTechs(s: GameState, realTime: number, alpha: number, selected: ReadonlySet<number>): void {
     const seen = new Set<number>();
     for (const t of s.techs) {
@@ -315,8 +339,7 @@ export class SceneView {
     const { body, led } = this.racks;
     const markers = this.markers;
     const blink = Math.sin(realTime * 8) > 0;
-    // Le pool n'attribue pas de racks : on allume en « occupé » les plus anciens, à hauteur du calcul utilisé.
-    let busyLeft = Math.ceil(s.compute.used / RACK.computeCU);
+    const busy = busyRackIds(s);
     let n = 0;
     let m = 0;
     this.rackCells.length = 0;
@@ -329,7 +352,7 @@ export class SceneView {
       let color: THREE.Color;
       if (b.status !== 'ok') color = LED_DEAD;
       else if (!b.powered) color = blink ? LED_SHED : LED_OFF;
-      else if (isRackActive(b) && busyLeft-- > 0) {
+      else if (busy.has(b.id)) {
         // Un rack qui calcule scintille légèrement, chacun à son rythme.
         color = this.tmpColor.copy(LED_BUSY).multiplyScalar(0.78 + 0.22 * Math.sin(realTime * 7 + b.id * 1.7));
       } else color = LED_IDLE;

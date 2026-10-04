@@ -3,7 +3,7 @@ import type { GameState, Speed } from '../../sim/state';
 import { tempStats } from '../../sim/stats';
 import type { Balance } from '../metrics';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
-import { clock, money, moneyRate, percent, plural, seconds } from '../format';
+import { celsius, clock, money, moneyRate, percent, plural, seconds } from '../format';
 import type { IconName } from '../icons';
 
 const SPEEDS: { speed: Speed; label: string; key: string }[] = [
@@ -43,7 +43,7 @@ export class ResourceBar {
   private readonly computeMeter = meter();
   private readonly temp = block('temperature', 'Temp. max');
   private readonly team = block('team', 'Équipe');
-  private readonly time = block('time', 'Temps');
+  private readonly clock = el('span', 'speed-clock mono');
   private readonly speedButtons = new Map<Speed, HTMLButtonElement>();
   private readonly pauseBanner = el('div', 'banner banner-pause', icon('pause', 14), 'PAUSE — Espace pour reprendre');
   private readonly bankruptBanner = el('div', 'banner banner-bankrupt', icon('alert', 15));
@@ -56,7 +56,7 @@ export class ResourceBar {
     this.power.sub.append(this.powerMeter.root, this.shed);
     this.compute.sub.append(this.computeMeter.root);
 
-    const speed = el('div', 'speed');
+    const speed = el('div', 'speed', el('span', 'speed-time', icon('time', 14), this.clock));
     for (const sp of SPEEDS) {
       const b = el('button', 'btn', sp.speed === 0 ? icon('pause', 14) : sp.label);
       b.title = `${sp.speed === 0 ? 'Pause' : `Vitesse ${sp.label}`} (${sp.key})`;
@@ -72,7 +72,6 @@ export class ResourceBar {
       this.compute.root,
       this.temp.root,
       this.team.root,
-      this.time.root,
       speed,
     );
     this.bankruptBanner.append(this.bankruptText);
@@ -105,21 +104,22 @@ export class ResourceBar {
     setStyle(this.powerMeter.fill, 'width', `${Math.min(1, load) * 100}%`);
     this.powerMeter.fill.className = `meter-fill ${p.shedCount ? 'danger' : load > 0.85 ? 'warn' : 'ok'}`;
     setHidden(this.shed, p.shedCount === 0);
+    setHidden(this.powerMeter.root, p.shedCount > 0);
     setText(this.shed, `${p.shedCount} ${plural(p.shedCount, 'délesté')}`);
 
     setText(this.compute.value, `${s.compute.used} / ${s.compute.total} CU/s`);
     setStyle(this.computeMeter.fill, 'width', `${s.compute.total ? (s.compute.used / s.compute.total) * 100 : 0}%`);
 
     const t = tempStats(s);
-    setText(this.temp.value, `${t.max.toFixed(1)} °C`);
+    setText(this.temp.value, celsius(t.max));
     this.temp.value.className = `res-value ${t.max >= FAILURE.thresholdC + 15 ? 'danger' : t.max >= FAILURE.thresholdC ? 'warn' : ''}`;
-    setText(this.temp.sub, `moy. ${t.avg.toFixed(1)} °C`);
+    setText(this.temp.sub, `moy. ${celsius(t.avg)}`);
 
     const idle = s.techs.filter((tech) => tech.tasks.length === 0).length;
     setText(this.team.value, `${s.techs.length} tech.`);
     setText(this.team.sub, `${idle} ${plural(idle, 'libre')}`);
 
-    setText(this.time.value, clock(s.time));
+    setText(this.clock, clock(s.time));
     for (const [sp, b] of this.speedButtons) b.classList.toggle('active', sp === s.speed);
 
     setHidden(this.pauseBanner, s.speed !== 0 || s.outcome === 'lost');

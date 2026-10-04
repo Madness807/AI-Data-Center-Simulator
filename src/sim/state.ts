@@ -156,6 +156,8 @@ export function addBuilding(s: GameState, kind: BuildingKind, x: number, y: numb
     powered: false,
     status: site ? 'construction' : 'ok',
     workLeft: site ? BUILD_TIME[kind] : 0,
+    failures: 0,
+    builtAt: site ? null : s.time,
   };
   s.buildings.push(b);
   s.occupant[idx(s, x, y)] = b.id;

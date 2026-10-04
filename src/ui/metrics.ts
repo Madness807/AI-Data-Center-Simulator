@@ -55,3 +55,29 @@ export function balanceBetween(a: Ledger, b: Ledger, seconds: number): Balance |
     netPerSecond: (revenue - spent) / seconds,
   };
 }
+
+/** Nombre de mesures gardées par case : une par seconde de jeu sur la dernière minute. */
+export const TEMP_HISTORY = 60;
+
+/**
+ * Historique des températures de toutes les cases, une mesure par seconde de jeu. L'inspecteur
+ * y lit la courbe d'un équipement dès qu'on le sélectionne, sans attendre de nouvelles mesures.
+ */
+export class TemperatureHistory {
+  private frames: Float32Array[] = [];
+  private lastSecond = -1;
+
+  record(time: number, temps: ArrayLike<number>): void {
+    const second = Math.floor(time);
+    if (second < this.lastSecond) this.frames = []; // nouvelle partie
+    if (second === this.lastSecond) return;
+    this.lastSecond = second;
+    this.frames.push(Float32Array.from(temps));
+    if (this.frames.length > TEMP_HISTORY) this.frames.shift();
+  }
+
+  /** Températures d'une case, de la plus ancienne à la plus récente. */
+  series(cell: number): number[] {
+    return this.frames.map((f) => f[cell]);
+  }
+}

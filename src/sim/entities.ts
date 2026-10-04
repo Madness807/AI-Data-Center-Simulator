@@ -14,6 +14,10 @@ export interface Building {
   status: BuildingStatus;
   /** Secondes de travail restantes, en chantier ou en réparation. */
   workLeft: number;
+  /** Nombre de pannes depuis la mise en service. */
+  failures: number;
+  /** Temps de jeu de la mise en service ; null tant que le chantier n'est pas terminé. */
+  builtAt: number | null;
 }
 
 export type TechTask =

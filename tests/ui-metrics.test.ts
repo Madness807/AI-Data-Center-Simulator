@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyLedger } from '../src/sim/ledger';
-import { BALANCE_WINDOW, LedgerHistory, balanceBetween } from '../src/ui/metrics';
+import { BALANCE_WINDOW, LedgerHistory, TEMP_HISTORY, TemperatureHistory, balanceBetween } from '../src/ui/metrics';
 
 describe('bilan glissant', () => {
   it('sépare l’exploitation des investissements', () => {
@@ -27,5 +27,24 @@ describe('bilan glissant', () => {
 
     h.record(0, emptyLedger());
     expect(h.balance()).toBeNull();
+  });
+});
+
+describe('historique des températures', () => {
+  it('garde une mesure par seconde sur la dernière minute', () => {
+    const h = new TemperatureHistory();
+    for (let t = 0; t < 100; t += 0.1) h.record(t, [20 + t, 30]);
+    const series = h.series(0);
+    expect(series).toHaveLength(TEMP_HISTORY);
+    expect(series[series.length - 1]).toBeCloseTo(119, 0);
+    expect(series[0]).toBeLessThan(series[series.length - 1]);
+    expect(h.series(1).every((v) => v === 30)).toBe(true);
+  });
+
+  it('repart à zéro sur une nouvelle partie', () => {
+    const h = new TemperatureHistory();
+    for (let t = 0; t < 10; t++) h.record(t, [25]);
+    h.record(0, [22]);
+    expect(h.series(0)).toEqual([22]);
   });
 });

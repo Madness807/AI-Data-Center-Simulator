@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { once, onceBy } from '../cache';
+import { merge } from '../geometry';
 import { MATERIALS } from '../materials';
 import type { PALETTE } from '../palette';
 
@@ -59,4 +60,30 @@ export function createPing(kind: PingKind): Ping {
       material.dispose();
     },
   };
+}
+
+/** Quatre coins en L, posés au sol autour de la case : géométrie partagée. */
+const bracketsGeometry = once(() => {
+  const arm = 0.22;
+  const thick = 0.045;
+  const half = 0.5;
+  const parts: THREE.BufferGeometry[] = [];
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      const cx = sx * (half - thick / 2);
+      const cz = sz * (half - thick / 2);
+      parts.push(new THREE.BoxGeometry(arm, 0.02, thick).translate(cx - (sx * (arm - thick)) / 2, 0.01, cz));
+      parts.push(new THREE.BoxGeometry(thick, 0.02, arm).translate(cx, 0.01, cz - (sz * (arm - thick)) / 2));
+    }
+  }
+  return merge(parts);
+});
+
+/** Crochets lumineux autour de l'équipement inspecté (masqués par défaut). */
+export function createSelectionBrackets(): THREE.Mesh {
+  const mesh = new THREE.Mesh(bracketsGeometry(), MATERIALS.inspectBrackets());
+  mesh.position.y = 0.012;
+  mesh.renderOrder = 3;
+  mesh.visible = false;
+  return mesh;
 }

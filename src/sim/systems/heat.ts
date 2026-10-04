@@ -38,6 +38,11 @@ export function updateHeat(s: GameState, dt: number): void {
   }
 }
 
+/** Vrai si la case (x, y) est dans la portée du CRAC posé en (cx, cy) (disque de rayon CRAC.radius). */
+export function inCoolingRange(cx: number, cy: number, x: number, y: number): boolean {
+  return (x - cx) ** 2 + (y - cy) ** 2 <= CRAC.radius * CRAC.radius;
+}
+
 /**
  * Retire au plus `energyKJ` des cases dans le rayon, en proportion de leur
  * excès au-dessus de la cible, sans jamais descendre sous la cible.
@@ -48,7 +53,7 @@ function cool(s: GameState, cx: number, cy: number, energyKJ: number): void {
   let totalExcess = 0;
   for (let y = Math.max(0, cy - r); y <= Math.min(s.h - 1, cy + r); y++) {
     for (let x = Math.max(0, cx - r); x <= Math.min(s.w - 1, cx + r); x++) {
-      if ((x - cx) ** 2 + (y - cy) ** 2 > r * r) continue;
+      if (!inCoolingRange(cx, cy, x, y)) continue;
       const i = idx(s, x, y);
       const excess = s.temp[i] - HEAT.cracTarget;
       if (excess <= 0) continue;

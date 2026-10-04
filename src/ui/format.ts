@@ -20,4 +20,10 @@ export const seconds = (n: number) => `${Math.max(0, Math.ceil(n))} s`;
 
 export const percent = (ratio: number) => `${Math.round(ratio * 100)} %`;
 
+/** Température à une décimale, virgule française : « 34,8 °C ». */
+export const celsius = (t: number) => `${nf1.format(t)} °C`;
+
+/** Pourcentage avec une décimale sous 10 % (« 1,7 % »), entier au-delà. */
+export const percentFine = (ratio: number) => `${(ratio < 0.1 ? nf1 : nf).format(ratio * 100)} %`;
+
 export const plural = (n: number, one: string, many = `${one}s`) => (n > 1 ? many : one);

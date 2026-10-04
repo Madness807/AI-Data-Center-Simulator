@@ -120,6 +120,7 @@ function work(s: GameState, t: Technician, task: TechTask, dt: number): boolean 
   b.workLeft = 0;
   const label = b.kind === 'rack' ? 'Rack' : b.kind === 'crac' ? 'CRAC' : 'PDU';
   notify(s, 'info', b.status === 'construction' ? `${label} ${b.x},${b.y} construit` : `${label} ${b.x},${b.y} réparé`, b);
+  if (b.status === 'construction') b.builtAt = s.time;
   b.status = 'ok';
   return true;
 }

@@ -1,7 +1,6 @@
-import { RACK } from '../../sim/balance';
-import { isRackActive } from '../../sim/entities';
-import type { GameState } from '../../sim/state';
 import { ENTRANCE } from '../../sim/balance';
+import type { GameState } from '../../sim/state';
+import { busyRackIds } from '../../sim/stats';
 import { PALETTE } from '../../render/assets';
 import { HEAT_STOPS, tempToRgb } from '../../render/overlays';
 import { el, icon } from '../dom';
@@ -100,8 +99,7 @@ export class Minimap {
     ctx.fillStyle = css(PALETTE.hazardA);
     for (const [x, y] of ENTRANCE) ctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
 
-    // Même règle que les LEDs : les racks les plus anciens sont « en calcul ».
-    let busyLeft = Math.ceil(s.compute.used / RACK.computeCU);
+    const busy = busyRackIds(s);
     for (const b of s.buildings) {
       const px = b.x * CELL + 1;
       const py = b.y * CELL + 1;
@@ -117,7 +115,7 @@ export class Minimap {
       else if (b.status === 'failed') color = PALETTE.status.failed;
       else if (b.status === 'repairing') color = PALETTE.status.repairing;
       else if (!b.powered) color = PALETTE.status.shed;
-      else color = isRackActive(b) && busyLeft-- > 0 ? PALETTE.status.busy : PALETTE.status.idle;
+      else color = busy.has(b.id) ? PALETTE.status.busy : PALETTE.status.idle;
       ctx.fillStyle = css(color);
       ctx.fillRect(px, py, CELL - 2, CELL - 2);
     }

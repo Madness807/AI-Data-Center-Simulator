@@ -18,7 +18,7 @@ export { createFloor } from './environment/floor';
 export { createWalls, type WallsModel } from './environment/walls';
 export { createLighting } from './environment/lighting';
 export { createStatusMarkers } from './fx/status-markers';
-export { createPing, createRangeRing, createSelectionRing, type Ping, type PingKind } from './fx/rings';
+export { createPing, createRangeRing, createSelectionBrackets, createSelectionRing, type Ping, type PingKind } from './fx/rings';
 export { createBuildGhost, type BuildGhost, type GhostKind } from './fx/build-ghost';
 export { createConstructionSite };
 

@@ -9,6 +9,7 @@ import { ContractsPanel } from './components/contracts-panel';
 import { createHeatLegend } from './components/heat-legend';
 import { CursorFlash } from './components/cursor-flash';
 import { HelpOverlay } from './components/help-overlay';
+import { Inspector } from './components/inspector';
 import { Minimap, type MinimapCamera } from './components/minimap';
 import { ResourceBar } from './components/resource-bar';
 import { DefeatScreen, TitleScreen, VictoryScreen } from './components/screens';
@@ -16,8 +17,8 @@ import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
 import { Tooltip } from './components/tooltip';
 import type { BuildingKind } from '../sim/entities';
 import { el, setHidden } from './dom';
-import { money, moneyRate, percent, seconds, signedMoney } from './format';
-import { LedgerHistory } from './metrics';
+import { celsius, money, moneyRate, percent, seconds, signedMoney } from './format';
+import { LedgerHistory, TemperatureHistory } from './metrics';
 
 export interface HudActions {
   setTool: (tool: Tool) => void;
@@ -35,6 +36,10 @@ export interface HudActions {
   resume: () => void;
   /** Recentre la caméra sur une case (alerte cliquée). */
   focusCell: (cell: Cell) => void;
+  /** Envoie le technicien le plus proche construire ou réparer cet équipement. */
+  sendTechnician: (buildingId: number) => void;
+  demolishAt: (cell: Cell) => void;
+  closeInspector: () => void;
 }
 
 /** État d'interface (hors simulation) transmis à chaque image. */
@@ -44,6 +49,8 @@ export interface HudView {
   edgePan: boolean;
   hover: Cell | null;
   selected: ReadonlySet<number>;
+  /** Équipement inspecté (id), ou null. */
+  inspected: number | null;
 }
 
 function region(name: string, ...children: HTMLElement[]): HTMLElement {
@@ -65,7 +72,7 @@ function tempValue(t: number): HTMLElement {
   const [r, g, b] = tempToRgb(t);
   const dot = el('span', 'temp-dot');
   dot.style.background = `rgb(${r},${g},${b})`;
-  return el('span', undefined, dot, ` ${t.toFixed(1)} °C`);
+  return el('span', undefined, dot, ` ${celsius(t)}`);
 }
 
 /**
@@ -83,6 +90,8 @@ export class Hud {
   private readonly flash = new CursorFlash();
   private readonly minimap: Minimap;
   private readonly history = new LedgerHistory();
+  private readonly temps = new TemperatureHistory();
+  private readonly inspector: Inspector;
   private readonly tooltip = new Tooltip();
   private readonly title: TitleScreen;
   private readonly victory: VictoryScreen;
@@ -110,6 +119,12 @@ export class Hud {
     this.defeat = new DefeatScreen(actions.newGame, actions.showTitle);
     this.alerts = new AlertFeed(actions.focusCell);
     this.minimap = new Minimap(world.w, world.h, world.camera);
+    this.inspector = new Inspector({
+      sendTechnician: actions.sendTechnician,
+      demolish: actions.demolishAt,
+      focus: actions.focusCell,
+      close: actions.closeInspector,
+    });
     this.overlay = region('overlay', this.title.root, this.victory.root, this.defeat.root);
     this.overlay.classList.add('interactive');
     this.bindBuildTips();
@@ -120,7 +135,7 @@ export class Hud {
       region('top-left', this.minimap.root, this.legend, this.alerts.root),
       region('right', this.contracts.root),
       region('bottom', this.build.root),
-      region('bottom-left', this.selection.root),
+      region('bottom-left', this.inspector.root, this.selection.root),
       this.flash.root,
       this.overlay,
       this.help.root,
@@ -166,16 +181,20 @@ export class Hud {
   /** Remplace l'icône d'une carte de construction par la vignette du vrai modèle. */
   setThumbnail(key: BuildingKind | 'technician', url: string): void {
     this.build.setThumbnail(key, url);
+    if (key !== 'technician') this.inspector.setThumbnail(key, url);
   }
 
   update(s: GameState, view: HudView, now = performance.now()): void {
     this.state = s;
     this.history.record(s.time, s.economy.ledger);
+    this.temps.record(s.time, s.temp);
     this.resources.update(s, this.history.balance());
     this.minimap.update(s, view.heatmap, view.selected, now);
     this.build.update(s, { tool: view.tool, heatmap: view.heatmap, edgePan: view.edgePan, helpOpen: this.help.isOpen });
     this.contracts.update(s);
     this.selection.update(s, view.selected);
+    const inspected = view.inspected === null ? null : (s.buildings.find((b) => b.id === view.inspected) ?? null);
+    this.inspector.update(s, inspected, this.temps);
     setHidden(this.legend, !view.heatmap);
     // Première victoire de la partie : pause et fenêtre de choix.
     if (this.phase === 'playing' && s.outcome === 'won' && !this.victorySeen) {

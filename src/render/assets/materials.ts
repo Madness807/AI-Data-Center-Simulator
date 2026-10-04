@@ -51,6 +51,7 @@ export const MATERIALS = {
   /** Panneau d'alerte : symbole sombre cuit dans les sommets, fond teinté par instance. */
   statusMarker: glow(0xffffff, { vertexColors: true }),
   selectionRing: overlay(PALETTE.selection, 0.9),
+  inspectBrackets: glow(PALETTE.inspect),
   rangeRing: onceBy((emphasis: 'strong' | 'soft') => overlay(PALETTE.cracRange, emphasis === 'strong' ? 0.7 : 0.4)()),
   /** Modèle des pings d'ordre : chaque ping en clone un, car son opacité s'anime. */
   ping: onceBy(

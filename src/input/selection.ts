@@ -15,15 +15,17 @@ export interface SelectionDeps {
   pickTarget: (clientX: number, clientY: number) => { building?: Building; cell: Cell | null };
   enqueue: (c: Command) => void;
   ping: (cell: Cell, kind: PingKind) => void;
-  hint: (message: string) => void;
 }
 
 /**
  * Micro RTS : clic ou rectangle pour sélectionner les techniciens (Maj pour ajouter),
- * clic droit pour donner un ordre (Maj pour l'ajouter à la file).
+ * clic droit pour donner un ordre (Maj pour l'ajouter à la file). Un clic sur un
+ * équipement l'inspecte : sélection exclusive avec celle des techniciens.
  */
 export class SelectionController {
   readonly selected = new Set<number>();
+  /** Équipement inspecté (id), ou null. */
+  inspected: number | null = null;
   private drag: { x0: number; y0: number; x1: number; y1: number } | null = null;
   private readonly rect: HTMLDivElement;
 
@@ -55,11 +57,19 @@ export class SelectionController {
 
   clear(): void {
     this.selected.clear();
+    this.inspected = null;
   }
 
-  /** Retire les techniciens qui n'existent plus (après un redémarrage). */
+  /** Inspecte un équipement (depuis une alerte, par exemple). */
+  inspect(id: number): void {
+    this.selected.clear();
+    this.inspected = id;
+  }
+
+  /** Retire ce qui n'existe plus (équipement démoli, nouvelle partie). */
   prune(s: GameState): void {
     for (const id of this.selected) if (!s.techs.some((t) => t.id === id)) this.selected.delete(id);
+    if (this.inspected !== null && !s.buildings.some((b) => b.id === this.inspected)) this.inspected = null;
   }
 
   private click(x: number, y: number, add: boolean): void {
@@ -69,22 +79,25 @@ export class SelectionController {
       if (d < TECH_HIT_RADIUS && (!best || d < best.d)) best = { id: p.id, d };
     }
     if (best) {
+      this.inspected = null;
       if (!add) this.selected.clear();
       if (add && this.selected.has(best.id)) this.selected.delete(best.id);
       else this.selected.add(best.id);
       return;
     }
-    if (!add) this.selected.clear();
     const { building } = this.deps.pickTarget(x, y);
-    if (building?.status === 'failed' || building?.status === 'construction') {
-      this.deps.hint('Sélectionnez un technicien, puis clic droit sur l’équipement');
+    if (building) {
+      this.inspect(building.id);
+      return;
     }
+    if (!add) this.clear();
   }
 
   private boxSelect(d: { x0: number; y0: number; x1: number; y1: number }, add: boolean): void {
     const [l, r] = [Math.min(d.x0, d.x1), Math.max(d.x0, d.x1)];
     const [t, b] = [Math.min(d.y0, d.y1), Math.max(d.y0, d.y1)];
     if (!add) this.selected.clear();
+    this.inspected = null;
     for (const p of this.deps.techScreenPositions()) {
       if (p.x >= l && p.x <= r && p.y >= t && p.y <= b) this.selected.add(p.id);
     }

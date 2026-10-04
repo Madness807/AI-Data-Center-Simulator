@@ -40,7 +40,6 @@ const selection = new SelectionController(view.domElement, {
   pickTarget,
   enqueue,
   ping: (cell, kind) => view.ping(cell, kind),
-  hint: (message) => notify(state, 'info', message),
 });
 const build = new BuildController(
   view.scene,
@@ -89,9 +88,44 @@ const focusCell = (cell: { x: number; y: number }) => {
   view.ping(cell, 'focus');
 };
 
+/** Le technicien le plus proche, de préférence libre, part construire ou réparer l'équipement. */
+const sendTechnician = (id: number) => {
+  const b = state.buildings.find((o) => o.id === id);
+  if (!b) return;
+  if (!state.techs.length) {
+    notify(state, 'error', 'Aucun technicien : embauchez-en un (T)');
+    return;
+  }
+  const idle = state.techs.filter((t) => t.tasks.length === 0);
+  const pool = idle.length ? idle : state.techs;
+  const dist = (t: { x: number; y: number }) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
+  const tech = pool.reduce((best, t) => (dist(t) < dist(best) ? t : best));
+  const type = b.status === 'construction' ? 'build' : 'repair';
+  // Un technicien occupé finit d'abord ce qu'il fait : l'ordre passe en file.
+  enqueue({ type: 'order', techs: [tech.id], task: { type, target: id }, append: idle.length === 0 });
+  view.ping(b, type);
+};
+const demolishAt = (cell: { x: number; y: number }) => enqueue({ type: 'demolish', ...cell });
+const closeInspector = () => (selection.inspected = null);
+
 const hud = new Hud(
   document.getElementById('hud')!,
-  { setTool, setSpeed, toggleHeatmap, toggleEdgePan, hire, acceptJob, rejectJob, newGame, showTitle, resume, focusCell },
+  {
+    setTool,
+    setSpeed,
+    toggleHeatmap,
+    toggleEdgePan,
+    hire,
+    acceptJob,
+    rejectJob,
+    newGame,
+    showTitle,
+    resume,
+    focusCell,
+    sendTechnician,
+    demolishAt,
+    closeInspector,
+  },
   { w: state.w, h: state.h, camera: { footprint: () => view.rts.footprint(), setTarget: (x, z) => view.rts.setTarget(x, z) } },
 );
 // Vignettes des vrais modèles 3D dans la barre de construction.
@@ -137,10 +171,18 @@ function frame(now: number) {
 
   selection.prune(state);
   build.update();
-  view.render(state, now / 1000, realDt, acc / DT, selection.selected);
+  const inspected = selection.inspected === null ? null : (state.buildings.find((b) => b.id === selection.inspected) ?? null);
+  view.render(state, now / 1000, realDt, acc / DT, selection.selected, inspected);
   hud.update(
     state,
-    { tool: build.tool, heatmap: view.heatmap.visible, edgePan: view.rts.edgePan, hover: build.hover, selected: selection.selected },
+    {
+      tool: build.tool,
+      heatmap: view.heatmap.visible,
+      edgePan: view.rts.edgePan,
+      hover: build.hover,
+      selected: selection.selected,
+      inspected: selection.inspected,
+    },
     now,
   );
   requestAnimationFrame(frame);
