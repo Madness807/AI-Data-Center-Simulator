@@ -38,3 +38,36 @@ export const HEAT = {
   /** °C, un CRAC ne refroidit pas une case en dessous. */
   cracTarget: 22,
 };
+
+export const FAILURE = {
+  /** °C au-delà duquel le taux de panne grimpe. */
+  thresholdC: 35,
+  /** Pannes/s d'un rack actif à froid (usure normale). */
+  baseRate: 1 / 3600,
+  /** Pannes/s par °C² au-dessus du seuil : ~1/min à 50 °C, ~1/20 s à 60 °C. */
+  quadRate: 7.5e-5,
+};
+
+export const REPAIR = { cost: 400, seconds: 8 };
+
+export const ECONOMY = {
+  /** $ par kW et par seconde de jeu, facturé sur la charge servie. */
+  electricityPerKWs: 0.09,
+  goalMoney: 50_000,
+  bankruptcySeconds: 30,
+};
+
+export const JOBS = {
+  maxOffers: 3,
+  /** Secondes entre deux offres. */
+  offerInterval: [20, 40] as const,
+  offerExpiry: 45,
+  firstOfferExpiry: 150,
+  /** Débit demandé, en multiples de RACK.computeCU. */
+  maxUnits: 8,
+  duration: [60, 180] as const,
+  /** Délai = durée × marge ; une marge serrée paie plus. */
+  slack: [1.3, 2.0] as const,
+  pricePerCU: 0.4,
+  penaltyRatio: 0.5,
+};

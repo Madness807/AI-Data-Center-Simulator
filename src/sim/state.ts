@@ -1,6 +1,6 @@
-import { ENTRANCE, GRID_H, GRID_W, HEAT, START_MONEY } from './balance';
+import { ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_MONEY } from './balance';
 import type { Command } from './commands';
-import type { Building, BuildingKind } from './entities';
+import type { Building, BuildingKind, Job } from './entities';
 
 export type Speed = 0 | 1 | 2 | 4;
 
@@ -11,7 +11,18 @@ export interface PowerStats {
   shedCount: number;
 }
 
-export type GameEvent = { type: 'error'; message: string };
+export type GameEvent = { type: 'error' | 'warning' | 'info' | 'success'; message: string };
+
+export type Outcome = 'playing' | 'won' | 'lost';
+
+export interface EconomyStats {
+  /** $/s d'électricité au dernier tick. */
+  electricityPerS: number;
+  /** Secondes passées d'affilée sous zéro. */
+  bankruptTimer: number;
+  jobsDone: number;
+  jobsFailed: number;
+}
 
 export interface GameState {
   tick: number;
@@ -29,6 +40,15 @@ export interface GameState {
   buildings: Building[];
   nextId: number;
   power: PowerStats;
+  /** CU/s disponibles (racks actifs) et utilisés par les contrats. */
+  compute: { total: number; used: number };
+  /** Offres et contrats en cours. */
+  jobs: Job[];
+  nextJobId: number;
+  nextOfferAt: number;
+  economy: EconomyStats;
+  /** 'won' laisse la partie continuer en mode libre ; 'lost' la fige. */
+  outcome: Outcome;
   commands: Command[];
   /** Messages pour l'UI, vidés par elle à chaque frame. */
   events: GameEvent[];
@@ -48,16 +68,41 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H): GameState {
     buildings: [],
     nextId: 1,
     power: { capacityKW: 0, demandKW: 0, loadKW: 0, shedCount: 0 },
+    compute: { total: 0, used: 0 },
+    jobs: [],
+    nextJobId: 1,
+    nextOfferAt: 0,
+    economy: { electricityPerS: 0, bankruptTimer: 0, jobsDone: 0, jobsFailed: 0 },
+    outcome: 'playing',
     commands: [],
     events: [],
   };
 }
 
-/** Partie standard : un PDU et un CRAC déjà installés. */
+/** Partie standard : un PDU, un CRAC et un premier contrat facile pour apprendre la boucle. */
 export function createInitialState(seed = 1): GameState {
   const s = createEmptyState(seed);
   addBuilding(s, 'pdu', 1, 1);
   addBuilding(s, 'crac', 8, 8);
+  const rate = 2 * RACK.computeCU;
+  const duration = 60;
+  s.jobs.push({
+    id: s.nextJobId++,
+    name: 'Inférence batch — Lumen Labs',
+    status: 'offer',
+    rateCU: rate,
+    durationS: duration,
+    work: rate * duration,
+    progress: 0,
+    deadlineInS: 150,
+    payment: 6000,
+    penalty: 1500,
+    offeredAt: 0,
+    expiresAt: JOBS.firstOfferExpiry,
+    deadline: 0,
+    allocated: 0,
+  });
+  s.nextOfferAt = 60;
   return s;
 }
 
@@ -80,7 +125,7 @@ export function buildingAt(s: GameState, x: number, y: number): Building | undef
 }
 
 export function addBuilding(s: GameState, kind: BuildingKind, x: number, y: number): Building {
-  const b: Building = { id: s.nextId++, kind, x, y, powered: kind === 'pdu' };
+  const b: Building = { id: s.nextId++, kind, x, y, powered: kind === 'pdu', status: 'ok', repairLeft: 0 };
   s.buildings.push(b);
   s.occupant[idx(s, x, y)] = b.id;
   return b;

@@ -4,7 +4,15 @@ import { addBuilding, createEmptyState, idx } from '../src/sim/state';
 import { tempStats } from '../src/sim/stats';
 import { updateHeat } from '../src/sim/systems/heat';
 import { updatePower } from '../src/sim/systems/power';
-import { runSeconds } from './helpers';
+import type { GameState } from '../src/sim/state';
+
+/** Énergie + chaleur seules, sans pannes ni contrats. */
+function runHeat(s: GameState, seconds: number): void {
+  for (let i = 0; i < Math.round(seconds / DT); i++) {
+    updatePower(s);
+    updateHeat(s, DT);
+  }
+}
 
 describe('heat', () => {
   it('une salle vide reste à l’ambiant', () => {
@@ -36,7 +44,7 @@ describe('heat', () => {
     addBuilding(s, 'pdu', 0, 0);
     addBuilding(s, 'pdu', 1, 0);
     for (let i = 0; i < 6; i++) addBuilding(s, 'rack', 5 + i, 5);
-    runSeconds(s, 3600);
+    runHeat(s, 3600);
     expect(s.temp.every(Number.isFinite)).toBe(true);
     expect(Math.min(...s.temp)).toBeGreaterThanOrEqual(HEAT.ambient - 1e-9);
   });
@@ -44,7 +52,7 @@ describe('heat', () => {
   it('un rack non alimenté ne chauffe pas', () => {
     const s = createEmptyState();
     addBuilding(s, 'rack', 5, 5);
-    runSeconds(s, 60);
+    runHeat(s, 60);
     expect(tempStats(s).max).toBeCloseTo(HEAT.ambient, 9);
   });
 
@@ -52,7 +60,7 @@ describe('heat', () => {
     const s = createEmptyState();
     addBuilding(s, 'pdu', 0, 0);
     addBuilding(s, 'crac', 5, 5);
-    runSeconds(s, 120);
+    runHeat(s, 120);
     expect(Math.min(...s.temp)).toBeGreaterThanOrEqual(HEAT.cracTarget - 1e-9);
   });
 
@@ -61,14 +69,14 @@ describe('heat', () => {
     addBuilding(s, 'pdu', 0, 0);
     for (let i = 0; i < 4; i++) addBuilding(s, 'rack', 10 + i, 8);
     updatePower(s);
-    runSeconds(s, 120);
+    runHeat(s, 120);
     const hot = tempStats(s).max;
     expect(hot).toBeGreaterThan(40);
 
     addBuilding(s, 'pdu', 1, 0);
     addBuilding(s, 'crac', 11, 9);
     addBuilding(s, 'crac', 12, 7);
-    runSeconds(s, 120);
+    runHeat(s, 120);
     expect(tempStats(s).max).toBeLessThan(hot - 10);
   });
 });

@@ -1,7 +1,16 @@
 import * as THREE from 'three';
-import type { Building } from '../sim/entities';
+import { RACK } from '../sim/balance';
+import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
-import { cellCenter, createCracMesh, createFloor, createPduMesh, createRackMeshes, type RackMeshes } from './meshes';
+import {
+  cellCenter,
+  createCracMesh,
+  createFloor,
+  createPduMesh,
+  createRackMeshes,
+  createStatusMarkers,
+  type RackMeshes,
+} from './meshes';
 import { Heatmap } from './overlays';
 import type { Cell } from '../input/picking';
 
@@ -94,9 +103,13 @@ export class RtsCamera {
   }
 }
 
-const LED_ON = new THREE.Color(0x3dffa0);
+const LED_BUSY = new THREE.Color(0x3dffa0);
+const LED_IDLE = new THREE.Color(0x2a7fa8);
 const LED_SHED = new THREE.Color(0xff3b3b);
 const LED_OFF = new THREE.Color(0x3a1414);
+const LED_DEAD = new THREE.Color(0x15181d);
+const MARK_FAILED = new THREE.Color(0xff3b3b);
+const MARK_REPAIR = new THREE.Color(0xffa23b);
 
 /** Lit le GameState et met la scène à jour ; ne modifie jamais l'état. */
 export class SceneView {
@@ -105,6 +118,7 @@ export class SceneView {
   readonly rts: RtsCamera;
   readonly heatmap: Heatmap;
   private readonly racks: RackMeshes;
+  private readonly markers = createStatusMarkers();
   private readonly others = new Map<number, THREE.Group>();
   /** Case du bâtiment de chaque instance de rack, pour le picking. */
   private rackCells: Cell[] = [];
@@ -138,7 +152,7 @@ export class SceneView {
     this.heatmap = new Heatmap(w, h);
     this.scene.add(this.heatmap.mesh);
     this.racks = createRackMeshes();
-    this.scene.add(this.racks.body, this.racks.led);
+    this.scene.add(this.racks.body, this.racks.led, this.markers);
 
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -169,8 +183,12 @@ export class SceneView {
 
   private syncRacks(s: GameState, realTime: number): void {
     const { body, led } = this.racks;
+    const markers = this.markers;
     const blink = Math.sin(realTime * 8) > 0;
+    // Le pool n'attribue pas de racks : on allume en « occupé » les plus anciens, à hauteur du calcul utilisé.
+    let busyLeft = Math.ceil(s.compute.used / RACK.computeCU);
     let n = 0;
+    let m = 0;
     this.rackCells.length = 0;
     for (const b of s.buildings) {
       if (b.kind !== 'rack' || n >= body.instanceMatrix.count) continue;
@@ -178,12 +196,28 @@ export class SceneView {
       this.tmpMatrix.makeTranslation(cellCenter(b.x, b.y, this.tmpVec));
       body.setMatrixAt(n, this.tmpMatrix);
       led.setMatrixAt(n, this.tmpMatrix);
-      led.setColorAt(n, b.powered ? LED_ON : blink ? LED_SHED : LED_OFF);
+      let color: THREE.Color;
+      if (b.status !== 'ok') color = LED_DEAD;
+      else if (!b.powered) color = blink ? LED_SHED : LED_OFF;
+      else if (isRackActive(b) && busyLeft-- > 0) color = LED_BUSY;
+      else color = LED_IDLE;
+      led.setColorAt(n, color);
       n++;
+
+      if (b.status !== 'ok') {
+        const failed = b.status === 'failed';
+        this.tmpVec.y = 2.05 + Math.sin(realTime * 3 + b.id) * 0.08;
+        this.tmpMatrix.makeRotationY(failed ? 0 : realTime * 4).setPosition(this.tmpVec);
+        markers.setMatrixAt(m, this.tmpMatrix);
+        markers.setColorAt(m, failed ? MARK_FAILED : MARK_REPAIR);
+        m++;
+      }
     }
     body.count = led.count = n;
-    body.instanceMatrix.needsUpdate = led.instanceMatrix.needsUpdate = true;
+    markers.count = m;
+    body.instanceMatrix.needsUpdate = led.instanceMatrix.needsUpdate = markers.instanceMatrix.needsUpdate = true;
     if (led.instanceColor) led.instanceColor.needsUpdate = true;
+    if (markers.instanceColor) markers.instanceColor.needsUpdate = true;
   }
 
   private syncOthers(s: GameState, realDt: number): void {

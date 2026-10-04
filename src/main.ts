@@ -25,7 +25,25 @@ const setTool = (tool: Tool) => build.setTool(build.tool === tool ? null : tool)
 const toggleHeatmap = () => (view.heatmap.visible = !view.heatmap.visible);
 const toggleEdgePan = () => (view.rts.edgePan = !view.rts.edgePan);
 
-const hud = new Hud(document.getElementById('hud')!, { setTool, setSpeed, toggleHeatmap, toggleEdgePan });
+const acceptJob = (id: number) => enqueue({ type: 'acceptJob', id });
+const rejectJob = (id: number) => enqueue({ type: 'rejectJob', id });
+const restart = () => {
+  // Le state est partagé par référence (contrôleurs, rendu) : on le remplace champ par champ.
+  Object.assign(state, createInitialState(Date.now() >>> 0));
+  lastSpeed = 1;
+  build.setTool(null);
+  hud.reset();
+};
+
+const hud = new Hud(document.getElementById('hud')!, {
+  setTool,
+  setSpeed,
+  toggleHeatmap,
+  toggleEdgePan,
+  acceptJob,
+  rejectJob,
+  restart,
+});
 
 const TOOL_KEYS: Record<string, Tool> = { KeyR: 'rack', KeyC: 'crac', KeyP: 'pdu', KeyX: 'demolish' };
 window.addEventListener('keydown', (e) => {

@@ -87,7 +87,7 @@ export function createRackMeshes(): RackMeshes {
     m.castShadow = true;
   }
   body.receiveShadow = true;
-  // Créé d'emblée pour que le shader soit compilé avec la couleur par instance.
+  // Créés d'emblée pour que le shader soit compilé avec la couleur par instance.
   led.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(RACK_CAPACITY * 3), 3);
   return { body, led };
 }
@@ -141,4 +141,17 @@ export function createPduMesh(): THREE.Group {
   bolt.rotation.z = 0.4;
   g.add(bolt);
   return g;
+}
+
+/** Losange flottant au-dessus des racks en panne (rouge) ou en réparation (orange). */
+export function createStatusMarkers(): THREE.InstancedMesh {
+  const m = new THREE.InstancedMesh(
+    new THREE.OctahedronGeometry(0.22),
+    new THREE.MeshBasicMaterial({ color: 0xffffff }),
+    RACK_CAPACITY,
+  );
+  m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(RACK_CAPACITY * 3), 3);
+  m.count = 0;
+  m.frustumCulled = false;
+  return m;
 }

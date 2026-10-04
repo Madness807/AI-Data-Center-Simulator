@@ -13,7 +13,8 @@ export function updatePower(s: GameState): void {
   for (const b of s.buildings) {
     if (b.kind === 'pdu') capacity += PDU.capacityKW;
     else if (b.kind === 'crac') cracs.push(b);
-    else racks.push(b);
+    else if (b.status === 'ok') racks.push(b);
+    else b.powered = false; // en panne ou en réparation : ne consomme rien
   }
 
   let remaining = capacity;
@@ -34,7 +35,7 @@ export function updatePower(s: GameState): void {
   };
 }
 
-/** v0.1a : sans contrats, les racks les plus récents sont délestés d'abord. */
+/** Les contrats puisent dans un pool commun : les racks les plus récents sont délestés d'abord. */
 function byRackPriority(a: Building, b: Building): number {
   return a.id - b.id;
 }

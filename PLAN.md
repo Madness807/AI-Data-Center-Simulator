@@ -82,9 +82,7 @@ Toutes les valeurs sont dans `balance.ts`.
 
 - La capacité est **globale** : c'est la somme des PDU construits. L'énergie locale par rayon de PDU arrive en v0.3.
 - La charge est la somme des racks actifs et des CRAC actifs. **Les CRAC consomment de l'électricité.**
-- Si la charge dépasse la capacité, on coupe des racks dans cet ordre :
-  1. racks sans contrat ;
-  2. racks dont le contrat a la deadline la plus lointaine.
+- Si la charge dépasse la capacité, on coupe les racks les plus récents d'abord. Avec le pool global de calcul, aucun rack n'est attaché à un contrat : l'ordre « sans contrat, puis deadline la plus lointaine » reviendra avec l'assignation manuelle.
 - Les CRAC ne sont jamais délestés.
 
 ### Chaleur
@@ -163,7 +161,7 @@ Toutes les valeurs sont dans `balance.ts`.
 
 **But** : vérifier que gérer la chaleur et l'énergie est déjà intéressant.
 
-### v0.1b — Pression
+### v0.1b — Pression ✅ (rendu à vérifier dans le navigateur)
 
 1. Contrats : génération, acceptation, pool de calcul, deadlines.
 2. Pannes liées à la température, état « en panne » visible.

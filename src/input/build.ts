@@ -60,7 +60,15 @@ export class BuildController {
         this.setTool(null);
         return;
       }
-      if (e.button !== 0 || !this.tool) return;
+      if (e.button !== 0) return;
+      if (!this.tool) {
+        // Sans outil, cliquer un rack en panne lance sa réparation (remplacé par les techniciens en v0.1c).
+        const cell = this.hover;
+        if (cell && buildingAt(this.getState(), cell.x, cell.y)?.status === 'failed') {
+          this.enqueue({ type: 'repair', ...cell });
+        }
+        return;
+      }
       dom.setPointerCapture(e.pointerId);
       this.painting = true;
       this.lastPainted = '';
