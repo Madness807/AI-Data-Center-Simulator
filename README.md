@@ -28,9 +28,12 @@ Ouvrez ensuite **http://localhost:8080**. La première construction prend une à
 
 ## Jouer
 
-Commencez par la **partie guidée** : en neuf étapes, elle montre toute la boucle du jeu (techniciens, racks, contrats, chaleur, refroidissement, réparation).
+Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du jeu (techniciens, racks, contrats, chaleur, refroidissement, réparation).
 
-- **Objectif** : atteindre 100 000 $ de trésorerie. La partie continue ensuite en mode libre.
+- **Deux modes** :
+  - **Carrière** : livrez à l'heure pour gagner de la réputation et gravir 4 paliers, de Start-up à Hyperscaler. Une part de votre calcul finance la recherche (touche U).
+  - **Partie rapide** : atteindre 100 000 $ de trésorerie, en une trentaine de minutes.
+  - Dans les deux cas, la partie continue en mode libre après la victoire.
 - **Défaite** : rester plus de 30 secondes dans le rouge.
 - **La boucle** :
   - acceptez des contrats que vos racks peuvent assurer ;
@@ -51,7 +54,7 @@ Commencez par la **partie guidée** : en neuf étapes, elle montre toute la bouc
 | Embaucher un technicien | T |
 | Pause / vitesse ×1, ×2, ×4 | Espace / 1, 2, 3 |
 | Calques : chaleur, énergie, froid, occupation, risque | H (Maj+H : précédent) |
-| Tableau de bord / équipe | Tab / G |
+| Tableau de bord / équipe / recherche (carrière) | Tab / G / U |
 | Défilement par les bords | B |
 | Menu (sauvegarde, options, bug) | Échap |
 | Aide des commandes | ? ou F1 |
@@ -91,7 +94,8 @@ Si le jeu plante, un écran d'erreur propose **Copier le rapport**. Une sauvegar
 Le jeu a été vérifié sous Chrome. Sur Firefox et sur Safari, une partie rapide suffit :
 
 - [ ] L'écran titre s'affiche, avec la salle en 3D qui tourne lentement.
-- [ ] La partie guidée va de l'étape 1 à l'étape 9.
+- [ ] Le tutoriel va de l'étape 1 à l'étape 9.
+- [ ] En carrière, une recherche se lance (U) et avance ; le passage d'un palier ouvre sa fenêtre.
 - [ ] Le son se lance après le premier clic, et les curseurs de volume agissent.
 - [ ] Sauvegarde dans l'emplacement 1, rechargement de la page, puis « Continuer » : on retrouve la même partie.
 - [ ] Un export suivi d'un import redonne la partie.

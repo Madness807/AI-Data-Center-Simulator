@@ -46,6 +46,8 @@ import {
   LogOut,
   ChartLine,
   Layers,
+  FlaskConical,
+  Award,
   type IconNode,
 } from 'lucide';
 
@@ -98,6 +100,8 @@ export const ICONS = {
   quit: LogOut,
   dashboard: ChartLine,
   layers: Layers,
+  research: FlaskConical,
+  tier: Award,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;

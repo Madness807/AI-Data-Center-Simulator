@@ -39,6 +39,7 @@ const SECTIONS: { title: string; lines: [string, string[]][] }[] = [
       ['Calques (chaleur, énergie, froid…)', ['H', 'Maj H']],
       ['Tableau de bord', ['Tab']],
       ['Équipe', ['G']],
+      ['Recherche (carrière)', ['U']],
       ['Cette aide', ['?', 'F1']],
     ],
   },

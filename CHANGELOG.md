@@ -2,6 +2,29 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [Non publié]
+
+Lots suivants de la feuille de route v1.0, en cours.
+
+### Ajouté
+
+- **Mode Carrière** (bouton principal de l'écran titre), à côté de la **Partie rapide** (les règles de la bêta, objectif 100 000 $) et du **Tutoriel**.
+- **Réputation et paliers** :
+  - livrer à l'heure rapporte de la réputation (plus pour un gros contrat), un retard en coûte ;
+  - 4 paliers (Start-up, Scale-up, Labo d'IA, Hyperscaler) : chaque palier ouvre des contrats plus gros et mieux payés ;
+  - une fenêtre présente les nouveautés à chaque palier ; le dernier donne la victoire.
+- **Recherche** (U, ou bouton « R&D » de la barre) : une part réglable du calcul (0 à 50 %) produit des points de recherche, prélevés avant les contrats. Premiers nœuds :
+  - ordonnanceur opportuniste ;
+  - CRAC haute efficacité ;
+  - PDU haute capacité ;
+  - réparations automatiques (réglables dans le panneau Équipe) ;
+  - techniciens aguerris.
+- Sons de passage de palier et de fin de recherche ; mode et progression dans le rapport de bug.
+
+### Modifié
+
+- Sauvegarde au format 3. Les parties d'avant se rechargent en partie rapide.
+
 ## [0.10.0-beta] — 2026-10-04
 
 Premier lot de la feuille de route v1.0 : des outils de supervision pour voir venir les problèmes.

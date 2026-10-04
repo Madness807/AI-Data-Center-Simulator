@@ -45,6 +45,17 @@ describe('équilibrage', () => {
     }
   });
 
+  it('carrière : le palier 2 vers 10-15 minutes, toute la recherche de niveau 1 avant le palier 3', () => {
+    for (const seed of SEEDS.slice(0, 4)) {
+      const run = playBot(seed, { ...COMPETENT, career: true }, 30 * 60);
+      expect(run.lostAt, `graine ${seed}`).toBeNull();
+      expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeGreaterThanOrEqual(8);
+      expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeLessThanOrEqual(16);
+      expect(Object.keys(run.researchAt).length, `graine ${seed}`).toBe(5);
+      expect(Math.max(...Object.values(run.researchAt)), `graine ${seed}`).toBeLessThan(run.tierAt[2] ?? Infinity);
+    }
+  });
+
   it('le premier contrat est honoré en moins de 2 minutes', () => {
     for (const seed of SEEDS) {
       expect(playBot(seed, COMPETENT, 3 * 60).firstDeliveryAt, `graine ${seed}`).toBeLessThan(120);

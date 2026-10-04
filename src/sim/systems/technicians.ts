@@ -1,8 +1,9 @@
-import { REPAIR, TECH } from '../balance';
+import { REPAIR } from '../balance';
 import type { Building, Cell, Technician, TechTask } from '../entities';
 import { findPath, isAdjacent, isWalkable, pathNextTo } from '../pathfinding';
 import { spend } from '../ledger';
 import { techName } from '../names';
+import { modifiers } from '../progression';
 import { buildingAt, buildingById, notify, type GameState } from '../state';
 
 /** Le bâtiment visé par la tâche, s'il a encore besoin d'elle. */
@@ -38,7 +39,27 @@ function planPath(s: GameState, task: TechTask, from: Cell): Cell[] | null {
   return b ? pathNextTo(s, from, b) : null;
 }
 
+/** Réparations automatiques (recherche) : chaque panne sans technicien prend le plus proche des libres. */
+function dispatchRepairs(s: GameState): void {
+  const idle = s.techs.filter((t) => t.tasks.length === 0);
+  if (!idle.length) return;
+  for (const b of s.buildings) {
+    if (b.kind !== 'rack' || b.status !== 'failed') continue;
+    if (s.techs.some((t) => t.tasks.some((k) => k.type === 'repair' && k.target === b.id))) continue;
+    let best = -1;
+    let bestDist = Infinity;
+    idle.forEach((t, i) => {
+      const d = Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
+      if (t.tasks.length === 0 && d < bestDist) [best, bestDist] = [i, d];
+    });
+    if (best < 0) return;
+    idle[best].tasks.push({ type: 'repair', target: b.id });
+  }
+}
+
 export function updateTechnicians(s: GameState, dt: number): void {
+  const m = modifiers(s);
+  if (m.autoRepair && s.policies.autoRepair) dispatchRepairs(s);
   for (const t of s.techs) {
     t.prevX = t.x;
     t.prevY = t.y;
@@ -57,7 +78,7 @@ export function updateTechnicians(s: GameState, dt: number): void {
       const here = { x: Math.round(t.x), y: Math.round(t.y) };
       const centered = Math.abs(t.x - here.x) + Math.abs(t.y - here.y) < 1e-6;
       if (centered && isGoal(s, task, here)) {
-        if (work(s, t, task, dt)) nextTask(t);
+        if (work(s, t, task, dt * m.workRate)) nextTask(t);
         break;
       }
       if (!t.path || (t.path.length && !isWalkable(s, t.path[0].x, t.path[0].y))) {
@@ -68,7 +89,7 @@ export function updateTechnicians(s: GameState, dt: number): void {
           continue;
         }
       }
-      walk(t, TECH.speed * dt, here);
+      walk(t, m.techSpeed * dt, here);
       break;
     }
   }

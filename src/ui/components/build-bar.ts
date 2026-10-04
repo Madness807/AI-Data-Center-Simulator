@@ -14,6 +14,7 @@ export interface BuildBarActions {
   setOverlay: (mode: OverlayMode | null) => void;
   toggleEdgePan: () => void;
   toggleHelp: () => void;
+  toggleResearch: () => void;
 }
 
 export interface BuildBarView {
@@ -21,6 +22,8 @@ export interface BuildBarView {
   overlay: OverlayMode | null;
   edgePan: boolean;
   helpOpen: boolean;
+  /** Carrière seulement : panneau de recherche ouvert, étude en cours. */
+  research: { open: boolean; active: boolean } | null;
 }
 
 /** Tout ce qui se pose ou s'achète depuis la barre, dans l'ordre d'affichage. */
@@ -59,6 +62,7 @@ export class BuildBar {
   private shownOverlay: OverlayMode | null | undefined;
   private readonly edgeButton: HTMLButtonElement;
   private readonly helpButton: HTMLButtonElement;
+  private readonly researchButton: HTMLButtonElement;
 
   constructor(actions: BuildBarActions) {
     const bar = el('div', 'build-bar glass');
@@ -97,8 +101,11 @@ export class BuildBar {
     });
     this.edgeButton = toggle('edgePan', 'Bords', 'B', actions.toggleEdgePan);
     this.helpButton = toggle('help', 'Aide', '?', actions.toggleHelp);
+    this.researchButton = toggle('research', 'R&D', 'U', actions.toggleResearch);
+    this.researchButton.dataset.panel = 'research';
+    this.researchButton.hidden = true;
     const overlays = el('div', 'overlay-picker', this.overlayButton, this.overlayMenu);
-    const toggles = el('div', 'toggle-group', overlays, this.edgeButton, this.helpButton);
+    const toggles = el('div', 'toggle-group', overlays, this.edgeButton, this.helpButton, this.researchButton);
     bar.append(el('div', 'build-sep'), hire.root, el('div', 'build-sep'), toggles);
     this.root = bar;
   }
@@ -125,5 +132,9 @@ export class BuildBar {
     }
     this.edgeButton.classList.toggle('active', view.edgePan);
     this.helpButton.classList.toggle('active', view.helpOpen);
+    this.researchButton.hidden = view.research === null;
+    this.researchButton.classList.toggle('active', !!view.research?.open);
+    // Rien à l'étude : le bouton le signale, une part du calcul attend un nœud.
+    this.researchButton.classList.toggle('idle', view.research !== null && !view.research.active);
   }
 }

@@ -1,6 +1,7 @@
 import { RACK } from './balance';
 import { isRackActive, type Building } from './entities';
 import type { GameState } from './state';
+import { modifiers, researchReserve } from './progression';
 import { inCoolingRange } from './systems/heat';
 
 export function tempStats(s: GameState): { max: number; avg: number } {
@@ -36,9 +37,17 @@ export function committedCompute(s: GameState): number {
   return total;
 }
 
-/** Calcul disponible pour une nouvelle offre : négatif si les contrats en cours dépassent déjà le parc. */
+/**
+ * Calcul disponible pour une nouvelle offre (hors part réservée à la recherche) : négatif si
+ * les contrats en cours dépassent déjà le parc.
+ */
 export function freeCapacity(s: GameState): number {
-  return s.compute.total - committedCompute(s);
+  return s.compute.total - researchReserve(s) - committedCompute(s);
+}
+
+/** Puissance de froid d'un CRAC, recherche comprise. */
+export function cracCoolingKW(s: GameState): number {
+  return modifiers(s).cracCoolingKW;
 }
 
 /**

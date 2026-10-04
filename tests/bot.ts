@@ -2,8 +2,9 @@ import { BUILD_COST, CRAC, PDU, RACK, TECH } from '../src/sim/balance';
 import { canBuild } from '../src/sim/commands';
 import type { Building, BuildingKind, Technician } from '../src/sim/entities';
 import { step } from '../src/sim/sim';
+import { availableResearch } from '../src/sim/progression';
 import { createInitialState, type GameState } from '../src/sim/state';
-import { committedCompute, tempStats } from '../src/sim/stats';
+import { freeCapacity, tempStats } from '../src/sim/stats';
 
 /**
  * Joueur automatique pour l'équilibrage. Il passe par les mêmes commandes que l'interface
@@ -18,12 +19,22 @@ export interface BotProfile {
   maxRacks: number;
   /** Trésorerie gardée de côté pour les réparations, l'électricité et les salaires. */
   reserve: number;
+  /** Mode carrière : il consacre une part du calcul à la recherche, dans l'ordre RESEARCH_ORDER. */
+  career?: boolean;
 }
+
+/** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
+const RESEARCH_ORDER = ['auto-repair', 'crac-he', 'pdu-hc', 'opportunistic', 'fast-techs'];
+export const CAREER_RESEARCH_SHARE = 0.2;
 
 export const COMPETENT: BotProfile = { cooling: true, contracts: true, maxRacks: 14, reserve: 4000 };
 
 export interface BotRun {
   state: GameState;
+  /** Carrière : temps de passage de chaque palier (indice = palier). */
+  tierAt: number[];
+  /** Carrière : nœud de recherche → temps de fin. */
+  researchAt: Record<string, number>;
   /** Temps de jeu de la victoire / de la faillite, null si elle n'a pas eu lieu. */
   wonAt: number | null;
   lostAt: number | null;
@@ -83,10 +94,19 @@ class Bot {
   constructor(private readonly profile: BotProfile) {}
 
   think(s: GameState): void {
+    if (this.profile.career) this.research(s);
     this.repair(s);
     this.contracts(s);
     this.expand(s);
     this.hire(s);
+  }
+
+  private research(s: GameState): void {
+    if (s.research.share !== CAREER_RESEARCH_SHARE) s.commands.push({ type: 'setResearchShare', share: CAREER_RESEARCH_SHARE });
+    if (s.research.current) return;
+    const open = availableResearch(s);
+    const next = RESEARCH_ORDER.find((id) => open.includes(id)) ?? open[0];
+    if (next) s.commands.push({ type: 'startResearch', id: next });
   }
 
   private repair(s: GameState): void {
@@ -100,7 +120,7 @@ class Bot {
 
   /** Les offres les mieux payées au CU d'abord, tant que le parc en service suffit. */
   private contracts(s: GameState): void {
-    let free = s.compute.total - committedCompute(s);
+    let free = freeCapacity(s);
     const offers = s.jobs.filter((j) => j.status === 'offer').sort((a, b) => b.payment / b.work - a.payment / a.work);
     for (const j of offers) {
       if (!this.profile.contracts) s.commands.push({ type: 'rejectJob', id: j.id });
@@ -116,7 +136,7 @@ class Bot {
     // Sans contrats, il construit à l'aveugle : le joueur qui n'a pas compris l'écran des contrats.
     if (!this.profile.contracts) return true;
     const building = s.buildings.filter((b) => b.kind === 'rack' && b.status === 'construction').length;
-    const free = s.compute.total + building * RACK.computeCU - committedCompute(s);
+    const free = freeCapacity(s) + building * RACK.computeCU;
     const offers = s.jobs.filter((j) => j.status === 'offer');
     return free < RACK.computeCU || offers.some((j) => j.rateCU > free);
   }
@@ -163,14 +183,18 @@ class Bot {
 
 /** Joue une partie complète sans rendu ; s'arrête à la victoire, à la faillite ou au délai. */
 export function playBot(seed: number, profile: BotProfile, maxSeconds: number): BotRun {
-  const s = createInitialState(seed);
+  const s = createInitialState(seed, profile.career ? 'career' : 'quick');
   const bot = new Bot(profile);
-  const run: BotRun = { state: s, wonAt: null, lostAt: null, firstDeliveryAt: null, maxTemp: 0, timeline: [] };
+  const run: BotRun = { state: s, tierAt: [0], researchAt: {}, wonAt: null, lostAt: null, firstDeliveryAt: null, maxTemp: 0, timeline: [] };
   const totalTicks = Math.round(maxSeconds * 10);
   for (let tick = 0; tick < totalTicks; tick++) {
     if (tick % THINK_EVERY_TICKS === 0) bot.think(s);
     step(s);
-    for (const e of s.events) if (e.code === 'delivered' && run.firstDeliveryAt === null) run.firstDeliveryAt = s.time;
+    for (const e of s.events) {
+      if (e.code === 'delivered' && run.firstDeliveryAt === null) run.firstDeliveryAt = s.time;
+      if (e.code === 'tierUp' || (e.code === 'won' && s.mode === 'career')) run.tierAt[s.career.tier] = s.time;
+      if (e.code === 'researchDone') run.researchAt[s.research.done[s.research.done.length - 1]] = s.time;
+    }
     s.events.length = 0;
     run.maxTemp = Math.max(run.maxTemp, tempStats(s).max);
     if (s.tick % 600 === 0) run.timeline.push(describe(s));
@@ -198,5 +222,6 @@ function describe(s: GameState): string {
     `max ${tempStats(s).max.toFixed(1)} °C`,
     `${failures} pannes`,
     `${s.economy.jobsDone} livrés / ${s.economy.jobsFailed} en retard`,
+    ...(s.mode === 'career' ? [`palier ${s.career.tier} (${s.career.reputation} rép.)`, `recherche ${s.research.done.length}`] : []),
   ].join(' · ');
 }

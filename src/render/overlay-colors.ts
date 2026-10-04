@@ -1,7 +1,7 @@
 import { CRAC, PDU } from '../sim/balance';
 import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
-import { busyRackIds, cracHeatLoad } from '../sim/stats';
+import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
 import { failureRiskPerMinute } from '../sim/systems/failures';
 import { inCoolingRange } from '../sim/systems/heat';
 import { statusColor, type StatusName } from './assets/status-colors';
@@ -59,7 +59,8 @@ export function riskToRgb(risk: number): Rgb {
 
 /** Marge d'un CRAC : part de sa puissance de froid encore libre (négative s'il est débordé). */
 export function cracHeadroom(s: GameState, crac: Building): number {
-  return (CRAC.coolingKW - cracHeatLoad(s, crac).heatKW) / CRAC.coolingKW;
+  const capacity = cracCoolingKW(s);
+  return (capacity - cracHeatLoad(s, crac).heatKW) / capacity;
 }
 
 /** Couleur d'une marge de froid : confortable, à la limite (3 racks pour un CRAC), débordée. */

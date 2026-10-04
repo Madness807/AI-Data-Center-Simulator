@@ -1,4 +1,5 @@
 import { ECONOMY } from '../../sim/balance';
+import { TIERS } from '../../sim/progression';
 import type { GameState } from '../../sim/state';
 import { el, icon, setText } from '../dom';
 import { clock, money } from '../format';
@@ -55,22 +56,18 @@ function credits(): { toggle: HTMLButtonElement; panel: HTMLElement } {
   return { toggle, panel };
 }
 
+export type NewGameKind = 'career' | 'quick' | 'tutorial';
+
 /** Écran titre, au-dessus de la salle de démonstration qui tourne lentement. */
 export class TitleScreen {
   readonly root: HTMLElement;
   private readonly continueButton: HTMLButtonElement;
-  private readonly guidedButton: HTMLButtonElement;
+  private readonly careerButton: HTMLButtonElement;
   private readonly loadButton: HTMLButtonElement;
 
-  constructor(
-    startGuided: () => void,
-    startFree: () => void,
-    showHelp: () => void,
-    continueGame: () => void,
-    openLoad: () => void,
-  ) {
+  constructor(start: (kind: NewGameKind) => void, showHelp: () => void, continueGame: () => void, openLoad: () => void) {
     this.continueButton = action('play', 'Continuer', continueGame, true);
-    this.guidedButton = action('target', 'Partie guidée', startGuided, true);
+    this.careerButton = action('tier', 'Carrière', () => start('career'), true);
     this.loadButton = action('load', 'Charger', openLoad);
     const about = credits();
     this.root = el(
@@ -81,12 +78,19 @@ export class TitleScreen {
       el(
         'div',
         'title-rules',
-        el('span', 'chip ok', icon('trophy', 12), `Objectif : ${money(ECONOMY.goalMoney)}`),
+        el('span', 'chip ok', icon('tier', 12), `Carrière : ${TIERS.length} paliers jusqu’à ${TIERS[TIERS.length - 1].name}`),
+        el('span', 'chip ok', icon('trophy', 12), `Partie rapide : ${money(ECONOMY.goalMoney)}`),
         el('span', 'chip danger', icon('alert', 12), `Faillite après ${ECONOMY.bankruptcySeconds} s dans le rouge`),
       ),
       el('div', 'screen-actions', this.continueButton),
-      el('div', 'screen-actions', this.guidedButton, action('restart', 'Partie libre', startFree)),
-      el('div', 'screen-actions secondary', this.loadButton, action('keyboard', 'Commandes', showHelp, false, '?')),
+      el('div', 'screen-actions', this.careerButton, action('restart', 'Partie rapide', () => start('quick'))),
+      el(
+        'div',
+        'screen-actions secondary',
+        action('target', 'Tutoriel', () => start('tutorial')),
+        this.loadButton,
+        action('keyboard', 'Commandes', showHelp, false, '?'),
+      ),
       el('div', 'title-version mono', `version ${__APP_VERSION__} · `, about.toggle),
       about.panel,
     );
@@ -95,17 +99,17 @@ export class TitleScreen {
 
   /**
    * « Continuer » et « Charger » n'apparaissent que s'il existe une sauvegarde ; sinon la
-   * partie guidée devient l'action principale (conseillée pour débuter).
+   * carrière devient l'action principale.
    */
   setSaves(available: boolean): void {
     this.continueButton.hidden = !available;
     this.loadButton.hidden = !available;
-    this.guidedButton.classList.toggle('btn-primary', !available);
+    this.careerButton.classList.toggle('btn-primary', !available);
   }
 
-  /** Action de la touche Entrée : continuer s'il y a une sauvegarde, sinon partie guidée. */
+  /** Action de la touche Entrée : continuer s'il y a une sauvegarde, sinon la carrière. */
   primary(): void {
-    (this.continueButton.hidden ? this.guidedButton : this.continueButton).click();
+    (this.continueButton.hidden ? this.careerButton : this.continueButton).click();
   }
 }
 
@@ -113,21 +117,60 @@ export class TitleScreen {
 export class VictoryScreen {
   readonly root: HTMLElement;
   private readonly stats = new EndStats(true);
+  private readonly title = el('h1');
+  private readonly text = el('p');
 
   constructor(continueGame: () => void, newGame: () => void) {
     this.root = el(
       'div',
       'screen victory glass',
       el('div', 'screen-icon', icon('trophy', 28)),
-      el('h1', undefined, 'Objectif atteint !'),
-      el('p', undefined, `Votre data center a franchi les ${money(ECONOMY.goalMoney)}. Continuez à le faire grandir, ou relevez un nouveau défi.`),
+      this.title,
+      this.text,
       this.stats.root,
       el('div', 'screen-actions', action('play', 'Continuer en mode libre', continueGame, true), action('restart', 'Nouvelle partie', newGame)),
     );
   }
 
   update(s: GameState): void {
+    const top = TIERS[TIERS.length - 1].name;
+    setText(this.title, s.mode === 'career' ? `${top} !` : 'Objectif atteint !');
+    setText(
+      this.text,
+      s.mode === 'career'
+        ? `Votre data center a gravi les ${TIERS.length} paliers : les plus grands clients vous confient leurs calculs. Continuez à le faire grandir, ou relevez un nouveau défi.`
+        : `Votre data center a franchi les ${money(ECONOMY.goalMoney)}. Continuez à le faire grandir, ou relevez un nouveau défi.`,
+    );
     this.stats.update(s);
+  }
+}
+
+/** Passage de palier (carrière) : la partie est en pause le temps de lire les nouveautés. */
+export class TierScreen {
+  readonly root: HTMLElement;
+  private readonly title = el('h1');
+  private readonly perks = el('ul', 'tier-perks');
+  private readonly next = el('p', 'tier-next');
+
+  constructor(resume: () => void) {
+    this.root = el(
+      'div',
+      'screen tier glass',
+      el('div', 'screen-icon', icon('tier', 28)),
+      this.title,
+      el('p', undefined, 'Votre réputation attire de plus gros clients.'),
+      this.perks,
+      this.next,
+      el('div', 'screen-actions', action('play', 'Continuer', resume, true)),
+    );
+  }
+
+  show(tier: number): void {
+    const t = TIERS[tier];
+    setText(this.title, `Nouveau palier : ${t.name}`);
+    this.perks.replaceChildren(...t.perks.map((p) => el('li', undefined, icon('done', 14), p)));
+    const next = TIERS[tier + 1];
+    setText(this.next, next ? `Prochain palier : ${next.name}, à ${next.reputation} de réputation.` : '');
   }
 }
 

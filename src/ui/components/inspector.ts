@@ -1,5 +1,6 @@
-import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, FAILURE, HEAT, PDU, RACK, REPAIR } from '../../sim/balance';
+import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, FAILURE, HEAT, RACK, REPAIR } from '../../sim/balance';
 import { isRackActive, type Building, type BuildingKind, type Cell, type Technician } from '../../sim/entities';
+import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad } from '../../sim/stats';
 import { failureRiskPerMinute } from '../../sim/systems/failures';
@@ -277,7 +278,7 @@ export class Inspector {
 
     const coolers = coolersCovering(s, b.x, b.y);
     this.cooling.set(
-      coolers.length ? `${coolers.length} CRAC · ${coolers.length * CRAC.coolingKW} kW` : 'aucun CRAC à portée',
+      coolers.length ? `${coolers.length} CRAC · ${Math.round(coolers.length * modifiers(s).cracCoolingKW)} kW` : 'aucun CRAC à portée',
       coolers.length ? 'ok' : 'danger',
     );
     this.power.set(running ? `${RACK.powerKW} kW` : b.status === 'ok' ? '0 kW (délesté)' : '0 kW', running ? '' : 'danger');
@@ -304,10 +305,11 @@ export class Inspector {
     this.coverage.show(on);
     if (!on) return '';
     const { racks, heatKW } = cracHeatLoad(s, b);
-    const ratio = heatKW / CRAC.coolingKW;
+    const capacity = Math.round(modifiers(s).cracCoolingKW);
+    const ratio = heatKW / capacity;
     this.zoneLoad.set(
       ratio,
-      `${heatKW} / ${CRAC.coolingKW} kW${ratio > 1 ? ' · saturé' : ''}`,
+      `${heatKW} / ${capacity} kW${ratio > 1 ? ' · saturé' : ''}`,
       ratio > 1 ? 'danger' : ratio > 0.8 ? 'warn' : 'ok',
     );
     this.coverage.set(`${CRAC.radius} cases · ${racks} ${plural(racks, 'rack')}`);
@@ -322,7 +324,7 @@ export class Inspector {
     const p = s.power;
     const pdus = s.buildings.filter((o) => o.kind === 'pdu' && o.status === 'ok').length;
     this.gridLoad.set(p.capacityKW ? p.loadKW / p.capacityKW : 1, `${p.loadKW} / ${p.capacityKW} kW`, p.shedCount ? 'danger' : p.loadKW / p.capacityKW > 0.85 ? 'warn' : 'ok');
-    this.network.set(`${pdus} PDU · +${PDU.capacityKW} kW chacun${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'délesté')}` : ''}`, p.shedCount ? 'danger' : '');
+    this.network.set(`${pdus} PDU · +${Math.round(modifiers(s).pduCapacityKW)} kW chacun${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'délesté')}` : ''}`, p.shedCount ? 'danger' : '');
     return p.shedCount ? 'Des racks sont délestés : un PDU de plus les réalimenterait.' : '';
   }
 

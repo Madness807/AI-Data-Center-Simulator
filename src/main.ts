@@ -15,6 +15,7 @@ import { BuildController, type Tool } from './input/build';
 import { pickGroundCell, rayFromScreen } from './input/picking';
 import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
+import type { NewGameKind } from './ui/components/screens';
 import { createShowcaseState } from './ui/showcase';
 import { applyTheme } from './ui/theme';
 import { setColorblind } from './render/assets';
@@ -153,9 +154,10 @@ const startPlaying = (next: GameState) => {
   view.rts.settle();
   hud.setPhase('playing');
 };
-const newGame = (guided = false) => {
-  startPlaying(createInitialState(Date.now() >>> 0));
-  if (guided) hud.startTutorial(state);
+/** Carrière, partie rapide, ou tutoriel (sur les règles de la partie rapide). */
+const newGame = (kind: NewGameKind) => {
+  startPlaying(createInitialState(Date.now() >>> 0, kind === 'career' ? 'career' : 'quick'));
+  if (kind === 'tutorial') hud.startTutorial(state);
 };
 /** Écran titre : salle de démonstration en pause, caméra en rotation lente. */
 const showTitle = () => {
@@ -245,6 +247,9 @@ const hud = new Hud(
     acceptJob,
     rejectJob,
     newGame,
+    setResearchShare: (share) => enqueue({ type: 'setResearchShare', share }),
+    startResearch: (id) => enqueue({ type: 'startResearch', id }),
+    setAutoRepair: (on) => enqueue({ type: 'setPolicy', autoRepair: on }),
     showTitle,
     resume,
     focusCell,

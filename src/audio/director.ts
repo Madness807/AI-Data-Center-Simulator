@@ -17,7 +17,9 @@ export type SoundId =
   | 'defeat'
   | 'saved'
   | 'offer'
-  | 'caution';
+  | 'caution'
+  | 'tierUp'
+  | 'research';
 
 /** Son associé à un événement de la simulation (null : silencieux). */
 export function soundForEvent(code: EventCode | undefined): SoundId | null {
@@ -48,6 +50,10 @@ export function soundForEvent(code: EventCode | undefined): SoundId | null {
     case 'cashLow':
     case 'unattended':
       return 'caution';
+    case 'tierUp':
+      return 'tierUp';
+    case 'researchDone':
+      return 'research';
     default:
       return null;
   }

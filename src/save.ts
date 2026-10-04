@@ -1,10 +1,11 @@
 import type { KeyValueStore } from './settings';
 import { emptyAlerts } from './sim/alert-memory';
+import { defaultPolicies, emptyCareer, emptyResearch, rulesFor } from './sim/career';
 import type { Building, Job, Technician } from './sim/entities';
 import type { GameState, Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 2;
+export const SAVE_FORMAT = 3;
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export const SAVE_SLOTS: readonly SaveSlot[] = ['auto', 1, 2, 3];
@@ -14,6 +15,9 @@ export interface SaveSummary {
   money: number;
   racks: number;
   outcome: Outcome;
+  /** Absents des sauvegardes d'avant la carrière (format 2 et moins). */
+  mode?: GameState['mode'];
+  tier?: number;
 }
 
 export interface SaveFile {
@@ -32,6 +36,8 @@ export function summarize(s: GameState): SaveSummary {
     money: Math.round(s.money),
     racks: s.buildings.filter((b) => b.kind === 'rack').length,
     outcome: s.outcome,
+    mode: s.mode,
+    tier: s.career.tier,
   };
 }
 
@@ -92,6 +98,10 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
       });
     }
   },
+  // 2 → 3 (lot 2) : modes de jeu, carrière et recherche. Une partie d'avant est une partie rapide.
+  2: (state) => {
+    Object.assign(state, { mode: 'quick', rules: rulesFor('quick'), career: emptyCareer(), research: emptyResearch(), policies: defaultPolicies() });
+  },
 };
 
 function migrate(file: RawState): void {
@@ -124,6 +134,13 @@ function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'even
   need(isObject(s.power) && isObject(s.compute) && isObject(s.economy) && isObject(s.economy.ledger), 'statistiques manquantes');
   for (const k of ['failures', 'rackSecondsInstalled', 'rackSecondsActive']) need(isNum(s.economy[k]), `compteur « ${k} » manquant`);
   checkAlerts(s.alerts);
+  need(s.mode === 'quick' || s.mode === 'career', 'mode de jeu inconnu');
+  need(isObject(s.rules) && typeof s.rules.progression === 'boolean', 'règles illisibles');
+  need(isObject(s.career) && isNum(s.career.reputation) && isInt(s.career.tier) && (s.career.tier as number) >= 0, 'carrière illisible');
+  const r = s.research;
+  need(isObject(r) && isNum(r.share) && (r.current === null || typeof r.current === 'string'), 'recherche illisible');
+  need(Array.isArray(r.done) && r.done.every((d) => typeof d === 'string') && isObject(r.progress) && isNum(r.ratePerS), 'recherche incomplète');
+  need(isObject(s.policies) && typeof s.policies.autoRepair === 'boolean', 'réglages illisibles');
 }
 
 /** Relit une sauvegarde ; tout problème donne un refus explicite, jamais un état bancal. */

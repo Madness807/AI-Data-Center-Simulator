@@ -1,4 +1,5 @@
-import { CRAC, PDU, RACK } from '../balance';
+import { CRAC, RACK } from '../balance';
+import { modifiers } from '../progression';
 import type { Building } from '../entities';
 import type { GameState } from '../state';
 
@@ -8,12 +9,13 @@ import type { GameState } from '../state';
  */
 export function updatePower(s: GameState): void {
   let capacity = 0;
+  const pduKW = modifiers(s).pduCapacityKW;
   const cracs: Building[] = [];
   const racks: Building[] = [];
   for (const b of s.buildings) {
     if (b.status !== 'ok') b.powered = false; // chantier, panne, réparation : ne consomme rien
     else if (b.kind === 'pdu') {
-      capacity += PDU.capacityKW;
+      capacity += pduKW;
       b.powered = true;
     } else if (b.kind === 'crac') cracs.push(b);
     else racks.push(b);

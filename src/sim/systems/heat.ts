@@ -1,4 +1,5 @@
 import { CRAC, DT, HEAT, RACK } from '../balance';
+import { modifiers } from '../progression';
 import { idx, type GameState } from '../state';
 
 // Diffusion explicite sur 4 voisins : instable au-delà de k·dt = 0.25.
@@ -9,11 +10,12 @@ if (HEAT.diffusion * DT > 0.2) {
 export function updateHeat(s: GameState, dt: number): void {
   const { w, h, temp } = s;
   const C = HEAT.cellCapacity;
+  const coolingKW = modifiers(s).cracCoolingKW;
 
   for (const b of s.buildings) {
     if (!b.powered) continue;
     if (b.kind === 'rack') temp[idx(s, b.x, b.y)] += (RACK.heatKW * dt) / C;
-    else if (b.kind === 'crac') cool(s, b.x, b.y, CRAC.coolingKW * dt);
+    else if (b.kind === 'crac') cool(s, b.x, b.y, coolingKW * dt);
   }
 
   // Bords isolants : on n'échange qu'avec les voisines dans la grille.

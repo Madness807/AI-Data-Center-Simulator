@@ -30,7 +30,7 @@ export function updateEconomy(s: GameState, dt: number): void {
     s.economy.bankruptTimer = 0;
   }
 
-  if (s.outcome === 'playing' && s.money >= ECONOMY.goalMoney) {
+  if (!s.rules.progression && s.outcome === 'playing' && s.money >= ECONOMY.goalMoney) {
     s.outcome = 'won';
     notify(s, 'success', 'Objectif atteint ! La partie continue en mode libre.', { code: 'won' });
   }

@@ -1,5 +1,6 @@
 import { TECH } from '../../sim/balance';
 import { techName } from '../../sim/names';
+import { modifiers } from '../../sim/progression';
 import type { GameState } from '../../sim/state';
 import { el, icon, setText } from '../dom';
 import { money, plural } from '../format';
@@ -9,6 +10,7 @@ export interface TeamActions {
   /** Sélectionne ces techniciens ; `focus` centre la caméra sur le premier. */
   select: (ids: number[], focus: boolean) => void;
   hire: () => void;
+  setAutoRepair: (on: boolean) => void;
 }
 
 interface Row {
@@ -28,6 +30,8 @@ export class TeamPanel {
   private readonly rows = new Map<number, Row>();
   private readonly idleButton: HTMLButtonElement;
   private readonly hireButton: HTMLButtonElement;
+  private readonly autoRepair: HTMLInputElement;
+  private readonly autoRepairRow: HTMLElement;
   private idle: number[] = [];
 
   constructor(private readonly actions: TeamActions) {
@@ -41,11 +45,17 @@ export class TeamPanel {
     };
     this.hireButton = el('button', 'btn btn-primary', icon('hire', 14), `Embaucher · ${money(TECH.hireCost)}`);
     this.hireButton.onclick = () => this.actions.hire();
+    this.autoRepair = el('input');
+    this.autoRepair.type = 'checkbox';
+    this.autoRepair.onchange = () => this.actions.setAutoRepair(this.autoRepair.checked);
+    this.autoRepairRow = el('label', 'team-policy', this.autoRepair, el('span', undefined, 'Réparations automatiques : les techniciens libres prennent la panne la plus proche'));
+    this.autoRepairRow.hidden = true;
     const panel = el(
       'div',
       'team glass',
       el('div', 'menu-head', el('span', 'panel-title', icon('team', 14), this.title), el('span', 'kbd', 'G'), close),
       this.list,
+      this.autoRepairRow,
       el('div', 'team-actions', this.idleButton, this.hireButton),
     );
     this.root = el('div', 'modal-backdrop interactive', panel);
@@ -109,6 +119,8 @@ export class TeamPanel {
       setText(row.queue, `+${t.tasks.length - 1} en file`);
       setText(row.where, `case ${Math.round(t.x)},${Math.round(t.y)}`);
     }
+    this.autoRepairRow.hidden = !modifiers(s).autoRepair;
+    this.autoRepair.checked = s.policies.autoRepair;
     this.idleButton.disabled = this.idle.length === 0;
     this.hireButton.disabled = s.money < TECH.hireCost || s.techs.length >= TECH.max;
   }

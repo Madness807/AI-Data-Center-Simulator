@@ -2,6 +2,7 @@ import { BUILD_TIME, ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_MONEY, TE
 import type { Command } from './commands';
 import type { Building, BuildingKind, Cell, Job, Technician } from './entities';
 import { emptyAlerts, type AlertMemory } from './alert-memory';
+import { defaultPolicies, emptyCareer, emptyResearch, rulesFor, type CareerState, type GameMode, type Policies, type ResearchState, type Rules } from './career';
 import { emptyLedger, type Ledger } from './ledger';
 
 export type Speed = 0 | 1 | 2 | 4;
@@ -30,7 +31,10 @@ export type EventCode =
   | 'powerHigh'
   | 'lateRisk'
   | 'cashLow'
-  | 'unattended';
+  | 'unattended'
+  // Carrière.
+  | 'tierUp'
+  | 'researchDone';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';
@@ -76,6 +80,12 @@ export interface EconomyStats {
 export interface GameState {
   /** Graine de la partie, conservée pour reproduire un bug. */
   seed: number;
+  mode: GameMode;
+  /** Mécaniques actives, fixées par le mode. */
+  rules: Rules;
+  career: CareerState;
+  research: ResearchState;
+  policies: Policies;
   tick: number;
   /** Secondes de jeu écoulées. */
   time: number;
@@ -109,9 +119,14 @@ export interface GameState {
   events: GameEvent[];
 }
 
-export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H): GameState {
+export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H, mode: GameMode = 'quick'): GameState {
   return {
     seed,
+    mode,
+    rules: rulesFor(mode),
+    career: emptyCareer(),
+    research: emptyResearch(),
+    policies: defaultPolicies(),
     tick: 0,
     time: 0,
     speed: 1,
@@ -149,8 +164,8 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H): GameState {
 }
 
 /** Partie standard : un PDU, un CRAC, deux techniciens et un premier contrat facile. */
-export function createInitialState(seed = 1): GameState {
-  const s = createEmptyState(seed);
+export function createInitialState(seed = 1, mode: GameMode = 'quick'): GameState {
+  const s = createEmptyState(seed, GRID_W, GRID_H, mode);
   addBuilding(s, 'pdu', 1, 1);
   addBuilding(s, 'crac', 8, 8);
   for (let i = 0; i < TECH.start; i++) addTech(s);

@@ -1,5 +1,6 @@
 import { FAILURE } from '../balance';
 import { isRackActive, type Building } from '../entities';
+import { researchReserve } from '../progression';
 import { idx, notify, type GameState } from '../state';
 
 /** Seuils des alertes préventives : prévenir avant la casse, une fois par épisode. */
@@ -83,7 +84,7 @@ export function predictCompletion(s: GameState): Map<number, number> {
   let t = s.time;
   // Chaque tour termine au moins un contrat ; la garde couvre les arrondis.
   for (let guard = 0; left.length && guard <= s.jobs.length; guard++) {
-    let pool = s.compute.total;
+    let pool = s.compute.total - researchReserve(s);
     const alloc = left.map((j) => {
       const a = Math.min(pool, j.rate);
       pool -= a;

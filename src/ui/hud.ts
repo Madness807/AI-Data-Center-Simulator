@@ -1,5 +1,6 @@
 import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, PDU, RACK, REPAIR, TECH } from '../sim/balance';
 import type { Cell } from '../sim/entities';
+import { availableResearch, modifiers } from '../sim/progression';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
 import type { Tool } from '../input/build';
 import { tempToRgb } from '../render/overlay-colors';
@@ -20,7 +21,8 @@ import { Tutorial } from './tutorial/tutorial';
 import type { Command } from '../sim/commands';
 import type { SettingsStore } from '../settings';
 import { ResourceBar } from './components/resource-bar';
-import { DefeatScreen, TitleScreen, VictoryScreen } from './components/screens';
+import { DefeatScreen, TierScreen, TitleScreen, VictoryScreen, type NewGameKind } from './components/screens';
+import { ResearchPanel } from './components/research-panel';
 import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
 import { Tooltip } from './components/tooltip';
 import type { BuildingKind } from '../sim/entities';
@@ -38,8 +40,12 @@ export interface HudActions {
   selectTechs: (ids: number[], focus: boolean) => void;
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
-  /** Lance une nouvelle partie (guidée depuis l'écran titre si demandé). */
-  newGame: (guided?: boolean) => void;
+  /** Lance une nouvelle partie : carrière, partie rapide ou tutoriel. */
+  newGame: (kind: NewGameKind) => void;
+  /** Carrière : part du calcul pour la R&D, nœud à étudier, réparations automatiques. */
+  setResearchShare: (share: number) => void;
+  startResearch: (id: string | null) => void;
+  setAutoRepair: (on: boolean) => void;
   /** Le tutoriel passe ses commandes (panne d'exercice) et montre des cases. */
   enqueue: (c: Command) => void;
   pingCell: (cell: Cell) => void;
@@ -106,6 +112,9 @@ export class Hud {
   private readonly legend = new OverlayLegend();
   private readonly dashboard = new Dashboard();
   private readonly team: TeamPanel;
+  private readonly research: ResearchPanel;
+  private readonly tier: TierScreen;
+  private tierOpen = false;
   private readonly gameHistory = new GameHistory();
   private readonly help = new HelpOverlay();
   private readonly alerts: AlertFeed;
@@ -144,7 +153,12 @@ export class Hud {
       dashboard: (tab) => this.togglePanel('dashboard', tab),
       team: () => this.togglePanel('team'),
     });
-    this.team = new TeamPanel({ select: actions.selectTechs, hire: actions.hire });
+    this.team = new TeamPanel({ select: actions.selectTechs, hire: actions.hire, setAutoRepair: actions.setAutoRepair });
+    this.research = new ResearchPanel({ setShare: actions.setResearchShare, start: actions.startResearch });
+    this.tier = new TierScreen(() => {
+      this.tierOpen = false;
+      actions.resume();
+    });
     this.pause = new PauseMenu(settings, {
       resume: () => this.closePause(),
       showHelp: () => this.help.toggle(),
@@ -154,16 +168,12 @@ export class Hud {
         actions.showTitle();
       },
     });
-    this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle() });
+    this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle(), toggleResearch: () => this.togglePanel('research') });
     this.contracts = new ContractsPanel(actions);
     this.slots = new SaveSlots(actions.saves);
-    this.title = new TitleScreen(
-      () => actions.newGame(true),
-      () => actions.newGame(false),
-      () => this.help.toggle(),
-      actions.continueGame,
-      () => this.slots.open('load'),
-    );
+    this.title = new TitleScreen(actions.newGame, () => this.help.toggle(), actions.continueGame, () => this.slots.open('load'));
+    // « Nouvelle partie » depuis une fin de partie : même mode que la partie terminée.
+    const again = () => actions.newGame(this.state?.mode === 'career' ? 'career' : 'quick');
     this.tutorial = new Tutorial({
       enqueue: actions.enqueue,
       ping: actions.pingCell,
@@ -178,8 +188,8 @@ export class Hud {
     this.victory = new VictoryScreen(() => {
       this.victoryOpen = false;
       actions.resume();
-    }, actions.newGame);
-    this.defeat = new DefeatScreen(actions.newGame, actions.showTitle);
+    }, again);
+    this.defeat = new DefeatScreen(again, actions.showTitle);
     this.alerts = new AlertFeed(actions.focusCell);
     this.minimap = new Minimap(world.w, world.h, world.camera);
     this.inspector = new Inspector({
@@ -188,7 +198,7 @@ export class Hud {
       focus: actions.focusCell,
       close: actions.closeInspector,
     });
-    this.overlay = region('overlay', this.title.root, this.victory.root, this.defeat.root);
+    this.overlay = region('overlay', this.title.root, this.tier.root, this.victory.root, this.defeat.root);
     this.overlay.classList.add('interactive');
     this.bindBuildTips();
     this.bindBalanceTip();
@@ -203,6 +213,7 @@ export class Hud {
       this.overlay,
       this.dashboard.root,
       this.team.root,
+      this.research.root,
       this.pause.root,
       this.slots.root,
       this.help.root,
@@ -220,7 +231,7 @@ export class Hud {
 
   /** Ouvre le menu pause et fige la partie (elle reprendra à sa vitesse d'avant). */
   openPause(): void {
-    if (this.phase !== 'playing' || this.pause.isOpen || this.victoryOpen || this.state?.outcome === 'lost') return;
+    if (this.phase !== 'playing' || this.pause.isOpen || this.victoryOpen || this.tierOpen || this.state?.outcome === 'lost') return;
     this.speedBeforePause = this.state?.speed ?? 1;
     this.actions.setSpeed(0);
     this.pause.open();
@@ -236,16 +247,20 @@ export class Hud {
    * Ouvre ou ferme le tableau de bord (sur l'onglet demandé) ou le panneau Équipe ; un seul
    * des deux à la fois. Un clic sur un autre onglet que celui affiché change d'onglet.
    */
-  togglePanel(which: 'dashboard' | 'team', tab?: DashboardTab): void {
+  togglePanel(which: 'dashboard' | 'team' | 'research', tab?: DashboardTab): void {
     if (this.phase !== 'playing') return;
-    if (which === 'team') {
-      this.dashboard.close();
-      this.team.toggle();
-      return;
+    if (which === 'research' && !this.state?.rules.progression) return;
+    for (const [name, panel] of [['team', this.team], ['research', this.research], ['dashboard', this.dashboard]] as const) {
+      if (name !== which) panel.close();
     }
-    this.team.close();
-    if (this.dashboard.isOpen && (!tab || tab === this.dashboard.currentTab)) this.dashboard.close();
+    if (which === 'team') this.team.toggle();
+    else if (which === 'research') this.research.toggle();
+    else if (this.dashboard.isOpen && (!tab || tab === this.dashboard.currentTab)) this.dashboard.close();
     else this.dashboard.open(tab);
+  }
+
+  private get panelOpen(): boolean {
+    return this.dashboard.isOpen || this.team.isOpen || this.research.isOpen;
   }
 
   /** Écran titre (salle de démonstration, HUD masqué) ou partie en cours. */
@@ -256,6 +271,7 @@ export class Hud {
     this.pause.close();
     this.dashboard.close();
     this.team.close();
+    this.research.close();
     if (phase === 'title') this.title.setSaves(this.actions.saves.list().length > 0);
   }
 
@@ -285,17 +301,22 @@ export class Hud {
       if (e.code === 'Enter') this.title.primary();
       return true;
     }
+    if (this.tierOpen) {
+      if (e.code === 'Enter' || e.code === 'Escape') this.tier.root.querySelector<HTMLButtonElement>('.btn-primary')?.click();
+      return true;
+    }
     if (this.victoryOpen || this.state?.outcome === 'lost') return true;
-    const panelKey = e.code === 'Tab' ? 'dashboard' : e.code === 'KeyG' ? 'team' : null;
+    const panelKey = e.code === 'Tab' ? 'dashboard' : e.code === 'KeyG' ? 'team' : e.code === 'KeyU' ? 'research' : null;
     if (panelKey) {
       e.preventDefault();
       this.togglePanel(panelKey);
       return true;
     }
-    if (this.dashboard.isOpen || this.team.isOpen) {
+    if (this.panelOpen) {
       if (e.code === 'Escape') {
         this.dashboard.close();
         this.team.close();
+        this.research.close();
         return true;
       }
       // Fenêtre ouverte : seules la pause et la vitesse passent au jeu.
@@ -312,6 +333,7 @@ export class Hud {
     this.team.reset();
     this.victorySeen = false;
     this.victoryOpen = false;
+    this.tierOpen = false;
   }
 
   /** Remplace l'icône d'une carte de construction par la vignette du vrai modèle. */
@@ -328,9 +350,22 @@ export class Hud {
     const balance = this.history.balance();
     this.resources.update(s, balance);
     this.minimap.update(s, view.overlay === 'heat', view.selected, now);
-    this.build.update(s, { tool: view.tool, overlay: view.overlay, edgePan: view.edgePan, helpOpen: this.help.isOpen });
+    this.build.update(s, {
+      tool: view.tool,
+      overlay: view.overlay,
+      edgePan: view.edgePan,
+      helpOpen: this.help.isOpen,
+      research: s.rules.progression ? { open: this.research.isOpen, active: s.research.current !== null || availableResearch(s).length === 0 } : null,
+    });
     this.dashboard.update(s, this.gameHistory, balance, now);
     this.team.update(s);
+    this.research.update(s);
+    // Passage de palier : pause et fenêtre des nouveautés (pas pendant l'écran titre).
+    if (this.phase === 'playing' && s.events.some((e) => e.code === 'tierUp')) {
+      this.tier.show(s.career.tier);
+      this.tierOpen = true;
+      this.actions.setSpeed(0);
+    }
     this.contracts.update(s);
     this.selection.update(s, view.selected);
     const inspected = view.inspected === null ? null : (s.buildings.find((b) => b.id === view.inspected) ?? null);
@@ -347,11 +382,12 @@ export class Hud {
     }
     const lost = this.phase === 'playing' && s.outcome === 'lost';
     setHidden(this.title.root, this.phase !== 'title');
+    setHidden(this.tier.root, !this.tierOpen || this.victoryOpen || lost);
     setHidden(this.victory.root, !this.victoryOpen || lost);
     setHidden(this.defeat.root, !lost);
     if (this.victoryOpen) this.victory.update(s);
     if (lost) this.defeat.update(s);
-    setHidden(this.overlay, this.phase !== 'title' && !this.victoryOpen && !lost);
+    setHidden(this.overlay, this.phase !== 'title' && !this.victoryOpen && !this.tierOpen && !lost);
     this.overlay.classList.toggle('dim', this.phase !== 'title');
     this.updateWorldTip(s, view.hover);
     // Les refus vont près du curseur ; le reste rejoint l'historique des alertes.
@@ -428,14 +464,14 @@ export class Hud {
         ], 'Laissez une case libre devant pour l’entretien.'),
       crac: () =>
         tip(`CRAC · ${money(BUILD_COST.crac)}`, [
-          ['Refroidissement', `${CRAC.coolingKW} kW`],
+          ['Refroidissement', `${Math.round(this.state ? modifiers(this.state).cracCoolingKW : CRAC.coolingKW)} kW`],
           ['Portée', `${CRAC.radius} cases`],
           ['Consommation', `${CRAC.powerKW} kW`],
           ['Chantier', `${BUILD_TIME.crac} s`],
         ], 'Un CRAC suffit pour environ 3 racks.'),
       pdu: () =>
         tip(`PDU · ${money(BUILD_COST.pdu)}`, [
-          ['Capacité', `+${PDU.capacityKW} kW`],
+          ['Capacité', `+${Math.round(this.state ? modifiers(this.state).pduCapacityKW : PDU.capacityKW)} kW`],
           ['Chantier', `${BUILD_TIME.pdu} s`],
         ], 'Sans capacité suffisante, les racks les plus récents sont délestés.'),
       demolish: () =>

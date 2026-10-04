@@ -1,6 +1,7 @@
 import { ECONOMY, FAILURE } from '../../sim/balance';
 import type { GameState, Speed } from '../../sim/state';
 import { tempStats } from '../../sim/stats';
+import { TIERS } from '../../sim/progression';
 import type { Balance } from '../metrics';
 import type { DashboardTab } from './dashboard';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
@@ -111,11 +112,23 @@ export class ResourceBar {
       this.trend.className = `trend ${net >= 0 ? 'ok' : 'danger'}`;
       this.trend.replaceChildren(icon(dir, 13));
     }
-    const goal = Math.min(1, Math.max(0, s.money / ECONOMY.goalMoney));
-    setStyle(this.goal.fill, 'width', `${goal * 100}%`);
-    this.goal.fill.classList.toggle('won', s.outcome === 'won');
-    setText(this.goalPct, s.outcome === 'won' ? 'objectif atteint' : `${percent(goal)} objectif`);
-    this.goal.root.title = `Objectif : ${money(ECONOMY.goalMoney)}`;
+    if (s.rules.progression) {
+      // Carrière : progression de la réputation vers le palier suivant.
+      const { tier, reputation } = s.career;
+      const here = TIERS[tier];
+      const next = TIERS[tier + 1];
+      const f = next ? Math.min(1, Math.max(0, (reputation - here.reputation) / (next.reputation - here.reputation))) : 1;
+      setStyle(this.goal.fill, 'width', `${f * 100}%`);
+      this.goal.fill.classList.toggle('won', !next);
+      setText(this.goalPct, next ? `${here.name} ${percent(f)}` : here.name);
+      this.goal.root.title = next ? `Réputation ${reputation} / ${next.reputation} : palier ${next.name}` : `Dernier palier atteint (${reputation} de réputation)`;
+    } else {
+      const goal = Math.min(1, Math.max(0, s.money / ECONOMY.goalMoney));
+      setStyle(this.goal.fill, 'width', `${goal * 100}%`);
+      this.goal.fill.classList.toggle('won', s.outcome === 'won');
+      setText(this.goalPct, s.outcome === 'won' ? 'objectif atteint' : `${percent(goal)} objectif`);
+      this.goal.root.title = `Objectif : ${money(ECONOMY.goalMoney)}`;
+    }
 
     const p = s.power;
     setText(this.power.value, `${p.loadKW} / ${p.capacityKW} kW`);

@@ -86,6 +86,15 @@ export const RECIPES: Record<SoundId, Recipe> = {
   },
   saved: (c, o, t) => tone(c, o, t, NOTE.E5, 0.15, { gain: 0.1, to: NOTE.A5 }),
   offer: (c, o, t) => tone(c, o, t, NOTE.G5, 0.12, { gain: 0.06 }),
+  // Nouveau palier : arpège montant, plus court que la victoire.
+  tierUp: (c, o, t) => {
+    [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((f, i) => tone(c, o, t + i * 0.09, f, 0.22, { type: 'triangle', gain: 0.1 }));
+  },
+  // Recherche terminée : deux notes claires.
+  research: (c, o, t) => {
+    tone(c, o, t, NOTE.E5, 0.14, { type: 'sine', gain: 0.1 });
+    tone(c, o, t + 0.12, NOTE.A5, 0.22, { type: 'sine', gain: 0.1 });
+  },
   // Alerte préventive : deux notes douces qui descendent, plus discrètes qu'une panne.
   caution: (c, o, t) => {
     tone(c, o, t, NOTE.A5, 0.12, { type: 'triangle', gain: 0.08 });

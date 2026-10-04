@@ -1,6 +1,8 @@
 import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, TECH } from './balance';
 import type { BuildingKind, TechTask } from './entities';
+import { MAX_RESEARCH_SHARE } from './career';
 import { keepsAccess } from './pathfinding';
+import { researchBlocker } from './progression';
 import { refund, spend } from './ledger';
 import { addBuilding, addTech, buildingAt, inBounds, isEntrance, notify, removeBuilding, type GameState, type Speed } from './state';
 import { updatePower } from './systems/power';
@@ -15,7 +17,11 @@ export type Command =
   | { type: 'forceFailure'; id: number }
   | { type: 'acceptJob'; id: number }
   | { type: 'rejectJob'; id: number }
-  | { type: 'setSpeed'; speed: Speed };
+  | { type: 'setSpeed'; speed: Speed }
+  /** Carrière : part du calcul consacrée à la R&D, nœud à étudier (null : aucun). */
+  | { type: 'setResearchShare'; share: number }
+  | { type: 'startResearch'; id: string | null }
+  | { type: 'setPolicy'; autoRepair: boolean };
 
 /** Raison du refus, ou null si la construction est possible. */
 export function canBuild(s: GameState, kind: BuildingKind, x: number, y: number): string | null {
@@ -97,6 +103,22 @@ export function processCommands(s: GameState): void {
         break;
       case 'setSpeed':
         s.speed = c.speed;
+        break;
+      case 'setResearchShare':
+        if (Number.isFinite(c.share)) s.research.share = Math.min(MAX_RESEARCH_SHARE, Math.max(0, c.share));
+        break;
+      case 'startResearch': {
+        if (c.id === null) {
+          s.research.current = null;
+          break;
+        }
+        const reason = researchBlocker(s, c.id);
+        if (reason) notify(s, 'error', reason, { code: 'refused' });
+        else s.research.current = c.id;
+        break;
+      }
+      case 'setPolicy':
+        s.policies.autoRepair = c.autoRepair;
         break;
     }
   }
