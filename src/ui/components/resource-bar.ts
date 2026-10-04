@@ -49,6 +49,8 @@ export class ResourceBar {
   private readonly speedButtons = new Map<Speed, HTMLButtonElement>();
   private readonly pauseBanner = el('div', 'banner banner-pause', icon('pause', 14), 'PAUSE — Espace pour reprendre');
   private readonly bankruptBanner = el('div', 'banner banner-bankrupt', icon('alert', 15));
+  private readonly outageBanner = el('div', 'banner banner-outage', icon('power', 15));
+  private readonly outageText = el('span');
   private readonly bankruptText = el('span');
 
   constructor(setSpeed: (speed: Speed) => void, openMenu: () => void, panels: { dashboard: (tab: DashboardTab) => void; team: () => void }) {
@@ -95,7 +97,8 @@ export class ResourceBar {
       speed,
     );
     this.bankruptBanner.append(this.bankruptText);
-    this.root = el('div', 'region-top-stack', bar, this.pauseBanner, this.bankruptBanner);
+    this.outageBanner.append(this.outageText);
+    this.root = el('div', 'region-top-stack', bar, this.pauseBanner, this.outageBanner, this.bankruptBanner);
     this.root.style.display = 'contents';
   }
 
@@ -131,8 +134,11 @@ export class ResourceBar {
     }
 
     const p = s.power;
-    setText(this.power.value, `${p.loadKW} / ${p.capacityKW} kW`);
-    const load = p.capacityKW ? p.loadKW / p.capacityKW : 1;
+    // Pendant une coupure, la capacité est celle des secours.
+    const cap = p.grid ? p.capacityKW : Math.min(p.capacityKW, Math.round(p.backupKW));
+    setText(this.power.value, `${Math.round(p.loadKW)} / ${cap} kW`);
+    this.power.root.classList.toggle('outage', !p.grid);
+    const load = cap ? p.loadKW / cap : 1;
     setStyle(this.powerMeter.fill, 'width', `${Math.min(1, load) * 100}%`);
     this.powerMeter.fill.className = `meter-fill ${p.shedCount ? 'danger' : load > 0.85 ? 'warn' : 'ok'}`;
     setHidden(this.shed, p.shedCount === 0);
@@ -155,6 +161,12 @@ export class ResourceBar {
     for (const [sp, b] of this.speedButtons) b.classList.toggle('active', sp === s.speed);
 
     setHidden(this.pauseBanner, s.speed !== 0 || s.outcome === 'lost');
+    const ends = s.incidents.outageEndsAt;
+    setHidden(this.outageBanner, ends === null || s.outcome === 'lost');
+    if (ends !== null) {
+      const backup = p.generatorKW > 0 ? `groupes ${Math.round(p.generatorKW)} kW` : p.upsKW > 0 ? `onduleurs ${Math.round(p.upsKW)} kW` : 'aucun secours';
+      setText(this.outageText, `Coupure du réseau : ${backup}${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'équipement délesté', 'équipements délestés')}` : ''} · retour dans ${seconds(ends - s.time)}`);
+    }
     const timer = s.economy.bankruptTimer;
     setHidden(this.bankruptBanner, !(timer > 0 && s.outcome !== 'lost'));
     if (timer > 0) setText(this.bankruptText, `Trésorerie négative : faillite dans ${seconds(ECONOMY.bankruptcySeconds - timer)}`);

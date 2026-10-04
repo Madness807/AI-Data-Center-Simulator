@@ -1,11 +1,12 @@
 import type { KeyValueStore } from './settings';
 import { emptyAlerts } from './sim/alert-memory';
 import { defaultPolicies, emptyCareer, emptyResearch, rulesFor } from './sim/career';
+import { emptyIncidents, emptyPower } from './sim/state';
 import type { Building, Job, Technician } from './sim/entities';
 import type { GameState, Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 3;
+export const SAVE_FORMAT = 4;
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export const SAVE_SLOTS: readonly SaveSlot[] = ['auto', 1, 2, 3];
@@ -59,11 +60,13 @@ function need(cond: boolean, what: string): asserts cond {
 
 function checkBuilding(b: unknown, w: number, h: number): asserts b is Building {
   need(isObject(b), 'équipement illisible');
-  need(isInt(b.id) && ['rack', 'crac', 'pdu'].includes(b.kind as string), 'équipement inconnu');
+  need(isInt(b.id) && ['rack', 'crac', 'pdu', 'ups', 'generator'].includes(b.kind as string), 'équipement inconnu');
   need(isInt(b.x) && isInt(b.y) && (b.x as number) >= 0 && (b.y as number) >= 0 && (b.x as number) < w && (b.y as number) < h, 'équipement hors de la salle');
   need(['construction', 'ok', 'failed', 'repairing'].includes(b.status as string), 'état d’équipement inconnu');
   need(isNum(b.workLeft) && isInt(b.failures) && typeof b.powered === 'boolean', 'équipement incomplet');
   need(b.builtAt === null || isNum(b.builtAt), 'date de mise en service invalide');
+  need(b.charge === undefined || isNum(b.charge), 'charge d’onduleur invalide');
+  need(b.warmup === undefined || isNum(b.warmup), 'état de groupe électrogène invalide');
 }
 
 function checkTech(t: unknown): asserts t is Technician {
@@ -101,6 +104,14 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
   // 2 → 3 (lot 2) : modes de jeu, carrière et recherche. Une partie d'avant est une partie rapide.
   2: (state) => {
     Object.assign(state, { mode: 'quick', rules: rulesFor('quick'), career: emptyCareer(), research: emptyResearch(), policies: defaultPolicies() });
+  },
+  // 3 → 4 (lot 3) : énergie de secours, incidents, carburant.
+  3: (state) => {
+    state.incidents = emptyIncidents();
+    if (isObject(state.rules)) state.rules.incidents = state.mode === 'career';
+    state.power = { ...emptyPower(), ...(isObject(state.power) ? state.power : {}) };
+    if (isObject(state.economy) && isObject(state.economy.ledger)) state.economy.ledger.fuel = 0;
+    if (isObject(state.alerts)) state.alerts.upsLow = false;
   },
 };
 
@@ -141,6 +152,9 @@ function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'even
   need(isObject(r) && isNum(r.share) && (r.current === null || typeof r.current === 'string'), 'recherche illisible');
   need(Array.isArray(r.done) && r.done.every((d) => typeof d === 'string') && isObject(r.progress) && isNum(r.ratePerS), 'recherche incomplète');
   need(isObject(s.policies) && typeof s.policies.autoRepair === 'boolean', 'réglages illisibles');
+  const inc = s.incidents;
+  need(isObject(inc) && (inc.outageEndsAt === null || isNum(inc.outageEndsAt)) && (inc.nextOutageAt === null || isNum(inc.nextOutageAt)) && isInt(inc.outages), 'incidents illisibles');
+  need(typeof s.rules.incidents === 'boolean', 'règles incomplètes');
 }
 
 /** Relit une sauvegarde ; tout problème donne un refus explicite, jamais un état bancal. */

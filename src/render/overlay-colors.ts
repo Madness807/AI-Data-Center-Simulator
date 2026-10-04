@@ -1,9 +1,10 @@
-import { CRAC, PDU } from '../sim/balance';
+import { CRAC, OUTAGE, RACK } from '../sim/balance';
 import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
 import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
 import { failureRiskPerMinute } from '../sim/systems/failures';
 import { inCoolingRange } from '../sim/systems/heat';
+import { plannedGeneratorKW, plannedUpsKW } from '../sim/systems/power';
 import { statusColor, type StatusName } from './assets/status-colors';
 
 /** Calques posés sur le sol de la salle ; H les fait défiler. */
@@ -83,9 +84,9 @@ export function overlayLegend(mode: Exclude<OverlayMode, 'heat'>): { title: stri
         title: 'Énergie',
         items: [
           { label: 'Alimenté', rgb: status('busy') },
+          { label: 'Sans secours', rgb: status('repairing') },
           { label: 'Délesté', rgb: status('shed') },
-          { label: 'En panne', rgb: status('failed') },
-          { label: 'Chantier', rgb: status('idle') },
+          { label: 'Secours', rgb: COOL },
         ],
       };
     case 'cooling':
@@ -143,12 +144,16 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
 
   if (mode === 'power') {
     const load = s.power.capacityKW > 0 ? s.power.demandKW / s.power.capacityKW : 1;
+    const covered = backupCoverage(s);
     for (const b of s.buildings) {
       const i = cell(b);
       if (b.status === 'construction') put(i, status('idle'), 140);
       else if (b.status === 'failed' || b.status === 'repairing') put(i, status('failed'), 235);
       else if (b.kind === 'pdu') put(i, load >= 1 ? status('shed') : load >= 0.85 ? status('repairing') : status('busy'), 235);
-      else put(i, b.powered ? status('busy') : status('shed'), 235);
+      else if (b.kind === 'ups' || b.kind === 'generator') put(i, COOL, 235);
+      else if (!b.powered) put(i, status('shed'), 235);
+      // Alimenté mais qui tomberait si le réseau coupait : orange.
+      else put(i, covered && !covered.has(b.id) ? status('repairing') : status('busy'), 235);
     }
     return;
   }
@@ -193,8 +198,31 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
   }
 }
 
+/**
+ * Équipements qui tiendraient une coupure : servis dans l'ordre (CRAC puis racks) avec la
+ * puissance des groupes et des onduleurs construits. null quand les coupures ne concernent
+ * pas la partie (partie rapide, palier trop bas) : le calque n'affiche alors pas ce critère.
+ */
+export function backupCoverage(s: GameState): Set<number> | null {
+  if (!s.rules.incidents || s.career.tier < OUTAGE.minTier) return null;
+  let left = plannedGeneratorKW(s) + plannedUpsKW(s);
+  const out = new Set<number>();
+  const loads = s.buildings
+    .filter((b) => b.status === 'ok' && b.powered && (b.kind === 'crac' || b.kind === 'rack'))
+    .sort((a, b) => (a.kind === b.kind ? a.id - b.id : a.kind === 'crac' ? -1 : 1));
+  for (const b of loads) {
+    const kw = b.kind === 'crac' ? CRAC.powerKW : RACK.powerKW;
+    if (left < kw) break;
+    left -= kw;
+    out.add(b.id);
+  }
+  return out;
+}
+
 /** Charge électrique en part de la capacité, pour le titre du calque énergie. */
 export function powerLoadLabel(s: GameState): string {
   const pdus = s.buildings.filter((b) => b.kind === 'pdu' && b.status === 'ok').length;
-  return `${Math.round(s.power.demandKW)} / ${s.power.capacityKW} kW demandés · ${pdus} PDU de ${PDU.capacityKW} kW`;
+  const base = `${Math.round(s.power.demandKW)} / ${Math.round(s.power.capacityKW)} kW demandés · ${pdus} PDU`;
+  if (!s.rules.incidents || s.career.tier < OUTAGE.minTier) return base;
+  return `${base} · secours ${plannedGeneratorKW(s) + plannedUpsKW(s)} kW`;
 }

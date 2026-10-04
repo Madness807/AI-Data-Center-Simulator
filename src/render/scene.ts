@@ -31,6 +31,7 @@ import {
 } from './assets';
 import { cellCenter } from './grid';
 import { FloorOverlay } from './overlays';
+import { modifiers } from '../sim/progression';
 
 const ELEVATION = Math.atan(1 / Math.SQRT2); // isométrie vraie
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -465,6 +466,10 @@ export class SceneView {
         speed: s.speed,
         powered: b.powered,
         progress: site ? 1 - b.workLeft / BUILD_TIME[b.kind] : 1,
+        charge: b.kind === 'ups' ? (b.charge ?? 0) / modifiers(s).upsStoreKJ : undefined,
+        discharging: b.kind === 'ups' && !s.power.grid && s.power.upsKW > 0,
+        starting: b.kind === 'generator' && b.warmup !== undefined && b.warmup > 0,
+        running: b.kind === 'generator' && b.warmup !== undefined && b.warmup <= 0,
       });
     }
     for (const [id, placed] of this.others) {

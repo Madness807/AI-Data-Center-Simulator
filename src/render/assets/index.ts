@@ -5,7 +5,9 @@
 import type { BuildingKind } from '../../sim/entities';
 import { createConstructionSite } from './fx/construction-site';
 import { createCrac } from './props/crac';
+import { createGenerator } from './props/generator';
 import { createPdu } from './props/pdu';
+import { createUps } from './props/ups';
 import type { AssetModel } from './types';
 
 export type { AssetModel, ModelState, TechnicianModel, TechnicianPose } from './types';
@@ -31,6 +33,8 @@ export { createConstructionSite };
 export const PROP_MODELS: Record<Exclude<BuildingKind, 'rack'>, () => AssetModel> = {
   crac: createCrac,
   pdu: createPdu,
+  ups: createUps,
+  generator: createGenerator,
 };
 
 /** Modèle d'un bâtiment non instancié, ou de son chantier tant qu'il est en construction. */

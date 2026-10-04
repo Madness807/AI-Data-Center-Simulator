@@ -5,6 +5,8 @@ export type GameMode = 'quick' | 'career';
 export interface Rules {
   /** Réputation, paliers et arbre de recherche. */
   progression: boolean;
+  /** Incidents (coupures du réseau…), selon le palier atteint. */
+  incidents: boolean;
 }
 
 export interface CareerState {
@@ -36,7 +38,7 @@ export interface Policies {
 export const MAX_RESEARCH_SHARE = 0.5;
 
 export function rulesFor(mode: GameMode): Rules {
-  return { progression: mode === 'career' };
+  return { progression: mode === 'career', incidents: mode === 'career' };
 }
 
 export function emptyCareer(): CareerState {

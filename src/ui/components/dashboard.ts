@@ -22,6 +22,7 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
 
 const EXPENSES: { kind: ExpenseKind; label: string }[] = [
   { kind: 'electricity', label: 'Électricité' },
+  { kind: 'fuel', label: 'Carburant des groupes' },
   { kind: 'salaries', label: 'Salaires' },
   { kind: 'repairs', label: 'Réparations' },
   { kind: 'penalties', label: 'Pénalités de retard' },

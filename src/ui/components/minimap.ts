@@ -112,6 +112,8 @@ export class Minimap {
       let color: number;
       if (b.kind === 'crac') color = PALETTE.cracBody;
       else if (b.kind === 'pdu') color = PALETTE.pduBody;
+      else if (b.kind === 'ups') color = PALETTE.upsBody;
+      else if (b.kind === 'generator') color = PALETTE.genBody;
       else if (b.status === 'failed') color = statusColor('failed');
       else if (b.status === 'repairing') color = statusColor('repairing');
       else if (!b.powered) color = statusColor('shed');

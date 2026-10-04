@@ -6,19 +6,23 @@ import { updateEconomy } from './systems/economy';
 import { updateFailures } from './systems/failures';
 import { updateHeat } from './systems/heat';
 import { updateJobs } from './systems/jobs';
-import { updatePower } from './systems/power';
+import { updateIncidents } from './systems/incidents';
+import { updateBackup, updatePower } from './systems/power';
 import { updateTechnicians } from './systems/technicians';
 
 /**
- * Un tick de simulation, dans un ordre fixe : commandes → techniciens → pannes →
- * énergie → contrats → chaleur → économie, puis alertes préventives. Une partie perdue est figée.
+ * Un tick de simulation, dans un ordre fixe : commandes → incidents → techniciens → pannes →
+ * énergie → secours → contrats → chaleur → économie, puis alertes préventives. Une partie
+ * perdue est figée.
  */
 export function step(s: GameState): void {
   processCommands(s);
   if (s.outcome === 'lost') return;
+  updateIncidents(s);
   updateTechnicians(s, DT);
   updateFailures(s, DT);
   updatePower(s);
+  updateBackup(s, DT);
   updateJobs(s, DT);
   updateHeat(s, DT);
   updateEconomy(s, DT);

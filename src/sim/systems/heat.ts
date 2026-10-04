@@ -1,4 +1,4 @@
-import { CRAC, DT, HEAT, RACK } from '../balance';
+import { CRAC, DT, HEAT, RACK, UPS } from '../balance';
 import { modifiers } from '../progression';
 import { idx, type GameState } from '../state';
 
@@ -15,6 +15,7 @@ export function updateHeat(s: GameState, dt: number): void {
   for (const b of s.buildings) {
     if (!b.powered) continue;
     if (b.kind === 'rack') temp[idx(s, b.x, b.y)] += (RACK.heatKW * dt) / C;
+    else if (b.kind === 'ups') temp[idx(s, b.x, b.y)] += (UPS.heatKW * dt) / C;
     else if (b.kind === 'crac') cool(s, b.x, b.y, coolingKW * dt);
   }
 

@@ -1,12 +1,13 @@
-import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, FAILURE, HEAT, RACK, REPAIR } from '../../sim/balance';
+import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, HEAT, RACK, REPAIR, UPS } from '../../sim/balance';
 import { isRackActive, type Building, type BuildingKind, type Cell, type Technician } from '../../sim/entities';
 import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
-import { busyRackIds, coolersCovering, cracHeatLoad } from '../../sim/stats';
+import { busyRackIds, coolersCovering, cracHeatLoad, redundancy } from '../../sim/stats';
+import { upsAutonomy } from '../../sim/systems/power';
 import { failureRiskPerMinute } from '../../sim/systems/failures';
 import { tempToRgb } from '../../render/overlay-colors';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
-import { celsius, clock, money, percent, percentFine, plural, seconds, signedMoney } from '../format';
+import { celsius, clock, decimal, money, percent, percentFine, plural, seconds, signedMoney } from '../format';
 import type { IconName } from '../icons';
 import type { TemperatureHistory } from '../metrics';
 import { BUILDING_LABEL } from './selection-panel';
@@ -22,7 +23,7 @@ export interface InspectorActions {
 
 type Tone = '' | 'ok' | 'warn' | 'danger';
 
-const KIND_ICON: Record<BuildingKind, IconName> = { rack: 'rack', crac: 'crac', pdu: 'pdu' };
+const KIND_ICON: Record<BuildingKind, IconName> = { rack: 'rack', crac: 'crac', pdu: 'pdu', ups: 'ups', generator: 'generator' };
 const CONFIRM_MS = 3000;
 
 /** Ligne « libellé / valeur », mise à jour en place. */
@@ -101,6 +102,7 @@ export class Inspector {
   private readonly progress = new Gauge('Avancement', 'build');
   private readonly zoneLoad = new Gauge('Chaleur de la zone', 'temperature');
   private readonly gridLoad = new Gauge('Charge du réseau', 'power');
+  private readonly battery = new Gauge('Charge de la batterie', 'ups');
 
   private readonly risk = new Row('Risque de panne', 'alert');
   private readonly cooling = new Row('Refroidissement', 'crac');
@@ -109,6 +111,10 @@ export class Inspector {
   private readonly compute = new Row('Calcul', 'compute');
   private readonly coverage = new Row('Portée', 'target');
   private readonly network = new Row('Réseau', 'pdu');
+  private readonly backupState = new Row('État', 'power');
+  private readonly autonomy = new Row('Autonomie', 'time');
+  private readonly fuel = new Row('Carburant', 'money');
+  private readonly n1 = new Row('Redondance N+1', 'power');
   private readonly crewRow = new Row('Techniciens', 'team');
   private readonly remaining = new Row('Temps restant', 'time');
   private readonly uptime = new Row('En service depuis', 'time');
@@ -153,6 +159,7 @@ export class Inspector {
       this.progress.root,
       this.zoneLoad.root,
       this.gridLoad.root,
+      this.battery.root,
       this.tempBlock,
       el(
         'div',
@@ -165,6 +172,10 @@ export class Inspector {
           this.compute,
           this.coverage,
           this.network,
+          this.backupState,
+          this.autonomy,
+          this.fuel,
+          this.n1,
           this.crewRow,
           this.remaining,
           this.uptime,
@@ -211,6 +222,8 @@ export class Inspector {
       this.renderRack(s, b, temp, b.kind === 'rack' && !site),
       this.renderCrac(s, b, b.kind === 'crac' && !site),
       this.renderPdu(s, b.kind === 'pdu' && !site),
+      this.renderUps(s, b, b.kind === 'ups' && !site),
+      this.renderGenerator(s, b, b.kind === 'generator' && !site),
       this.renderSite(s, b, site),
     ];
     const hint = hints.find((h) => h) ?? '';
@@ -260,6 +273,8 @@ export class Inspector {
     else if (b.status === 'failed') [text, tone] = ['en panne', 'danger'];
     else if (b.status === 'repairing') [text, tone] = [`réparation ${seconds(b.workLeft)}`, 'warn'];
     else if (b.kind === 'pdu') [text, tone] = ['en service', 'ok'];
+    else if (b.kind === 'ups') [text, tone] = !s.power.grid && s.power.upsKW > 0 ? ['alimente la salle', 'warn'] : (b.charge ?? 0) > 0 ? ['prêt', 'ok'] : ['batterie vide', 'danger'];
+    else if (b.kind === 'generator') [text, tone] = b.warmup === undefined ? ['en veille', ''] : b.warmup > 0 ? ['démarrage', 'warn'] : ['en marche', 'ok'];
     else if (!b.powered) [text, tone] = [b.kind === 'rack' ? 'délesté' : 'sans courant', 'danger'];
     else if (b.kind === 'crac') [text, tone] = ['en marche', 'ok'];
     else [text, tone] = busyRackIds(s).has(b.id) ? ['en calcul', 'ok'] : ['inactif', ''];
@@ -317,10 +332,50 @@ export class Inspector {
     return ratio > 1 ? 'Zone saturée : ajoutez un CRAC ou espacez les racks.' : '';
   }
 
+  private renderUps(s: GameState, b: Building, on: boolean): string {
+    this.battery.show(on);
+    this.autonomy.show(on);
+    if (!on) return '';
+    const store = modifiers(s).upsStoreKJ;
+    const charge = b.charge ?? 0;
+    const ratio = charge / store;
+    this.battery.set(ratio, `${percent(ratio)} · ${Math.round(charge)} / ${Math.round(store)} kJ`, ratio > 0.5 ? 'ok' : ratio > 0.2 ? 'warn' : 'danger');
+    const left = upsAutonomy(s);
+    const draw = s.power.grid ? 'à la demande actuelle' : 'au débit actuel';
+    this.autonomy.set(left === null ? '—' : left === Infinity ? 'illimitée' : `${seconds(left)} ${draw}`, left !== null && left < 30 ? 'warn' : '');
+    if (s.power.grid && ratio < 1) return `Recharge sur le réseau (${UPS.rechargeKW} kW) : pleine dans ${seconds(((store - charge) / UPS.rechargeKW))}.`;
+    if (!s.power.grid && ratio < 0.2) return 'Batterie presque vide : un groupe électrogène prendrait le relais pour toute la coupure.';
+    return '';
+  }
+
+  private renderGenerator(s: GameState, b: Building, on: boolean): string {
+    this.backupState.show(on);
+    this.fuel.show(on);
+    this.n1.show(on || this.n1Visible);
+    if (!on) return '';
+    const running = b.warmup !== undefined && b.warmup <= 0;
+    const share = running ? s.power.generatorKW / Math.max(1, s.buildings.filter((o) => o.kind === 'generator' && o.warmup !== undefined && o.warmup <= 0).length) : 0;
+    this.backupState.set(
+      b.warmup === undefined ? `en veille · démarre en ${modifiers(s).generatorStartS} s` : b.warmup > 0 ? `démarrage · ${seconds(b.warmup)}` : `en marche · ${Math.round(share)} / ${GENERATOR.powerKW} kW`,
+      b.warmup === undefined ? '' : b.warmup > 0 ? 'warn' : 'ok',
+    );
+    this.fuel.set(running ? `−${decimal(share * GENERATOR.fuelPerKWs)} $/s` : `${decimal(GENERATOR.fuelPerKWs, 2)} $ par kW·s`, running ? 'warn' : '');
+    const r = redundancy(s);
+    this.n1.set(r.backup ? 'oui' : 'non', r.backup ? 'ok' : 'warn');
+    return r.backup ? '' : 'Sans N+1, la panne d’un groupe pendant une coupure délesterait des racks : ajoutez-en un.';
+  }
+
+  /** La ligne N+1 sert au PDU comme au groupe : visible si l'un des deux l'a demandée. */
+  private n1Visible = false;
+
   private renderPdu(s: GameState, on: boolean): string {
     this.network.show(on);
     this.gridLoad.show(on);
+    this.n1Visible = on;
+    this.n1.show(on);
     if (!on) return '';
+    const r = redundancy(s);
+    this.n1.set(r.pdu ? 'oui' : 'non', r.pdu ? 'ok' : 'warn');
     const p = s.power;
     const pdus = s.buildings.filter((o) => o.kind === 'pdu' && o.status === 'ok').length;
     this.gridLoad.set(p.capacityKW ? p.loadKW / p.capacityKW : 1, `${p.loadKW} / ${p.capacityKW} kW`, p.shedCount ? 'danger' : p.loadKW / p.capacityKW > 0.85 ? 'warn' : 'ok');

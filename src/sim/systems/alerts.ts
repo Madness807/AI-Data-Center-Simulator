@@ -1,6 +1,7 @@
 import { FAILURE } from '../balance';
 import { isRackActive, type Building } from '../entities';
 import { researchReserve } from '../progression';
+import { upsAutonomy } from './power';
 import { idx, notify, type GameState } from '../state';
 
 /** Seuils des alertes préventives : prévenir avant la casse, une fois par épisode. */
@@ -18,6 +19,8 @@ export const ALERTS = {
   unattendedS: 20,
   /** Un contrat tout juste accepté n'est pas jugé avant que le calcul lui soit attribué. */
   lateGraceS: 5,
+  /** Secondes d'autonomie des onduleurs en coupure. */
+  upsLowS: 20,
   /** Les alertes se calculent une fois par seconde de jeu. */
   everyTicks: 10,
 };
@@ -29,6 +32,20 @@ export function updateAlerts(s: GameState): void {
   lateJobs(s);
   cash(s);
   unattended(s);
+  upsLow(s);
+}
+
+/** Pendant une coupure, quand les batteries tiennent encore moins de 20 s sans groupe pour les relayer. */
+function upsLow(s: GameState): void {
+  if (s.power.grid) {
+    s.alerts.upsLow = false;
+    return;
+  }
+  if (s.alerts.upsLow || s.power.upsKW <= 0) return;
+  const left = upsAutonomy(s);
+  if (left === null || left > ALERTS.upsLowS) return;
+  s.alerts.upsLow = true;
+  notify(s, 'warning', `Batteries des onduleurs : environ ${Math.max(1, Math.round(left))} s d’autonomie`, { code: 'upsLow' });
 }
 
 const tempOf = (s: GameState, b: Building) => s.temp[idx(s, b.x, b.y)];

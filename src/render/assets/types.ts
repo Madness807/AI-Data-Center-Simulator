@@ -11,6 +11,12 @@ export interface ModelState {
   powered: boolean;
   /** Avancement d'un chantier, de 0 à 1. */
   progress: number;
+  /** Onduleur : charge de 0 à 1, et s'il alimente la salle (coupure). */
+  charge?: number;
+  discharging?: boolean;
+  /** Groupe électrogène : en train de démarrer, ou en marche. */
+  starting?: boolean;
+  running?: boolean;
 }
 
 /**

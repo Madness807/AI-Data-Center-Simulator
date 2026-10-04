@@ -48,6 +48,9 @@ import {
   Layers,
   FlaskConical,
   Award,
+  BatteryCharging,
+  Fuel,
+  Lock,
   type IconNode,
 } from 'lucide';
 
@@ -102,6 +105,9 @@ export const ICONS = {
   layers: Layers,
   research: FlaskConical,
   tier: Award,
+  ups: BatteryCharging,
+  generator: Fuel,
+  lock: Lock,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;

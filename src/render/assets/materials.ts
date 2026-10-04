@@ -38,6 +38,12 @@ export const MATERIALS = {
   cracScreenOn: glow(PALETTE.cracScreenOn),
   cracScreenOff: standard(PALETTE.cracScreenOff, { roughness: 0.4 }),
   pduLampOn: glow(PALETTE.pduLampOn),
+  upsLedCharge: glow(PALETTE.upsLedCharge),
+  upsLedDischarge: glow(PALETTE.upsLedDischarge),
+  upsLedOff: standard(PALETTE.upsLedOff, { roughness: 0.4 }),
+  genLampRun: glow(PALETTE.genLampRun),
+  genLampStart: glow(PALETTE.genLampStart),
+  genLampOff: standard(PALETTE.upsLedOff, { roughness: 0.4 }),
 
   scaffold: standard(PALETTE.scaffold, { roughness: 0.5, metalness: 0.2 }),
   blueprint: standard(PALETTE.blueprint, {

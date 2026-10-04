@@ -1,8 +1,8 @@
-import { BUILD_COST, CRAC, PDU, RACK, TECH } from '../src/sim/balance';
+import { BUILD_COST, CRAC, GENERATOR, PDU, RACK, TECH, UPS } from '../src/sim/balance';
 import { canBuild } from '../src/sim/commands';
 import type { Building, BuildingKind, Technician } from '../src/sim/entities';
 import { step } from '../src/sim/sim';
-import { availableResearch } from '../src/sim/progression';
+import { availableResearch, isUnlocked } from '../src/sim/progression';
 import { createInitialState, type GameState } from '../src/sim/state';
 import { freeCapacity, tempStats } from '../src/sim/stats';
 
@@ -21,10 +21,12 @@ export interface BotProfile {
   reserve: number;
   /** Mode carrière : il consacre une part du calcul à la recherche, dans l'ordre RESEARCH_ORDER. */
   career?: boolean;
+  /** Carrière : il ignore l'énergie de secours (ni recherche, ni onduleurs, ni groupes). */
+  noBackup?: boolean;
 }
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
-const RESEARCH_ORDER = ['auto-repair', 'crac-he', 'pdu-hc', 'opportunistic', 'fast-techs'];
+const RESEARCH_ORDER = ['auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'opportunistic', 'fast-techs', 'green-power', 'switchover-2n'];
 export const CAREER_RESEARCH_SHARE = 0.2;
 
 export const COMPETENT: BotProfile = { cooling: true, contracts: true, maxRacks: 14, reserve: 4000 };
@@ -65,6 +67,9 @@ const LAYOUT: Item[] = [
   ...row(10, [['rack', 22], ['rack', 6]]),
 ];
 
+/** Secours le long du mur du bas, une case sur deux. */
+const BACKUP_SPOTS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((x) => ({ x, y: 14 }));
+
 /** PDU le long du mur du fond, une case sur deux. */
 const PDU_SPOTS: Item[] = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21].map((x) => ({ kind: 'pdu', x, y: 1 }));
 
@@ -97,16 +102,45 @@ class Bot {
     if (this.profile.career) this.research(s);
     this.repair(s);
     this.contracts(s);
+    if (this.profile.career && !this.profile.noBackup && this.backup(s)) return;
     this.expand(s);
     this.hire(s);
   }
 
   private research(s: GameState): void {
     if (s.research.share !== CAREER_RESEARCH_SHARE) s.commands.push({ type: 'setResearchShare', share: CAREER_RESEARCH_SHARE });
-    if (s.research.current) return;
     const open = availableResearch(s);
-    const next = RESEARCH_ORDER.find((id) => open.includes(id)) ?? open[0];
+    // L'avertissement du palier Scale-up : les secours électriques passent avant tout le reste.
+    const urgent = this.profile.noBackup ? undefined : ['ups', 'generators'].find((id) => open.includes(id));
+    if (urgent && s.research.current !== urgent && !['ups', 'generators'].includes(s.research.current ?? '')) {
+      s.commands.push({ type: 'startResearch', id: urgent });
+      return;
+    }
+    if (s.research.current) return;
+    const order = this.profile.noBackup ? RESEARCH_ORDER.filter((id) => !['ups', 'generators', 'switchover-2n'].includes(id)) : RESEARCH_ORDER;
+    const next = order.find((id) => open.includes(id)) ?? open.find((id) => !this.profile.noBackup || !['ups', 'generators'].includes(id));
     if (next) s.commands.push({ type: 'startResearch', id: next });
+  }
+
+  /**
+   * Secours (carrière) : des groupes pour toute la demande, des onduleurs pour couvrir leur
+   * démarrage. Renvoie vrai s'il vient de lancer un chantier.
+   */
+  private backup(s: GameState): boolean {
+    const demand = plannedPower(s).demand;
+    const count = (kind: BuildingKind) => s.buildings.filter((b) => b.kind === kind).length;
+    const want: [BuildingKind, number][] = [
+      ['ups', isUnlocked(s, 'ups') ? Math.ceil(demand / UPS.powerKW) - count('ups') : 0],
+      ['generator', isUnlocked(s, 'generator') ? Math.ceil(demand / GENERATOR.powerKW) - count('generator') : 0],
+    ];
+    const [kind, missing] = want.reduce((a, b) => (b[1] > a[1] ? b : a));
+    if (missing <= 0) return false;
+    if (s.buildings.filter((b) => b.status === 'construction').length >= s.techs.length) return false;
+    if (s.money < BUILD_COST[kind] + this.profile.reserve) return false;
+    const spot = BACKUP_SPOTS.find((p) => canBuild(s, kind, p.x, p.y) === null);
+    if (!spot) return false;
+    this.build(s, { kind, ...spot });
+    return true;
   }
 
   private repair(s: GameState): void {

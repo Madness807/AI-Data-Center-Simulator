@@ -45,14 +45,25 @@ describe('équilibrage', () => {
     }
   });
 
-  it('carrière : le palier 2 vers 10-15 minutes, toute la recherche de niveau 1 avant le palier 3', () => {
+  it('carrière : le palier 2 vers 10-15 minutes, les secours prêts avant le palier 3, victoire sans retard', () => {
     for (const seed of SEEDS.slice(0, 4)) {
-      const run = playBot(seed, { ...COMPETENT, career: true }, 30 * 60);
+      const run = playBot(seed, { ...COMPETENT, career: true }, 75 * 60);
       expect(run.lostAt, `graine ${seed}`).toBeNull();
       expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeGreaterThanOrEqual(8);
       expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeLessThanOrEqual(16);
-      expect(Object.keys(run.researchAt).length, `graine ${seed}`).toBe(5);
-      expect(Math.max(...Object.values(run.researchAt)), `graine ${seed}`).toBeLessThan(run.tierAt[2] ?? Infinity);
+      expect(run.researchAt.generators, `graine ${seed}`).toBeLessThan(run.tierAt[2] ?? Infinity);
+      expect(run.state.economy.jobsFailed, `graine ${seed}`).toBe(0);
+      expect(run.wonAt, `graine ${seed}`).not.toBeNull();
+    }
+  });
+
+  it('carrière : sans énergie de secours, les coupures coûtent des retards et du temps', () => {
+    for (const seed of SEEDS.slice(0, 3)) {
+      const careful = playBot(seed, { ...COMPETENT, career: true }, 75 * 60);
+      const reckless = playBot(seed, { ...COMPETENT, career: true, noBackup: true }, 75 * 60);
+      expect(reckless.state.incidents.outages, `graine ${seed}`).toBeGreaterThanOrEqual(3);
+      expect(reckless.state.economy.jobsFailed, `graine ${seed}`).toBeGreaterThanOrEqual(3);
+      expect(wonAt(reckless), `graine ${seed}`).toBeGreaterThan(wonAt(careful) + 5);
     }
   });
 

@@ -1,11 +1,11 @@
-import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, PDU, RACK, REPAIR, TECH } from '../sim/balance';
+import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, GENERATOR, PDU, RACK, REPAIR, TECH, UPS } from '../sim/balance';
 import type { Cell } from '../sim/entities';
-import { availableResearch, modifiers } from '../sim/progression';
+import { availableResearch, isUnlocked, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
 import type { Tool } from '../input/build';
 import { tempToRgb } from '../render/overlay-colors';
 import { AlertFeed } from './components/alert-feed';
-import { BuildBar } from './components/build-bar';
+import { BUILD_FAMILIES, BuildBar, TOOL_INFO, type FamilyId } from './components/build-bar';
 import { ContractsPanel } from './components/contracts-panel';
 import { CursorFlash } from './components/cursor-flash';
 import { Dashboard, type DashboardTab } from './components/dashboard';
@@ -32,6 +32,9 @@ import { GameHistory, LedgerHistory, TemperatureHistory } from './metrics';
 
 export interface HudActions {
   setTool: (tool: Tool) => void;
+  /** Barre de construction : outil en main et sélection exacte (sans bascule). */
+  currentTool: () => Tool;
+  selectTool: (tool: Tool) => void;
   setSpeed: (speed: Speed) => void;
   setOverlay: (mode: OverlayMode | null) => void;
   toggleEdgePan: () => void;
@@ -227,6 +230,11 @@ export class Hud {
 
   stopTutorial(): void {
     this.tutorial.stop();
+  }
+
+  /** Touche d'une famille de la barre (R, C, P, X) : variante suivante, puis aucun outil. */
+  cycleBuild(id: FamilyId): void {
+    this.build.cycle(id);
   }
 
   /** Ouvre le menu pause et fige la partie (elle reprendra à sa vitesse d'avant). */
@@ -474,10 +482,46 @@ export class Hud {
           ['Capacité', `+${Math.round(this.state ? modifiers(this.state).pduCapacityKW : PDU.capacityKW)} kW`],
           ['Chantier', `${BUILD_TIME.pdu} s`],
         ], 'Sans capacité suffisante, les racks les plus récents sont délestés.'),
+      ups: () =>
+        tip(`Onduleur · ${money(BUILD_COST.ups)}`, [
+          ['Batterie', `${Math.round(this.state ? modifiers(this.state).upsStoreKJ : UPS.storeKJ)} kJ`],
+          ['Puissance', `${UPS.powerKW} kW`],
+          ['Recharge', `${UPS.rechargeKW} kW sur le réseau`],
+          ['Chantier', `${BUILD_TIME.ups} s`],
+        ], 'Prend le relais dès la première seconde d’une coupure, environ une minute.'),
+      generator: () =>
+        tip(`Groupe électrogène · ${money(BUILD_COST.generator)}`, [
+          ['Puissance', `${GENERATOR.powerKW} kW`],
+          ['Démarrage', `${this.state ? modifiers(this.state).generatorStartS : GENERATOR.startS} s`],
+          ['Carburant', `${GENERATOR.fuelPerKWs} $ par kW·s`],
+          ['Chantier', `${BUILD_TIME.generator} s`],
+        ], 'Tient toute la coupure ; un onduleur couvre son démarrage.'),
       demolish: () =>
         tip('Démolir', [['Remboursement', `${DEMOLISH_REFUND * 100} %`]], 'Un chantier pas encore commencé est remboursé en entier.'),
     };
-    for (const [tool, card] of this.build.toolCards) this.tooltip.bind(card, tips[tool]);
+    for (const [id, card] of this.build.familyCards) {
+      this.tooltip.bind(card, () => {
+        const node = tips[this.build.shownTool(id)]() as HTMLElement;
+        const family = BUILD_FAMILIES.find((f) => f.id === id)!;
+        const s = this.state;
+        if (family.variants.length > 1 && s) {
+          // Les variantes de la famille, et ce qu'il faut pour débloquer les autres.
+          const rows = family.variants.map((v) => {
+            const kind = v as Exclude<typeof v, 'demolish'>;
+            const open = isUnlocked(s, kind);
+            return el(
+              'div',
+              `tip-variant ${open ? '' : 'locked'}`,
+              icon(open ? TOOL_INFO[v].icon : 'lock', 12),
+              el('span', undefined, TOOL_INFO[v].label),
+              el('span', 'mono', open ? money(BUILD_COST[kind]) : s.rules.progression ? `recherche : ${unlockedBy(kind)?.name}` : 'carrière'),
+            );
+          });
+          node.append(el('div', 'tip-variants', el('div', 'tip-hint', `${family.key} : variante suivante`), ...rows));
+        }
+        return node;
+      });
+    }
     this.tooltip.bind(this.build.hireCard, () =>
       tip(`Technicien · ${money(TECH.hireCost)}`, [
         ['Salaire', `${TECH.salaryPerS} $/s`],

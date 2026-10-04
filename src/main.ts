@@ -16,6 +16,7 @@ import { pickGroundCell, rayFromScreen } from './input/picking';
 import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
 import type { NewGameKind } from './ui/components/screens';
+import type { FamilyId } from './ui/components/build-bar';
 import { createShowcaseState } from './ui/showcase';
 import { applyTheme } from './ui/theme';
 import { setColorblind } from './render/assets';
@@ -239,6 +240,8 @@ const hud = new Hud(
   document.getElementById('hud')!,
   {
     setTool,
+    currentTool: () => build.tool,
+    selectTool: (tool) => build.setTool(tool),
     setSpeed,
     setOverlay,
     toggleEdgePan,
@@ -300,11 +303,12 @@ settings.subscribe((s) => {
 // Vignettes des vrais modèles 3D dans la barre de construction.
 for (const [key, url] of Object.entries(renderThumbnails())) hud.setThumbnail(key as ThumbnailKey, url);
 
-const TOOL_KEYS: Record<string, Tool> = { KeyR: 'rack', KeyC: 'crac', KeyP: 'pdu', KeyX: 'demolish' };
+/** Une touche par famille de la barre : un nouvel appui passe à la variante suivante. */
+const FAMILY_KEYS: Record<string, FamilyId> = { KeyR: 'compute', KeyC: 'cooling', KeyP: 'power', KeyX: 'demolish' };
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.metaKey || e.ctrlKey) return;
   if (hud.handleKey(e)) return;
-  if (e.code in TOOL_KEYS) setTool(TOOL_KEYS[e.code]);
+  if (e.code in FAMILY_KEYS) hud.cycleBuild(FAMILY_KEYS[e.code]);
   else if (e.code === 'Escape') {
     // Échap annule d'abord ce qui est en cours, puis ouvre le menu pause.
     if (build.tool) build.setTool(null);

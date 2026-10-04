@@ -39,7 +39,7 @@ export function updateJobs(s: GameState, dt: number): void {
     if (j.progress >= j.work - 1e-6) {
       earn(s, j.payment);
       s.economy.jobsDone++;
-      if (s.rules.progression) gainReputation(s, deliveryReputation(j));
+      if (s.rules.progression) gainReputation(s, deliveryReputation(j, s));
       notify(s, 'success', `Contrat livré : ${j.name} (+${fmt(j.payment)})`, { code: 'delivered' });
       finished.add(j);
     } else if (s.time >= j.deadline) {

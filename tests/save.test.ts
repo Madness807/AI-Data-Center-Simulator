@@ -78,11 +78,30 @@ describe('sauvegarde', () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.file.format).toBe(SAVE_FORMAT);
-    expect(r.state.alerts).toEqual({ hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [] });
+    expect(r.state.alerts).toEqual({ hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [], upsLow: false });
     expect(r.state.economy.failures).toBe(s.buildings.reduce((n, b) => n + b.failures, 0));
     expect(r.state.economy.rackSecondsActive).toBe(0);
     runSeconds(r.state, 60);
     expect(r.state.economy.rackSecondsActive).toBeGreaterThan(0);
+  });
+
+  it('migre une sauvegarde au format 3 (énergie de secours absente)', () => {
+    const s = playedGame();
+    const file = JSON.parse(serialize(s, '0.10.0-beta'));
+    file.format = 3;
+    delete file.state.incidents;
+    delete file.state.rules.incidents;
+    delete file.state.economy.ledger.fuel;
+    delete file.state.alerts.upsLow;
+    for (const k of ['grid', 'backupKW', 'generatorKW', 'upsKW', 'chargeKW']) delete file.state.power[k];
+    const r = deserialize(JSON.stringify(file));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.incidents).toEqual({ outageEndsAt: null, nextOutageAt: null, outages: 0 });
+    expect(r.state.rules.incidents).toBe(false);
+    expect(r.state.economy.ledger.fuel).toBe(0);
+    runSeconds(r.state, 10);
+    expect(r.state.power.grid).toBe(true);
   });
 
   it('gère les emplacements et désigne la plus récente', () => {

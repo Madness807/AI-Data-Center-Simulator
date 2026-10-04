@@ -8,10 +8,39 @@ import { emptyLedger, type Ledger } from './ledger';
 export type Speed = 0 | 1 | 2 | 4;
 
 export interface PowerStats {
+  /** Capacité de distribution des PDU. */
   capacityKW: number;
   demandKW: number;
+  /** Puissance servie aux équipements. */
   loadKW: number;
   shedCount: number;
+  /** Réseau électrique disponible (faux pendant une coupure). */
+  grid: boolean;
+  /** Pendant une coupure : puissance que les secours peuvent fournir. */
+  backupKW: number;
+  /** Puissance servie par les groupes et par les onduleurs au dernier tick. */
+  generatorKW: number;
+  upsKW: number;
+  /** Recharge des onduleurs sur le réseau (facturée en plus de la charge). */
+  chargeKW: number;
+}
+
+export function emptyPower(): PowerStats {
+  return { capacityKW: 0, demandKW: 0, loadKW: 0, shedCount: 0, grid: true, backupKW: 0, generatorKW: 0, upsKW: 0, chargeKW: 0 };
+}
+
+/** Incidents en cours et à venir (carrière). */
+export interface Incidents {
+  /** Coupure du réseau en cours : fin (temps de jeu), ou null. */
+  outageEndsAt: number | null;
+  /** Prochaine coupure ; null tant qu'aucune n'est programmée. */
+  nextOutageAt: number | null;
+  /** Coupures déjà subies (la première est courte). */
+  outages: number;
+}
+
+export function emptyIncidents(): Incidents {
+  return { outageEndsAt: null, nextOutageAt: null, outages: 0 };
 }
 
 /** Nature de l'événement, pour réagir sans analyser le texte (son, routage dans le HUD). */
@@ -34,7 +63,11 @@ export type EventCode =
   | 'unattended'
   // Carrière.
   | 'tierUp'
-  | 'researchDone';
+  | 'researchDone'
+  // Incidents.
+  | 'outage'
+  | 'gridBack'
+  | 'upsLow';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';
@@ -103,6 +136,7 @@ export interface GameState {
   techs: Technician[];
   nextTechId: number;
   power: PowerStats;
+  incidents: Incidents;
   /** CU/s disponibles (racks actifs) et utilisés par les contrats. */
   compute: { total: number; used: number };
   /** Offres et contrats en cours. */
@@ -140,7 +174,8 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H, mode: GameMod
     nextId: 1,
     techs: [],
     nextTechId: 1,
-    power: { capacityKW: 0, demandKW: 0, loadKW: 0, shedCount: 0 },
+    power: emptyPower(),
+    incidents: emptyIncidents(),
     compute: { total: 0, used: 0 },
     jobs: [],
     nextJobId: 1,
@@ -222,6 +257,7 @@ export function addBuilding(s: GameState, kind: BuildingKind, x: number, y: numb
     failures: 0,
     builtAt: site ? null : s.time,
   };
+  if (kind === 'ups') b.charge = 0;
   s.buildings.push(b);
   s.occupant[idx(s, x, y)] = b.id;
   return b;

@@ -1,4 +1,4 @@
-export type BuildingKind = 'rack' | 'crac' | 'pdu';
+export type BuildingKind = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator';
 export type BuildingStatus = 'construction' | 'ok' | 'failed' | 'repairing';
 
 export type Cell = { x: number; y: number };
@@ -18,6 +18,10 @@ export interface Building {
   failures: number;
   /** Temps de jeu de la mise en service ; null tant que le chantier n'est pas terminé. */
   builtAt: number | null;
+  /** Onduleur : énergie stockée (kJ, soit kW·s). */
+  charge?: number;
+  /** Groupe électrogène : secondes avant de produire ; absent tant qu'il est à l'arrêt. */
+  warmup?: number;
 }
 
 export type TechTask =

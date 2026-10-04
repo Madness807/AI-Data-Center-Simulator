@@ -20,10 +20,17 @@ Lots suivants de la feuille de route v1.0, en cours.
   - réparations automatiques (réglables dans le panneau Équipe) ;
   - techniciens aguerris.
 - Sons de passage de palier et de fin de recherche ; mode et progression dans le rapport de bug.
+- **Énergie de secours** (carrière) :
+  - à partir du palier Scale-up, le réseau électrique peut être coupé de 30 s à 2 min (la première coupure, plus tardive, ne dure que 30 s) ;
+  - **onduleur** : une batterie qui prend le relais dès la première seconde, environ une minute, puis se recharge sur le réseau ;
+  - **groupe électrogène** : démarre en 15 s et tient toute la coupure, au prix d'un carburant cher (nouveau poste du grand livre) ;
+  - recherche : onduleurs, groupes électrogènes, énergie verte (facture −15 %, réputation +10 %), bascule 2N ;
+  - bannière de coupure, alerte de batterie basse, indicateur de redondance N+1, calque énergie qui montre les racks sans secours ;
+  - la barre regroupe les équipements par famille : P passe du PDU à l'onduleur puis au groupe.
 
 ### Modifié
 
-- Sauvegarde au format 3. Les parties d'avant se rechargent en partie rapide.
+- Sauvegarde au format 4. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
 
 ## [0.10.0-beta] — 2026-10-04
 

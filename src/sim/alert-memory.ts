@@ -13,8 +13,10 @@ export interface AlertMemory {
   cash: boolean;
   /** Pannes sans technicien affecté : depuis quand, et si l'alerte est partie. */
   unattended: { id: number; since: number; notified: boolean }[];
+  /** Batteries des onduleurs signalées basses pendant la coupure en cours. */
+  upsLow: boolean;
 }
 
 export function emptyAlerts(): AlertMemory {
-  return { hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [] };
+  return { hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [], upsLow: false };
 }

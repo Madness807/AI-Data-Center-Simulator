@@ -48,7 +48,7 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
 | Déplacer la caméra / pivoter / zoomer | W A S D · Q E · molette |
 | Sélectionner des techniciens | clic, ou glisser un rectangle (Maj pour ajouter) |
 | Ordonner : aller, construire, réparer | clic droit (Maj + clic droit : mettre en file) |
-| Construire un rack, un CRAC, un PDU | R, C, P, puis clic (glisser pour enchaîner) |
+| Construire un rack, un CRAC, un PDU | R, C, P, puis clic (glisser pour enchaîner) ; réappuyer passe à la variante suivante (onduleur, groupe électrogène en carrière) |
 | Démolir | X |
 | Inspecter un équipement | clic sur l'équipement |
 | Embaucher un technicien | T |

@@ -14,7 +14,7 @@ src/render/assets/
 ├─ textures.ts         textures générées en pur JS (DataTexture) : dalles, rayures, panneaux
 ├─ cache.ts            once / onceBy : créer une fois, partager ensuite
 ├─ dimensions.ts       BUILDING_SIZE, l'encombrement de chaque bâtiment
-├─ props/              équipements : rack (instancié), crac, pdu
+├─ props/              équipements : rack (instancié), crac, pdu, ups (onduleur), generator
 ├─ characters/         technicien et ses animations
 ├─ environment/        sol, murs, éclairage
 └─ fx/                 chantier, marqueurs d'état, anneaux, fantôme de construction

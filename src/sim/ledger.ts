@@ -1,7 +1,7 @@
 import type { GameState } from './state';
 
 /** Postes de dépense, cumulés depuis le début de la partie. */
-export type ExpenseKind = 'penalties' | 'electricity' | 'salaries' | 'repairs' | 'construction' | 'hiring';
+export type ExpenseKind = 'penalties' | 'electricity' | 'fuel' | 'salaries' | 'repairs' | 'construction' | 'hiring';
 
 /** Grand livre : tout l'argent gagné et dépensé, par poste (montants positifs). */
 export interface Ledger extends Record<ExpenseKind, number> {
@@ -9,7 +9,7 @@ export interface Ledger extends Record<ExpenseKind, number> {
 }
 
 export function emptyLedger(): Ledger {
-  return { revenue: 0, penalties: 0, electricity: 0, salaries: 0, repairs: 0, construction: 0, hiring: 0 };
+  return { revenue: 0, penalties: 0, electricity: 0, fuel: 0, salaries: 0, repairs: 0, construction: 0, hiring: 0 };
 }
 
 /**
@@ -33,4 +33,4 @@ export function refund(s: GameState, kind: ExpenseKind, amount: number): void {
 }
 
 /** Dépenses d'exploitation (hors investissements : construction et embauche). */
-export const OPERATING: readonly ExpenseKind[] = ['penalties', 'electricity', 'salaries', 'repairs'];
+export const OPERATING: readonly ExpenseKind[] = ['penalties', 'electricity', 'fuel', 'salaries', 'repairs'];

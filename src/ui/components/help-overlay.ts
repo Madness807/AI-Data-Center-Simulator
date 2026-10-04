@@ -25,7 +25,7 @@ const SECTIONS: { title: string; lines: [string, string[]][] }[] = [
     lines: [
       ['Inspecter un équipement', ['Clic']],
       ['Fermer l’inspecteur', ['Échap']],
-      ['Rack, CRAC, PDU', ['R', 'C', 'P']],
+      ['Calcul, froid, énergie (réappuyer : variante)', ['R', 'C', 'P']],
       ['Démolir', ['X']],
       ['Poser (glisser pour enchaîner)', ['Clic']],
       ['Annuler', ['Clic droit', 'Échap']],

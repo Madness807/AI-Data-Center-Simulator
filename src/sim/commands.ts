@@ -2,7 +2,7 @@ import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, TECH } from './balance';
 import type { BuildingKind, TechTask } from './entities';
 import { MAX_RESEARCH_SHARE } from './career';
 import { keepsAccess } from './pathfinding';
-import { researchBlocker } from './progression';
+import { isUnlocked, researchBlocker, unlockedBy } from './progression';
 import { refund, spend } from './ledger';
 import { addBuilding, addTech, buildingAt, inBounds, isEntrance, notify, removeBuilding, type GameState, type Speed } from './state';
 import { updatePower } from './systems/power';
@@ -25,6 +25,7 @@ export type Command =
 
 /** Raison du refus, ou null si la construction est possible. */
 export function canBuild(s: GameState, kind: BuildingKind, x: number, y: number): string | null {
+  if (!isUnlocked(s, kind)) return `Recherche requise : ${unlockedBy(kind)?.name ?? 'inconnue'}`;
   if (!inBounds(s, x, y)) return 'Hors de la salle';
   if (isEntrance(x, y)) return "Zone d'entrée réservée";
   if (buildingAt(s, x, y)) return 'Case occupée';

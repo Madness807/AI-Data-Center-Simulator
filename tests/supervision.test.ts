@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Job } from '../src/sim/entities';
-import { addBuilding, addTech, createEmptyState, idx, type EventCode, type GameState } from '../src/sim/state';
+import { addBuilding, addTech, createEmptyState, emptyPower, idx, type EventCode, type GameState } from '../src/sim/state';
 import { availability, pue } from '../src/sim/stats';
 import { predictCompletion, updateAlerts } from '../src/sim/systems/alerts';
 import { updateEconomy } from '../src/sim/systems/economy';
@@ -71,7 +71,7 @@ describe('alertes préventives', () => {
   it('énergie : alerte à 90 % de la capacité, réarmée sous 85 %', () => {
     const s = createEmptyState(1);
     const at = (demandKW: number) => {
-      s.power = { capacityKW: 40, demandKW, loadKW: Math.min(demandKW, 40), shedCount: 0 };
+      s.power = { ...emptyPower(), capacityKW: 40, demandKW, loadKW: Math.min(demandKW, 40) };
       return alertsOf(s, 'powerHigh');
     };
     expect(at(36)).toBe(1);

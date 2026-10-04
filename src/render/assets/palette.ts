@@ -52,6 +52,24 @@ export const PALETTE = {
   pduConduit: 0x5b6573,
   pduLampOn: 0x3dffa0,
 
+  // Onduleur
+  upsBody: 0x55657a,
+  upsDark: 0x262b33,
+  upsModule: 0x1d232b,
+  upsStrip: 0x3c4a5c,
+  upsLedCharge: 0x3dffa0,
+  upsLedDischarge: 0xffb020,
+  upsLedOff: 0x1b2730,
+
+  // Groupe électrogène
+  genBody: 0x4c7a5c,
+  genDark: 0x22282f,
+  genGrille: 0x2c333d,
+  genExhaust: 0x8a939e,
+  genPanel: 0x2f3640,
+  genLampRun: 0x3dffa0,
+  genLampStart: 0xffb020,
+
   // Technicien
   techVest: 0xff7a1a,
   techReflective: 0xeef5ff,

@@ -4,7 +4,7 @@ import { buildingById, type GameState } from '../../sim/state';
 import { el, icon, setText } from '../dom';
 import { plural } from '../format';
 
-export const BUILDING_LABEL: Record<BuildingKind, string> = { rack: 'Rack GPU', crac: 'CRAC', pdu: 'PDU' };
+export const BUILDING_LABEL: Record<BuildingKind, string> = { rack: 'Rack GPU', crac: 'CRAC', pdu: 'PDU', ups: 'Onduleur', generator: 'Groupe électrogène' };
 
 /** Ce que fait le technicien, en clair. */
 export function describeTask(s: GameState, t: Technician): string {

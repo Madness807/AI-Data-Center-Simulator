@@ -3,7 +3,7 @@ import { BUILDING_SIZE, createTechnician, PALETTE, PROP_MODELS } from './assets'
 import { MATERIALS } from './assets/materials';
 import { rackBodyGeometry, rackLedGeometry } from './assets/props/rack';
 
-export type ThumbnailKey = 'rack' | 'crac' | 'pdu' | 'technician';
+export type ThumbnailKey = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator' | 'technician';
 
 /**
  * Vignettes des vrais modèles 3D pour la barre de construction, rendues une seule fois
@@ -30,8 +30,20 @@ export function renderThumbnails(size = 128): Record<ThumbnailKey, string> {
   // CRAC et PDU montrés en service : écran et voyant allumés.
   const crac = PROP_MODELS.crac();
   const pdu = PROP_MODELS.pdu();
+  const ups = PROP_MODELS.ups();
+  const generator = PROP_MODELS.generator();
   for (const m of [crac, pdu]) m.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1 });
-  const models: Record<ThumbnailKey, THREE.Object3D> = { rack, crac: crac.root, pdu: pdu.root, technician: createTechnician().root };
+  // Onduleur chargé, groupe en marche : voyants allumés.
+  ups.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1, charge: 1 });
+  generator.update({ time: 0, dt: 0, speed: 0, powered: true, progress: 1, running: true });
+  const models: Record<ThumbnailKey, THREE.Object3D> = {
+    rack,
+    crac: crac.root,
+    pdu: pdu.root,
+    ups: ups.root,
+    generator: generator.root,
+    technician: createTechnician().root,
+  };
 
   const out = {} as Record<ThumbnailKey, string>;
   const box = new THREE.Box3();

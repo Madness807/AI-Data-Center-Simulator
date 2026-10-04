@@ -1,4 +1,4 @@
-import { RACK } from './balance';
+import { GENERATOR, RACK } from './balance';
 import { isRackActive, type Building } from './entities';
 import type { GameState } from './state';
 import { modifiers, researchReserve } from './progression';
@@ -28,6 +28,20 @@ export function pue(s: GameState): number | null {
 export function availability(s: GameState): number | null {
   const e = s.economy;
   return e.rackSecondsInstalled > 0 ? e.rackSecondsActive / e.rackSecondsInstalled : null;
+}
+
+/**
+ * Redondance N+1 : la perte du plus gros élément (un PDU, un groupe électrogène) ne
+ * délesterait rien. `backup` vaut null sans groupe électrogène.
+ */
+export function redundancy(s: GameState): { pdu: boolean; backup: boolean | null } {
+  const count = (kind: Building['kind']) => s.buildings.filter((b) => b.kind === kind && b.status === 'ok').length;
+  const demand = s.power.demandKW;
+  const gens = count('generator');
+  return {
+    pdu: (count('pdu') - 1) * modifiers(s).pduCapacityKW >= demand,
+    backup: gens ? (gens - 1) * GENERATOR.powerKW >= demand : null,
+  };
 }
 
 /** Débit réservé par les contrats en cours (CU/s). */

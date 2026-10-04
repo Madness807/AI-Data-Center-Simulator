@@ -1,3 +1,5 @@
+import type { BuildingKind } from './entities';
+
 /** Branches de l'arbre, une colonne chacune dans le panneau Recherche. */
 export type Branch = 'compute' | 'cooling' | 'power' | 'ops';
 
@@ -15,9 +17,16 @@ export interface ResearchEffect {
   pduCapacity?: number;
   techSpeed?: number;
   workRate?: number;
+  electricity?: number;
+  reputation?: number;
+  upsStore?: number;
+  /** Démarrage des groupes électrogènes (secondes), remplace la valeur de base. */
+  generatorStartS?: number;
   /** Capacités nouvelles. */
   autoRepair?: true;
   opportunistic?: true;
+  /** Équipements qui deviennent constructibles. */
+  unlocks?: BuildingKind[];
 }
 
 export interface ResearchNode {
@@ -71,6 +80,46 @@ export const RESEARCH: readonly ResearchNode[] = [
     cost: 400,
     requires: [],
     effect: { pduCapacity: 1.5 },
+  },
+  {
+    id: 'ups',
+    branch: 'power',
+    level: 2,
+    name: 'Onduleurs',
+    description: 'Batteries qui prennent le relais dès la première seconde d’une coupure (environ une minute).',
+    cost: 600,
+    requires: [],
+    effect: { unlocks: ['ups'] },
+  },
+  {
+    id: 'generators',
+    branch: 'power',
+    level: 2,
+    name: 'Groupes électrogènes',
+    description: 'Démarrent en 15 s et tiennent toute la coupure, au prix d’un carburant cher.',
+    cost: 800,
+    requires: ['ups'],
+    effect: { unlocks: ['generator'] },
+  },
+  {
+    id: 'green-power',
+    branch: 'power',
+    level: 3,
+    name: 'Énergie verte',
+    description: 'Contrat d’électricité renouvelable : facture −15 %, et les clients apprécient (réputation +10 %).',
+    cost: 1500,
+    requires: [],
+    effect: { electricity: 0.85, reputation: 1.1 },
+  },
+  {
+    id: 'switchover-2n',
+    branch: 'power',
+    level: 4,
+    name: 'Bascule 2N',
+    description: 'Chaîne de secours doublée : les groupes démarrent en 3 s, les onduleurs stockent 50 % de plus.',
+    cost: 2500,
+    requires: ['generators'],
+    effect: { generatorStartS: 3, upsStore: 1.5 },
   },
   {
     id: 'auto-repair',

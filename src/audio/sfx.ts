@@ -86,6 +86,16 @@ export const RECIPES: Record<SoundId, Recipe> = {
   },
   saved: (c, o, t) => tone(c, o, t, NOTE.E5, 0.15, { gain: 0.1, to: NOTE.A5 }),
   offer: (c, o, t) => tone(c, o, t, NOTE.G5, 0.12, { gain: 0.06 }),
+  // Coupure du réseau : sirène grave qui descend, deux fois.
+  outage: (c, o, t) => {
+    tone(c, o, t, 520, 0.45, { type: 'sawtooth', gain: 0.07, to: 260 });
+    tone(c, o, t + 0.5, 520, 0.45, { type: 'sawtooth', gain: 0.07, to: 260 });
+  },
+  // Retour du réseau : deux notes qui montent.
+  gridBack: (c, o, t) => {
+    tone(c, o, t, NOTE.C5, 0.14, { type: 'triangle', gain: 0.09 });
+    tone(c, o, t + 0.13, NOTE.G5, 0.22, { type: 'triangle', gain: 0.09 });
+  },
   // Nouveau palier : arpège montant, plus court que la victoire.
   tierUp: (c, o, t) => {
     [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((f, i) => tone(c, o, t + i * 0.09, f, 0.22, { type: 'triangle', gain: 0.1 }));

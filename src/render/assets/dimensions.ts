@@ -8,4 +8,6 @@ export const BUILDING_SIZE: Record<BuildingKind, readonly [number, number, numbe
   rack: [0.8, 1.6, 0.8],
   crac: [0.9, 1.4, 0.9],
   pdu: [0.7, 1.0, 0.55],
+  ups: [0.7, 1.2, 0.6],
+  generator: [0.9, 1.06, 0.62],
 };

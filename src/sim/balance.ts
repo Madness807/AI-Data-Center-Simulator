@@ -19,11 +19,22 @@ export const DEMOLISH_REFUND = 0.5;
 export const RACK = { cost: 3000, powerKW: 10, heatKW: 10, computeCU: 10 };
 export const CRAC = { cost: 4000, powerKW: 4, coolingKW: 30, radius: 3 };
 export const PDU = { cost: 2500, capacityKW: 40 };
+/** Onduleur : batterie qui prend le relais dès la première seconde d'une coupure. */
+export const UPS = { cost: 3500, storeKJ: 2400, powerKW: 40, rechargeKW: 8, heatKW: 1 };
+/** Groupe électrogène : démarre en quelques secondes et tient toute la coupure, au prix du carburant. */
+export const GENERATOR = { cost: 6000, powerKW: 60, startS: 15, fuelPerKWs: 0.25 };
+/**
+ * Coupures du réseau (carrière, à partir du palier minTier). La première, plus tardive et
+ * courte, laisse le temps d'étudier et de poser des onduleurs après l'avertissement du palier.
+ */
+export const OUTAGE = { minTier: 1, firstDelayS: 480, firstDurationS: 30, interval: [360, 720] as const, duration: [30, 120] as const };
 
 export const BUILD_COST: Record<BuildingKind, number> = {
   rack: RACK.cost,
   crac: CRAC.cost,
   pdu: PDU.cost,
+  ups: UPS.cost,
+  generator: GENERATOR.cost,
 };
 
 export const HEAT = {
@@ -74,7 +85,7 @@ export const JOBS = {
 };
 
 /** Secondes de travail d'un technicien pour terminer un chantier. */
-export const BUILD_TIME: Record<BuildingKind, number> = { rack: 6, crac: 8, pdu: 5 };
+export const BUILD_TIME: Record<BuildingKind, number> = { rack: 6, crac: 8, pdu: 5, ups: 6, generator: 10 };
 
 export const TECH = {
   /** Cases par seconde. */

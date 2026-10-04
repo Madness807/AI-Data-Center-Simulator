@@ -1,5 +1,5 @@
-import { CRAC, PDU, TECH } from './balance';
-import type { Job } from './entities';
+import { CRAC, GENERATOR, PDU, TECH, UPS } from './balance';
+import type { BuildingKind, Job } from './entities';
 import { RESEARCH, RESEARCH_POINTS_PER_CU, researchById } from './research';
 import { notify, type GameState } from './state';
 
@@ -23,7 +23,11 @@ export const TIERS: readonly Tier[] = [
     reputation: 150,
     maxUnits: 8,
     priceMult: 1.1,
-    perks: ['Contrats jusqu’à 8 racks, payés 10 % de plus', 'Recherche de niveau 2'],
+    perks: [
+      'Contrats jusqu’à 8 racks, payés 10 % de plus',
+      'Recherche de niveau 2 : onduleurs, groupes électrogènes',
+      'Attention : le réseau électrique peut désormais être coupé',
+    ],
   },
   {
     name: 'Labo d’IA',
@@ -44,8 +48,9 @@ export const TIERS: readonly Tier[] = [
 export const LATE_REPUTATION = -25;
 
 /** Réputation d'une livraison à l'heure : un gros contrat compte davantage. */
-export function deliveryReputation(job: Job): number {
-  return 10 + Math.round(job.rateCU / 10);
+export function deliveryReputation(job: Job, s?: GameState): number {
+  const base = 10 + Math.round(job.rateCU / 10);
+  return s ? Math.round(base * modifiers(s).reputationMult) : base;
 }
 
 /** Paliers franchis d'un coup si besoin ; le dernier donne la victoire de la carrière. */
@@ -74,6 +79,11 @@ export interface Modifiers {
   workRate: number;
   autoRepair: boolean;
   opportunistic: boolean;
+  /** Multiplicateur de la facture d'électricité. */
+  electricityMult: number;
+  reputationMult: number;
+  upsStoreKJ: number;
+  generatorStartS: number;
 }
 
 const BASE: Modifiers = {
@@ -83,6 +93,10 @@ const BASE: Modifiers = {
   workRate: 1,
   autoRepair: false,
   opportunistic: false,
+  electricityMult: 1,
+  reputationMult: 1,
+  upsStoreKJ: UPS.storeKJ,
+  generatorStartS: GENERATOR.startS,
 };
 
 const cache = new WeakMap<GameState, { key: string; value: Modifiers }>();
@@ -103,6 +117,10 @@ export function modifiers(s: GameState): Modifiers {
     if (e.workRate) m.workRate *= e.workRate;
     if (e.autoRepair) m.autoRepair = true;
     if (e.opportunistic) m.opportunistic = true;
+    if (e.electricity) m.electricityMult *= e.electricity;
+    if (e.reputation) m.reputationMult *= e.reputation;
+    if (e.upsStore) m.upsStoreKJ *= e.upsStore;
+    if (e.generatorStartS !== undefined) m.generatorStartS = Math.min(m.generatorStartS, e.generatorStartS);
   }
   cache.set(s, { key, value: m });
   return m;
@@ -146,4 +164,20 @@ export function advanceResearch(s: GameState, cu: number, dt: number): void {
 /** Nœuds qu'on peut lancer tout de suite. */
 export function availableResearch(s: GameState): string[] {
   return RESEARCH.filter((n) => researchBlocker(s, n.id) === null).map((n) => n.id);
+}
+
+/** Équipements de la bêta, disponibles dans tous les modes. */
+const BASE_KINDS: readonly BuildingKind[] = ['rack', 'crac', 'pdu'];
+
+/** Nœud de recherche qui débloque cet équipement. */
+export function unlockedBy(kind: BuildingKind) {
+  return RESEARCH.find((n) => n.effect.unlocks?.includes(kind));
+}
+
+/** Équipement constructible : ceux de la bêta, plus ceux que la recherche a débloqués (carrière). */
+export function isUnlocked(s: GameState, kind: BuildingKind): boolean {
+  if (BASE_KINDS.includes(kind)) return true;
+  if (!s.rules.progression) return false;
+  const node = unlockedBy(kind);
+  return !!node && s.research.done.includes(node.id);
 }

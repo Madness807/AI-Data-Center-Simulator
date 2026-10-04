@@ -33,6 +33,7 @@ export function buildReport(ctx: ReportContext, version: string, now = new Date(
       `Trésorerie : ${Math.round(s.money)} $ · vitesse ×${s.speed}`,
       `Équipements : ${count('rack')} racks, ${count('crac')} CRAC, ${count('pdu')} PDU · ${s.techs.length} techniciens`,
       `Énergie : ${s.power.loadKW}/${s.power.capacityKW} kW (${s.power.shedCount} délestés) · calcul ${s.compute.used}/${s.compute.total} CU/s`,
+      s.power.grid ? 'Réseau électrique : présent' : `Réseau électrique : COUPÉ (groupes ${s.power.generatorKW} kW, onduleurs ${Math.round(s.power.upsKW)} kW)`,
       `Contrats : ${s.jobs.filter((j) => j.status === 'active').length} en cours, ${s.economy.jobsDone} livrés, ${s.economy.jobsFailed} en retard`,
     );
   }
