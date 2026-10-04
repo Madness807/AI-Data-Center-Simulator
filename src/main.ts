@@ -7,7 +7,7 @@ import './ui/styles/components.css';
 import { DT, MAX_TICKS_PER_FRAME } from './sim/balance';
 import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
-import { buildingAt, createInitialState, type Speed } from './sim/state';
+import { buildingAt, createInitialState, notify, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
 import { BuildController, type Tool } from './input/build';
 import { pickGroundCell, rayFromScreen } from './input/picking';
@@ -38,7 +38,7 @@ const selection = new SelectionController(view.domElement, {
   pickTarget,
   enqueue,
   ping: (cell, kind) => view.ping(cell, kind),
-  hint: (message) => state.events.push({ type: 'info', message }),
+  hint: (message) => notify(state, 'info', message),
 });
 const build = new BuildController(
   view.scene,

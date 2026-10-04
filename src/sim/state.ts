@@ -1,6 +1,7 @@
 import { BUILD_TIME, ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_MONEY, TECH } from './balance';
 import type { Command } from './commands';
-import type { Building, BuildingKind, Job, Technician } from './entities';
+import type { Building, BuildingKind, Cell, Job, Technician } from './entities';
+import { emptyLedger, type Ledger } from './ledger';
 
 export type Speed = 0 | 1 | 2 | 4;
 
@@ -11,7 +12,19 @@ export interface PowerStats {
   shedCount: number;
 }
 
-export type GameEvent = { type: 'error' | 'warning' | 'info' | 'success'; message: string };
+export interface GameEvent {
+  type: 'error' | 'warning' | 'info' | 'success';
+  message: string;
+  /** Temps de jeu de l'événement. */
+  time: number;
+  /** Case concernée, quand il y en a une : l'interface peut y centrer la caméra. */
+  cell?: Cell;
+}
+
+/** Émet un événement pour l'interface, horodaté et éventuellement localisé. */
+export function notify(s: GameState, type: GameEvent['type'], message: string, cell?: Cell): void {
+  s.events.push({ type, message, time: s.time, ...(cell ? { cell: { x: cell.x, y: cell.y } } : {}) });
+}
 
 export type Outcome = 'playing' | 'won' | 'lost';
 
@@ -22,6 +35,8 @@ export interface EconomyStats {
   salariesPerS: number;
   /** Secondes passées d'affilée sous zéro. */
   bankruptTimer: number;
+  /** Cumuls par poste depuis le début de la partie. */
+  ledger: Ledger;
   jobsDone: number;
   jobsFailed: number;
 }
@@ -78,7 +93,7 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H): GameState {
     jobs: [],
     nextJobId: 1,
     nextOfferAt: 0,
-    economy: { electricityPerS: 0, salariesPerS: 0, bankruptTimer: 0, jobsDone: 0, jobsFailed: 0 },
+    economy: { electricityPerS: 0, salariesPerS: 0, bankruptTimer: 0, jobsDone: 0, jobsFailed: 0, ledger: emptyLedger() },
     outcome: 'playing',
     commands: [],
     events: [],

@@ -1,7 +1,8 @@
 import { REPAIR, TECH } from '../balance';
 import type { Building, Cell, Technician, TechTask } from '../entities';
 import { findPath, isAdjacent, isWalkable, pathNextTo } from '../pathfinding';
-import { buildingAt, buildingById, type GameState } from '../state';
+import { spend } from '../ledger';
+import { buildingAt, buildingById, notify, type GameState } from '../state';
 
 /** Le bâtiment visé par la tâche, s'il a encore besoin d'elle. */
 function target(s: GameState, task: TechTask): Building | undefined {
@@ -61,7 +62,7 @@ export function updateTechnicians(s: GameState, dt: number): void {
       if (!t.path || (t.path.length && !isWalkable(s, t.path[0].x, t.path[0].y))) {
         t.path = planPath(s, task, here);
         if (!t.path) {
-          s.events.push({ type: 'error', message: `Technicien ${t.id} : destination inaccessible` });
+          notify(s, 'error', `Technicien ${t.id} : destination inaccessible`, { x: Math.round(t.x), y: Math.round(t.y) });
           nextTask(t);
           continue;
         }
@@ -106,10 +107,10 @@ function work(s: GameState, t: Technician, task: TechTask, dt: number): boolean 
   if (b.status === 'failed') {
     // Les pièces sont payées à l'arrivée du technicien.
     if (s.money < REPAIR.cost) {
-      s.events.push({ type: 'error', message: 'Fonds insuffisants pour réparer' });
+      notify(s, 'error', 'Fonds insuffisants pour réparer', b);
       return true;
     }
-    s.money -= REPAIR.cost;
+    spend(s, 'repairs', REPAIR.cost);
     b.status = 'repairing';
     b.workLeft = REPAIR.seconds;
   }
@@ -118,10 +119,7 @@ function work(s: GameState, t: Technician, task: TechTask, dt: number): boolean 
   if (b.workLeft > 1e-9) return false;
   b.workLeft = 0;
   const label = b.kind === 'rack' ? 'Rack' : b.kind === 'crac' ? 'CRAC' : 'PDU';
-  s.events.push({
-    type: 'info',
-    message: b.status === 'construction' ? `${label} ${b.x},${b.y} construit` : `${label} ${b.x},${b.y} réparé`,
-  });
+  notify(s, 'info', b.status === 'construction' ? `${label} ${b.x},${b.y} construit` : `${label} ${b.x},${b.y} réparé`, b);
   b.status = 'ok';
   return true;
 }

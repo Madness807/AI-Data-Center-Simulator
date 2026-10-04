@@ -9,3 +9,15 @@ export function tempStats(s: GameState): { max: number; avg: number } {
   }
   return { max, avg: sum / s.temp.length };
 }
+
+/** Débit réservé par les contrats en cours (CU/s). */
+export function committedCompute(s: GameState): number {
+  let total = 0;
+  for (const j of s.jobs) if (j.status === 'active') total += j.rateCU;
+  return total;
+}
+
+/** Calcul disponible pour une nouvelle offre : négatif si les contrats en cours dépassent déjà le parc. */
+export function freeCapacity(s: GameState): number {
+  return s.compute.total - committedCompute(s);
+}

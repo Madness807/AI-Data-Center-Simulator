@@ -1,7 +1,8 @@
 import { JOBS, RACK } from '../balance';
 import { isRackActive, type Job } from '../entities';
 import { nextRandom } from '../rng';
-import type { GameState } from '../state';
+import { earn, spend } from '../ledger';
+import { notify, type GameState } from '../state';
 
 const KINDS = ['Entraînement LLM', 'Fine-tuning', 'Inférence batch', 'Rendu vidéo IA', 'Repliement de protéines', 'Prévision météo'];
 const CLIENTS = ['Lumen Labs', 'Orbital ML', 'Nébuleuse IA', 'Kappa Research', 'Helix Bio', 'Quanta Finance', 'Atelier Vision', 'Synapse Studio'];
@@ -27,14 +28,14 @@ export function updateJobs(s: GameState, dt: number): void {
   const finished = new Set<Job>();
   for (const j of active) {
     if (j.progress >= j.work - 1e-6) {
-      s.money += j.payment;
+      earn(s, j.payment);
       s.economy.jobsDone++;
-      s.events.push({ type: 'success', message: `Contrat livré : ${j.name} (+${fmt(j.payment)})` });
+      notify(s, 'success', `Contrat livré : ${j.name} (+${fmt(j.payment)})`);
       finished.add(j);
     } else if (s.time >= j.deadline) {
-      s.money -= j.penalty;
+      spend(s, 'penalties', j.penalty);
       s.economy.jobsFailed++;
-      s.events.push({ type: 'warning', message: `Délai dépassé : ${j.name} (−${fmt(j.penalty)})` });
+      notify(s, 'warning', `Délai dépassé : ${j.name} (−${fmt(j.penalty)})`);
       finished.add(j);
     }
   }
@@ -46,7 +47,7 @@ export function updateJobs(s: GameState, dt: number): void {
   if (s.time >= s.nextOfferAt) {
     if (s.jobs.filter((j) => j.status === 'offer').length < JOBS.maxOffers) {
       s.jobs.push(generateOffer(s));
-      s.events.push({ type: 'info', message: 'Nouvelle offre de contrat' });
+      notify(s, 'info', 'Nouvelle offre de contrat');
     }
     s.nextOfferAt = s.time + lerp(JOBS.offerInterval, nextRandom(s));
   }

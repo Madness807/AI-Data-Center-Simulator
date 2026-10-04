@@ -1,7 +1,8 @@
 import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, TECH } from './balance';
 import type { BuildingKind, TechTask } from './entities';
 import { keepsAccess } from './pathfinding';
-import { addBuilding, addTech, buildingAt, inBounds, isEntrance, removeBuilding, type GameState, type Speed } from './state';
+import { refund, spend } from './ledger';
+import { addBuilding, addTech, buildingAt, inBounds, isEntrance, notify, removeBuilding, type GameState, type Speed } from './state';
 import { updatePower } from './systems/power';
 
 export type Command =
@@ -36,10 +37,10 @@ export function processCommands(s: GameState): void {
       case 'build': {
         const reason = canBuild(s, c.kind, c.x, c.y);
         if (reason) {
-          s.events.push({ type: 'error', message: reason });
+          notify(s, 'error', reason, c);
           break;
         }
-        s.money -= BUILD_COST[c.kind];
+        spend(s, 'construction', BUILD_COST[c.kind]);
         const site = addBuilding(s, c.kind, c.x, c.y, true);
         for (const t of s.techs) {
           if (c.assign?.includes(t.id)) t.tasks.push({ type: 'build', target: site.id });
@@ -51,7 +52,7 @@ export function processCommands(s: GameState): void {
         if (!b) break;
         // Un chantier pas encore commencé est remboursé en entier.
         const untouched = b.status === 'construction' && b.workLeft >= BUILD_TIME[b.kind];
-        s.money += Math.round(BUILD_COST[b.kind] * (untouched ? 1 : DEMOLISH_REFUND));
+        refund(s, 'construction', Math.round(BUILD_COST[b.kind] * (untouched ? 1 : DEMOLISH_REFUND)));
         removeBuilding(s, b);
         break;
       }
@@ -66,10 +67,10 @@ export function processCommands(s: GameState): void {
         }
         break;
       case 'hire':
-        if (s.techs.length >= TECH.max) s.events.push({ type: 'error', message: `Équipe complète (${TECH.max} max)` });
-        else if (s.money < TECH.hireCost) s.events.push({ type: 'error', message: "Fonds insuffisants pour embaucher" });
+        if (s.techs.length >= TECH.max) notify(s, 'error', `Équipe complète (${TECH.max} max)`);
+        else if (s.money < TECH.hireCost) notify(s, 'error', 'Fonds insuffisants pour embaucher');
         else {
-          s.money -= TECH.hireCost;
+          spend(s, 'hiring', TECH.hireCost);
           addTech(s);
         }
         break;
