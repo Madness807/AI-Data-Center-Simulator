@@ -9,6 +9,7 @@ import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
 import { buildingAt, createInitialState, notify, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
+import { renderThumbnails, type ThumbnailKey } from './render/thumbnails';
 import { BuildController, type Tool } from './input/build';
 import { pickGroundCell, rayFromScreen } from './input/picking';
 import { SelectionController } from './input/selection';
@@ -70,16 +71,18 @@ const restart = () => {
   hud.reset();
 };
 
-const hud = new Hud(document.getElementById('hud')!, {
-  setTool,
-  setSpeed,
-  toggleHeatmap,
-  toggleEdgePan,
-  hire,
-  acceptJob,
-  rejectJob,
-  restart,
-});
+const focusCell = (cell: { x: number; y: number }) => {
+  view.rts.focusOn(cell.x + 0.5, cell.y + 0.5);
+  view.ping(cell, 'focus');
+};
+
+const hud = new Hud(
+  document.getElementById('hud')!,
+  { setTool, setSpeed, toggleHeatmap, toggleEdgePan, hire, acceptJob, rejectJob, restart, focusCell },
+  { w: state.w, h: state.h, camera: { footprint: () => view.rts.footprint(), setTarget: (x, z) => view.rts.setTarget(x, z) } },
+);
+// Vignettes des vrais modèles 3D dans la barre de construction.
+for (const [key, url] of Object.entries(renderThumbnails())) hud.setThumbnail(key as ThumbnailKey, url);
 
 const TOOL_KEYS: Record<string, Tool> = { KeyR: 'rack', KeyC: 'crac', KeyP: 'pdu', KeyX: 'demolish' };
 window.addEventListener('keydown', (e) => {
@@ -120,13 +123,11 @@ function frame(now: number) {
   selection.prune(state);
   build.update();
   view.render(state, now / 1000, realDt, acc / DT, selection.selected);
-  hud.update(state, {
-    tool: build.tool,
-    heatmap: view.heatmap.visible,
-    edgePan: view.rts.edgePan,
-    hover: build.hover,
-    selected: selection.selected,
-  });
+  hud.update(
+    state,
+    { tool: build.tool, heatmap: view.heatmap.visible, edgePan: view.rts.edgePan, hover: build.hover, selected: selection.selected },
+    now,
+  );
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

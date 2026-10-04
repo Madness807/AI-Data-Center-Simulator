@@ -1,4 +1,6 @@
+import { RACK } from '../../sim/balance';
 import type { Job } from '../../sim/entities';
+import { freeCapacity } from '../../sim/stats';
 import type { GameState } from '../../sim/state';
 import { el, icon, setStyle, setText } from '../dom';
 import { percent, plural, seconds, signedMoney } from '../format';
@@ -143,11 +145,26 @@ export class ContractsPanel {
     return { root, status: 'active', timer, bar, pct, rate, rateLed };
   }
 
+  /** Peut-on honorer l'offre avec le calcul encore libre ? Sinon, combien de racks manque-t-il ? */
+  private fillCapacity(slot: HTMLElement, rate: number, free: number): void {
+    const missing = rate - Math.max(0, free);
+    const key = missing <= 0 ? `ok:${free}` : `miss:${missing}`;
+    if (slot.dataset.key === key) return;
+    slot.dataset.key = key;
+    if (missing <= 0) {
+      slot.replaceChildren(el('span', 'chip ok', icon('done', 12), `${free} CU/s libres`));
+    } else {
+      const racks = Math.ceil(missing / RACK.computeCU);
+      slot.replaceChildren(el('span', 'chip warn', icon('alert', 12), `manque ${missing} CU/s (${racks} ${plural(racks, 'rack')})`));
+    }
+  }
+
   private fill(card: Card, job: Job, s: GameState): void {
     if (job.status === 'offer') {
       const left = job.expiresAt - s.time;
       setText(card.timer, `expire dans ${seconds(left)}`);
       setStyle(card.bar, 'width', `${Math.max(0, Math.min(1, left / (job.expiresAt - job.offeredAt))) * 100}%`);
+      this.fillCapacity(card.capacity!, job.rateCU, freeCapacity(s));
       return;
     }
     const left = job.deadline - s.time;

@@ -25,6 +25,10 @@ import { cellCenter } from './grid';
 import { Heatmap } from './overlays';
 
 const ELEVATION = Math.atan(1 / Math.SQRT2); // isométrie vraie
+const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const FOOTPRINT_RAY = new THREE.Raycaster();
+const FOOTPRINT_NDC = new THREE.Vector2();
+const FOOTPRINT_HIT = new THREE.Vector3();
 const DISTANCE = 60;
 const EDGE_MARGIN = 16;
 
@@ -39,6 +43,10 @@ export class RtsCamera {
   private aspect = 1;
   private readonly keys = new Set<string>();
   private mouse: { x: number; y: number } | null = null;
+  /** Point vers lequel la caméra glisse (alerte cliquée) ; annulé dès que le joueur bouge. */
+  private focusGoal: THREE.Vector3 | null = null;
+  /** Rotation lente continue (écran titre). */
+  autoOrbit = false;
 
   constructor(dom: HTMLElement, private readonly w: number, private readonly h: number) {
     this.target = new THREE.Vector3(w / 2, 0, h / 2);
@@ -61,6 +69,27 @@ export class RtsCamera {
     );
     dom.addEventListener('mousemove', (e) => (this.mouse = { x: e.clientX, y: e.clientY }));
     dom.addEventListener('mouseleave', () => (this.mouse = null));
+  }
+
+  /** Glisse en douceur jusqu'au point (x, z) du sol. */
+  focusOn(x: number, z: number): void {
+    this.focusGoal = new THREE.Vector3(THREE.MathUtils.clamp(x, 0, this.w), 0, THREE.MathUtils.clamp(z, 0, this.h));
+  }
+
+  /** Place immédiatement la caméra au-dessus de (x, z) : glisser sur la mini-carte. */
+  setTarget(x: number, z: number): void {
+    this.focusGoal = null;
+    this.target.set(THREE.MathUtils.clamp(x, 0, this.w), 0, THREE.MathUtils.clamp(z, 0, this.h));
+  }
+
+  /** Emprise de la vue au sol : les 4 coins de l'écran projetés sur le plancher (x, z). */
+  footprint(): { x: number; z: number }[] {
+    const out: { x: number; z: number }[] = [];
+    for (const [nx, ny] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      FOOTPRINT_RAY.setFromCamera(FOOTPRINT_NDC.set(nx, ny), this.camera);
+      if (FOOTPRINT_RAY.ray.intersectPlane(GROUND, FOOTPRINT_HIT)) out.push({ x: FOOTPRINT_HIT.x, z: FOOTPRINT_HIT.z });
+    }
+    return out;
   }
 
   /** Angle courant de la caméra autour de la salle (radians), animé pendant les rotations. */
@@ -88,6 +117,7 @@ export class RtsCamera {
       if (this.mouse.y > window.innerHeight - EDGE_MARGIN) fwd -= 1;
     }
     if (right || fwd) {
+      this.focusGoal = null;
       // Le pan suit la rotation : « avant » est la direction de visée projetée au sol.
       const sin = Math.sin(this.azimuth);
       const cos = Math.cos(this.azimuth);
@@ -98,6 +128,11 @@ export class RtsCamera {
       this.target.z = THREE.MathUtils.clamp(this.target.z, 0, this.h);
     }
 
+    if (this.focusGoal) {
+      this.target.lerp(this.focusGoal, 1 - Math.exp(-8 * dt));
+      if (this.target.distanceTo(this.focusGoal) < 0.01) this.focusGoal = null;
+    }
+    if (this.autoOrbit) this.azimuthGoal += dt * 0.12;
     this.azimuth += (this.azimuthGoal - this.azimuth) * (1 - Math.exp(-12 * dt));
     const c = Math.cos(ELEVATION) * DISTANCE;
     this.camera.position.set(

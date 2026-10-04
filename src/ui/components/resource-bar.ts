@@ -1,6 +1,7 @@
 import { ECONOMY, FAILURE } from '../../sim/balance';
 import type { GameState, Speed } from '../../sim/state';
 import { tempStats } from '../../sim/stats';
+import type { Balance } from '../metrics';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { clock, money, moneyRate, percent, plural, seconds } from '../format';
 import type { IconName } from '../icons';
@@ -29,6 +30,9 @@ function meter() {
 export class ResourceBar {
   readonly root: HTMLElement;
   private readonly moneyBlock = block('money', 'Trésorerie', 'res-money');
+  /** Bloc trésorerie, pour y attacher l'infobulle du bilan. */
+  readonly moneyCard = this.moneyBlock.root;
+  private readonly trend = el('span', 'trend');
   private readonly moneyRate = el('span', 'mono');
   private readonly goal = meter();
   private readonly goalPct = el('span', 'mono');
@@ -46,7 +50,7 @@ export class ResourceBar {
   private readonly bankruptText = el('span');
 
   constructor(setSpeed: (speed: Speed) => void) {
-    this.moneyBlock.sub.append(this.moneyRate);
+    this.moneyBlock.sub.append(this.trend, this.moneyRate);
     const goalRow = el('div', 'res-sub', this.goal.root, this.goalPct);
     this.moneyBlock.root.querySelector('.res-body')!.append(goalRow);
     this.power.sub.append(this.powerMeter.root, this.shed);
@@ -76,12 +80,19 @@ export class ResourceBar {
     this.root.style.display = 'contents';
   }
 
-  update(s: GameState): void {
+  update(s: GameState, balance: Balance | null): void {
     setText(this.moneyBlock.value, money(s.money));
     this.moneyBlock.value.classList.toggle('danger', s.money < 0);
-    const costs = s.economy.electricityPerS + s.economy.salariesPerS;
-    setText(this.moneyRate, `${moneyRate(-costs)} charges`);
-    this.moneyRate.className = 'mono dim';
+    // Bilan d'exploitation sur la dernière minute : gagne-t-on de l'argent ?
+    const net = balance?.netPerSecond ?? -(s.economy.electricityPerS + s.economy.salariesPerS);
+    setText(this.moneyRate, `${moneyRate(net)} bilan`);
+    this.moneyRate.className = `mono ${net >= 0 ? 'ok' : 'danger'}`;
+    const dir = net >= 0 ? 'trendUp' : 'trendDown';
+    if (this.trend.dataset.dir !== dir) {
+      this.trend.dataset.dir = dir;
+      this.trend.className = `trend ${net >= 0 ? 'ok' : 'danger'}`;
+      this.trend.replaceChildren(icon(dir, 13));
+    }
     const goal = Math.min(1, Math.max(0, s.money / ECONOMY.goalMoney));
     setStyle(this.goal.fill, 'width', `${goal * 100}%`);
     this.goal.fill.classList.toggle('won', s.outcome === 'won');

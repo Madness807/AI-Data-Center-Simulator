@@ -3,17 +3,21 @@ import type { Cell } from '../sim/entities';
 import { buildingAt, idx, type GameState, type Speed } from '../sim/state';
 import type { Tool } from '../input/build';
 import { tempToRgb } from '../render/overlays';
+import { AlertFeed } from './components/alert-feed';
 import { BuildBar } from './components/build-bar';
 import { ContractsPanel } from './components/contracts-panel';
 import { createHeatLegend } from './components/heat-legend';
+import { CursorFlash } from './components/cursor-flash';
 import { HelpOverlay } from './components/help-overlay';
+import { Minimap, type MinimapCamera } from './components/minimap';
 import { ResourceBar } from './components/resource-bar';
 import { DefeatScreen } from './components/screens';
 import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
-import { Toasts } from './components/toasts';
 import { Tooltip } from './components/tooltip';
+import type { BuildingKind } from '../sim/entities';
 import { el, setHidden } from './dom';
-import { money, percent, seconds } from './format';
+import { money, moneyRate, percent, seconds, signedMoney } from './format';
+import { LedgerHistory } from './metrics';
 
 export interface HudActions {
   setTool: (tool: Tool) => void;
@@ -24,6 +28,8 @@ export interface HudActions {
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
   restart: () => void;
+  /** Recentre la caméra sur une case (alerte cliquée). */
+  focusCell: (cell: Cell) => void;
 }
 
 /** État d'interface (hors simulation) transmis à chaque image. */
@@ -68,27 +74,33 @@ export class Hud {
   private readonly selection = new SelectionPanel();
   private readonly legend = createHeatLegend();
   private readonly help = new HelpOverlay();
-  private readonly toasts = new Toasts();
+  private readonly alerts: AlertFeed;
+  private readonly flash = new CursorFlash();
+  private readonly minimap: Minimap;
+  private readonly history = new LedgerHistory();
   private readonly tooltip = new Tooltip();
   private readonly defeat: DefeatScreen;
   private readonly overlay: HTMLElement;
   private state: GameState | null = null;
 
-  constructor(root: HTMLElement, actions: HudActions) {
+  constructor(root: HTMLElement, actions: HudActions, world: { w: number; h: number; camera: MinimapCamera }) {
     this.resources = new ResourceBar(actions.setSpeed);
     this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle() });
     this.contracts = new ContractsPanel(actions);
     this.defeat = new DefeatScreen(actions.restart);
+    this.alerts = new AlertFeed(actions.focusCell);
+    this.minimap = new Minimap(world.w, world.h, world.camera);
     this.overlay = region('overlay', this.defeat.root);
     this.bindBuildTips();
+    this.bindBalanceTip();
 
     root.append(
       region('top', this.resources.root),
-      region('top-left', this.legend),
+      region('top-left', this.minimap.root, this.legend, this.alerts.root),
       region('right', this.contracts.root),
       region('bottom', this.build.root),
       region('bottom-left', this.selection.root),
-      this.toasts.root,
+      this.flash.root,
       this.overlay,
       this.help.root,
       this.tooltip.root,
@@ -109,15 +121,22 @@ export class Hud {
     return false;
   }
 
-  /** Vide les cartes et messages, après un redémarrage. */
+  /** Vide les cartes et l'historique, après un redémarrage. */
   reset(): void {
     this.contracts.reset();
-    this.toasts.clear();
+    this.alerts.clear();
   }
 
-  update(s: GameState, view: HudView): void {
+  /** Remplace l'icône d'une carte de construction par la vignette du vrai modèle. */
+  setThumbnail(key: BuildingKind | 'technician', url: string): void {
+    this.build.setThumbnail(key, url);
+  }
+
+  update(s: GameState, view: HudView, now = performance.now()): void {
     this.state = s;
-    this.resources.update(s);
+    this.history.record(s.time, s.economy.ledger);
+    this.resources.update(s, this.history.balance());
+    this.minimap.update(s, view.heatmap, view.selected, now);
     this.build.update(s, { tool: view.tool, heatmap: view.heatmap, edgePan: view.edgePan, helpOpen: this.help.isOpen });
     this.contracts.update(s);
     this.selection.update(s, view.selected);
@@ -125,7 +144,11 @@ export class Hud {
     this.defeat.update(s);
     setHidden(this.overlay, s.outcome !== 'lost');
     this.updateWorldTip(s, view.hover);
-    for (const e of s.events) this.toasts.show(e);
+    // Les refus vont près du curseur ; le reste rejoint l'historique des alertes.
+    for (const e of s.events) {
+      if (e.type === 'error' && !e.message.startsWith('Faillite')) this.flash.show(e.message);
+      else this.alerts.push(e);
+    }
     s.events.length = 0;
   }
 
@@ -159,6 +182,27 @@ export class Hud {
         hint = 'Pas assez de capacité électrique : ajoutez un PDU';
       }
       return tip(el('span', undefined, `${BUILDING_LABEL[b.kind]} ${x},${y} `, chip), rows, hint);
+    });
+  }
+
+  /** Détail du bilan de la dernière minute, par poste, investissements à part. */
+  private bindBalanceTip(): void {
+    this.tooltip.bind(this.resources.moneyCard, () => {
+      const b = this.history.balance();
+      if (!b) return tip('Bilan d’exploitation', [], 'Disponible après quelques secondes de jeu.');
+      const o = b.operating;
+      return tip(
+        `Bilan sur ${Math.round(b.seconds)} s : ${moneyRate(b.netPerSecond)}`,
+        [
+          ['Contrats livrés', signedMoney(b.revenue)],
+          ['Électricité', signedMoney(-o.electricity)],
+          ['Salaires', signedMoney(-o.salaries)],
+          ['Réparations', signedMoney(-o.repairs)],
+          ['Pénalités', signedMoney(-o.penalties)],
+          ['Investissements', signedMoney(-b.investment)],
+        ],
+        'Le bilan exclut les investissements (construction, embauche).',
+      );
     });
   }
 

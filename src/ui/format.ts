@@ -6,7 +6,8 @@ const nf1 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFr
 export const money = (n: number) => `${nf.format(Math.round(n))} $`;
 
 /** Montant signé, avec un vrai signe moins : « +6 000 $ », « −1 500 $ ». */
-export const signedMoney = (n: number) => `${n < 0 ? '−' : '+'}${nf.format(Math.abs(Math.round(n)))} $`;
+export const signedMoney = (n: number) =>
+  Math.round(n) === 0 ? '0 $' : `${n < 0 ? '−' : '+'}${nf.format(Math.abs(Math.round(n)))} $`;
 
 /** Débit d'argent signé : « +18,4 $/s ». */
 export const moneyRate = (n: number) => `${n < 0 ? '−' : '+'}${nf1.format(Math.abs(n))} $/s`;
