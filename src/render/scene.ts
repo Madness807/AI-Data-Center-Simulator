@@ -13,6 +13,7 @@ import {
   createRangeRing,
   createSelectionBrackets,
   createContainmentPanels,
+  createRackCrowns,
   createShedMarkers,
   createStatusMarkers,
   createTechnician,
@@ -214,6 +215,8 @@ export class SceneView {
   private readonly racks: RackInstances;
   private readonly markers = createStatusMarkers(RACK_CAPACITY);
   private readonly shedMarkers = createShedMarkers(RACK_CAPACITY);
+  /** Couronnes des racks G2 et G3. */
+  private readonly crowns = createRackCrowns();
   /** Confinement d'allée chaude (recherche) : toit vitré au-dessus de chaque case où soufflent des racks. */
   private readonly containment: THREE.InstancedMesh;
   private readonly walls: WallsModel;
@@ -260,6 +263,8 @@ export class SceneView {
       this.racks.led,
       this.markers,
       this.shedMarkers,
+      this.crowns[2],
+      this.crowns[3],
       this.containment,
       this.inspectBrackets,
       this.inspectRange,
@@ -411,6 +416,7 @@ export class SceneView {
     let n = 0;
     let m = 0;
     let k = 0;
+    const crownCount = { 2: 0, 3: 0 };
     this.rackCells.length = 0;
     for (const b of s.buildings) {
       if (b.kind !== 'rack' || b.status === 'construction' || n >= body.instanceMatrix.count) continue;
@@ -419,6 +425,7 @@ export class SceneView {
       this.tmpMatrix.compose(cellCenter(b.x, b.y, this.tmpVec), this.tmpQuat, UNIT_SCALE);
       body.setMatrixAt(n, this.tmpMatrix);
       led.setMatrixAt(n, this.tmpMatrix);
+      if (b.gen === 2 || b.gen === 3) this.crowns[b.gen].setMatrixAt(crownCount[b.gen]++, this.tmpMatrix);
       let color: THREE.Color;
       if (b.status !== 'ok') color = STATUS.dead;
       else if (!b.powered) color = blink ? STATUS.shed : STATUS.shedOff;
@@ -452,6 +459,10 @@ export class SceneView {
       }
     }
     body.count = led.count = n;
+    for (const g of [2, 3] as const) {
+      this.crowns[g].count = crownCount[g];
+      this.crowns[g].instanceMatrix.needsUpdate = true;
+    }
     markers.count = m;
     shedMarkers.count = k;
     for (const mesh of [body, led, markers, shedMarkers]) mesh.instanceMatrix.needsUpdate = true;

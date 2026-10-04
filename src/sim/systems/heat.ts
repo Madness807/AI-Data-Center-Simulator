@@ -1,4 +1,4 @@
-import { AISLE, CRAC, DT, HEAT, RACK, UPS } from '../balance';
+import { AISLE, CRAC, DT, HEAT, rackSpec, UPS } from '../balance';
 import { cracWeatherFactor, EXHAUST_SHARE, exhaustIndex, hotAisleCells, liquidCapture, outsideTemp } from '../climate';
 import type { Building } from '../entities';
 import { modifiers } from '../progression';
@@ -30,7 +30,7 @@ export function updateHeat(s: GameState, dt: number): void {
     if (b.kind === 'rack') {
       const captured = capture.get(b.id) ?? 0;
       liquidKW += captured;
-      const air = ((RACK.heatKW - captured) * dt) / C;
+      const air = ((rackSpec(b).heatKW - captured) * dt) / C;
       const own = idx(s, b.x, b.y);
       const ex = exhaustIndex(s, b);
       if (ex === null) temp[own] += air;

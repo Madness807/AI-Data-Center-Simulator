@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 import { CRAC } from '../sim/balance';
 import { canBuild, type Command } from '../sim/commands';
-import type { BuildingKind, Facing } from '../sim/entities';
+import type { BuildingKind, Facing, Gen } from '../sim/entities';
 import { buildingAt, type GameState } from '../sim/state';
 import { createBuildGhost, createRangeRing } from '../render/assets';
 import { cellCenter } from '../render/grid';
 import { pickGroundCell, rayFromScreen, type Cell } from './picking';
 
-export type Tool = BuildingKind | 'demolish' | null;
+export type Tool = BuildingKind | 'rack2' | 'rack3' | 'demolish' | null;
+
+/** Équipement et génération posés par un outil (les racks G2 et G3 sont des variantes du rack). */
+export function toolBuild(tool: Exclude<Tool, null | 'demolish'>): { kind: BuildingKind; gen: Gen } {
+  if (tool === 'rack2') return { kind: 'rack', gen: 2 };
+  if (tool === 'rack3') return { kind: 'rack', gen: 3 };
+  return { kind: tool, gen: 1 };
+}
 
 /**
  * Mode construction : fantôme sur la case survolée, clic gauche pour poser
@@ -93,10 +100,11 @@ export class BuildController {
       if (buildingAt(s, cell.x, cell.y)) this.enqueue({ type: 'demolish', ...cell });
       return;
     }
-    if (explicit || canBuild(s, tool, cell.x, cell.y) === null) {
+    const { kind, gen } = toolBuild(tool);
+    if (explicit || canBuild(s, kind, cell.x, cell.y, gen) === null) {
       const assign = this.getAssigned();
-      const facing = tool === 'rack' && s.rules.aisles ? { facing: this.facing } : {};
-      this.enqueue({ type: 'build', kind: tool, ...cell, ...facing, ...(assign.length ? { assign } : {}) });
+      const facing = kind === 'rack' && s.rules.aisles ? { facing: this.facing } : {};
+      this.enqueue({ type: 'build', kind, ...cell, ...facing, ...(gen > 1 ? { gen } : {}), ...(assign.length ? { assign } : {}) });
     }
   }
 
@@ -116,6 +124,9 @@ export class BuildController {
     this.ghost.root.visible = true;
     cellCenter(cell.x, cell.y, this.ghost.root.position);
     if (this.tool === 'demolish') this.ghost.set('demolish', hovered !== undefined);
-    else this.ghost.set(this.tool, canBuild(s, this.tool, cell.x, cell.y) === null, s.rules.aisles ? this.facing : undefined);
+    else {
+      const { kind, gen } = toolBuild(this.tool);
+      this.ghost.set(kind, canBuild(s, kind, cell.x, cell.y, gen) === null, s.rules.aisles && kind === 'rack' ? this.facing : undefined);
+    }
   }
 }

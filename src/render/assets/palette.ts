@@ -99,6 +99,8 @@ export const PALETTE = {
   cracRange: 0x7fd4ff,
   ghostOk: 0x40ff80,
   aisleCold: 0x4fc3ff,
+  rackG2: 0x2fd4ff,
+  rackG3: 0xa86bff,
   aisleHot: 0xff8a3d,
   containmentGlass: 0x9fd8ff,
   ghostBad: 0xff4040,

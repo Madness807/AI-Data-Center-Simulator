@@ -1,4 +1,5 @@
-import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, HEAT, RACK, REPAIR, UPS } from '../../sim/balance';
+import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, rackSpec, REPAIR, UPS } from '../../sim/balance';
+import { upgradeBlocker, upgradeCost } from '../../sim/commands';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
 import { isRackActive, type Building, type BuildingKind, type Cell, type Technician } from '../../sim/entities';
 import { modifiers } from '../../sim/progression';
@@ -22,6 +23,8 @@ export interface InspectorActions {
   close: () => void;
   /** Carrière : fait pivoter un rack d'un quart de tour. */
   rotate: (buildingId: number) => void;
+  /** Carrière : modernise un rack (génération suivante), confié au technicien le plus proche. */
+  upgrade: (buildingId: number) => void;
 }
 
 type Tone = '' | 'ok' | 'warn' | 'danger';
@@ -129,8 +132,10 @@ export class Inspector {
 
   private readonly sendButton = el('button', 'btn btn-primary');
   private readonly rotateButton = el('button', 'btn btn-icon', icon('rotate', 15));
+  private readonly upgradeButton = el('button', 'btn insp-upgrade');
   private readonly demolishButton = el('button', 'btn btn-ghost insp-demolish');
-  private readonly thumbnails: Partial<Record<BuildingKind, string>> = {};
+  /** Vignettes par type d'équipement, et par génération pour les racks (rack2, rack3). */
+  private readonly thumbnails: Partial<Record<string, string>> = {};
   private current: Building | null = null;
   private headerKey = '';
   private confirmUntil = 0;
@@ -153,6 +158,7 @@ export class Inspector {
     this.sendButton.onclick = () => this.current && actions.sendTechnician(this.current.id);
     this.rotateButton.title = 'Pivoter d’un quart de tour (F)';
     this.rotateButton.onclick = () => this.current && actions.rotate(this.current.id);
+    this.upgradeButton.onclick = () => this.current && actions.upgrade(this.current.id);
     this.demolishButton.onclick = () => {
       if (!this.current) return;
       if (performance.now() < this.confirmUntil) {
@@ -195,12 +201,12 @@ export class Inspector {
         ].map((r) => r.root),
       ),
       this.hint,
-      el('div', 'insp-actions', this.sendButton, this.rotateButton, focus, this.demolishButton),
+      el('div', 'insp-actions', this.sendButton, this.upgradeButton, this.rotateButton, focus, this.demolishButton),
     );
     this.root.hidden = true;
   }
 
-  setThumbnail(kind: BuildingKind, url: string): void {
+  setThumbnail(kind: string, url: string): void {
     this.thumbnails[kind] = url;
     this.headerKey = '';
   }
@@ -244,6 +250,7 @@ export class Inspector {
     setHidden(this.hint, !hint);
 
     setHidden(this.rotateButton, !(b.kind === 'rack' && s.rules.aisles));
+    this.renderUpgrade(s, b);
     this.uptime.show(!site);
     if (!site) this.uptime.set(b.builtAt === null ? '—' : clock(s.time - b.builtAt));
 
@@ -259,7 +266,7 @@ export class Inspector {
       this.sendButton.disabled = s.techs.length === 0;
     }
     const untouched = site && b.workLeft >= BUILD_TIME[b.kind];
-    const refund = Math.round(BUILD_COST[b.kind] * (untouched ? 1 : DEMOLISH_REFUND));
+    const refund = Math.round(buildCost(b.kind, b.gen) * (untouched ? 1 : DEMOLISH_REFUND));
     const confirming = performance.now() < this.confirmUntil;
     const demolishLabel = confirming ? 'Confirmer ?' : `Démolir (${signedMoney(refund)})`;
     if (this.demolishButton.dataset.label !== demolishLabel) {
@@ -270,13 +277,14 @@ export class Inspector {
   }
 
   private renderHeader(b: Building): void {
-    const key = `${b.id}|${b.kind}|${b.status === 'construction'}`;
+    const key = `${b.id}|${b.kind}|${b.status === 'construction'}|${b.gen ?? 1}`;
     if (key === this.headerKey) return;
     this.headerKey = key;
     this.confirmUntil = 0;
-    const url = this.thumbnails[b.kind];
+    const url = this.thumbnails[b.kind === 'rack' && (b.gen ?? 1) > 1 ? `rack${b.gen}` : b.kind];
     this.thumb.replaceChildren(url ? Object.assign(document.createElement('img'), { src: url, alt: '' }) : icon(KIND_ICON[b.kind], 22));
-    setText(this.title, b.status === 'construction' ? `Chantier : ${BUILDING_LABEL[b.kind]}` : BUILDING_LABEL[b.kind]);
+    const label = `${BUILDING_LABEL[b.kind]}${b.kind === 'rack' && (b.gen ?? 1) > 1 ? ` G${b.gen}` : ''}`;
+    setText(this.title, b.status === 'construction' ? `Chantier : ${label}` : label);
     setText(this.coords, `${b.x},${b.y}`);
   }
 
@@ -320,7 +328,8 @@ export class Inspector {
       coolers.length ? `${coolers.length} CRAC · ${Math.round(coolers.length * modifiers(s).cracCoolingKW * cracWeatherFactor(s))} kW` : 'aucun CRAC à portée',
       coolers.length ? 'ok' : 'danger',
     );
-    this.power.set(running ? `${RACK.powerKW} kW` : b.status === 'ok' ? '0 kW (délesté)' : '0 kW', running ? '' : 'danger');
+    const spec = rackSpec(b);
+    this.power.set(running ? `${spec.powerKW} kW` : b.status === 'ok' ? '0 kW (délesté)' : '0 kW', running ? '' : 'danger');
 
     // Les racks les plus récents sont délestés en premier.
     const order = s.buildings.filter((o) => o.kind === 'rack' && o.status === 'ok').sort((a, c) => c.id - a.id);
@@ -329,10 +338,14 @@ export class Inspector {
     this.shedOrder.set(`${ordinal(rank)} sur ${order.length}`, rank <= s.power.shedCount ? 'danger' : '');
 
     const busy = busyRackIds(s).has(b.id);
-    this.compute.set(running ? `${RACK.computeCU} CU/s · ${busy ? 'en calcul' : 'disponible'}` : '0 CU/s', running ? (busy ? 'ok' : '') : 'danger');
+    const training = s.jobs.find((j) => j.status === 'active' && j.assigned?.includes(b.id));
+    const use = training ? `entraînement (bloc de ${training.assigned!.length})` : busy ? 'en calcul' : 'disponible';
+    this.compute.set(running ? `${spec.computeCU} CU/s · ${use}` : '0 CU/s', running ? (busy ? 'ok' : '') : 'danger');
     this.failures.set(String(b.failures), b.failures ? 'warn' : '');
 
     // Une astuce quand la situation appelle une décision.
+    const cduNear = s.buildings.some((c) => c.kind === 'cdu' && c.status === 'ok' && (c.x - b.x) ** 2 + (c.y - b.y) ** 2 <= CDU.radius ** 2);
+    if ((b.gen ?? 1) === 3 && !cduNear) return `Un rack G3 dégage ${GPU[3].heatKW} kW : sans CDU à ${CDU.radius} cases, il surchauffe.`;
     if (breathesExhaust(s, b)) return 'Ce rack aspire l’air chaud qu’un autre souffle : pivotez-le (F) pour former des allées chaude et froide, dos à dos.';
     if (!coolers.length && temp >= FAILURE.thresholdC) return `Au-delà de ${FAILURE.thresholdC} °C les pannes se multiplient : posez un CRAC à portée.`;
     if (b.status === 'ok' && !b.powered) return 'Capacité électrique insuffisante : ajoutez un PDU.';
@@ -402,6 +415,22 @@ export class Inspector {
     this.coverage.set(`${CDU.radius} cases · ${racks} ${plural(racks, 'rack')}`);
     if (!b.powered) return 'Sans courant, la pompe s’arrête : la chaleur revient dans la salle.';
     return ratio > 0.95 ? 'Capacité atteinte : un second CDU soulagerait les racks de la zone.' : '';
+  }
+
+  /** Bouton Moderniser (carrière, recherche faite) : génération suivante, prix, raison d'un refus. */
+  private renderUpgrade(s: GameState, b: Building): void {
+    const gen = b.gen ?? 1;
+    const show = b.kind === 'rack' && s.rules.progression && modifiers(s).retrofit && gen < 3 && b.status !== 'construction';
+    setHidden(this.upgradeButton, !show);
+    if (!show) return;
+    const blocker = upgradeBlocker(s, b);
+    const label = `G${gen + 1} · ${money(upgradeCost(b))}`;
+    if (this.upgradeButton.dataset.label !== label) {
+      this.upgradeButton.dataset.label = label;
+      this.upgradeButton.replaceChildren(icon('build', 14), label);
+    }
+    this.upgradeButton.disabled = blocker !== null;
+    this.upgradeButton.title = blocker ?? `Moderniser en G${gen + 1} : ${GPU[(gen + 1) as 2 | 3].computeCU} CU/s, ${GPU[(gen + 1) as 2 | 3].heatKW} kW de chaleur`;
   }
 
   /** La ligne N+1 sert au PDU comme au groupe : visible si l'un des deux l'a demandée. */

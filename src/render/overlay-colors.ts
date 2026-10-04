@@ -1,4 +1,4 @@
-import { CRAC, OUTAGE, RACK } from '../sim/balance';
+import { CRAC, OUTAGE, rackSpec } from '../sim/balance';
 import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
 import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
@@ -47,6 +47,8 @@ const COOL: Rgb = [79, 209, 255];
 /** Allée chaude (air soufflé par les racks) et refroidissement liquide. */
 const HOT_AISLE: Rgb = [255, 138, 61];
 const LIQUID: Rgb = [150, 120, 255];
+/** Racks pris par un entraînement (bloc dédié). */
+const TRAINING_RGB: Rgb = [255, 110, 200];
 /** Sol assombri sous les calques par équipement : les cases colorées ressortent. */
 const DIM = [8, 12, 18, 130] as const;
 
@@ -109,6 +111,7 @@ export function overlayLegend(mode: Exclude<OverlayMode, 'heat'>): { title: stri
         title: 'Activité des racks',
         items: [
           { label: 'Calcule', rgb: status('busy') },
+          { label: 'Entraînement', rgb: TRAINING_RGB },
           { label: 'Inactif', rgb: status('idle') },
           { label: 'Délesté', rgb: status('shed') },
           { label: 'En panne', rgb: status('failed') },
@@ -166,8 +169,13 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
 
   if (mode === 'occupancy') {
     const busy = busyRackIds(s);
+    const training = new Set(s.jobs.flatMap((j) => (j.status === 'active' && j.assigned ? j.assigned : [])));
     for (const b of s.buildings) {
       if (b.kind !== 'rack') continue;
+      if (training.has(b.id) && isRackActive(b)) {
+        put(cell(b), TRAINING_RGB, 235);
+        continue;
+      }
       const name: StatusName =
         b.status === 'failed' ? 'failed' : b.status === 'repairing' ? 'repairing' : b.status === 'construction' ? 'idle' : !b.powered ? 'shed' : busy.has(b.id) ? 'busy' : 'idle';
       put(cell(b), status(name), b.status === 'construction' ? 120 : 235);
@@ -221,7 +229,7 @@ export function backupCoverage(s: GameState): Set<number> | null {
     .filter((b) => b.status === 'ok' && b.powered && (b.kind === 'crac' || b.kind === 'rack'))
     .sort((a, b) => (a.kind === b.kind ? a.id - b.id : a.kind === 'crac' ? -1 : 1));
   for (const b of loads) {
-    const kw = b.kind === 'crac' ? CRAC.powerKW : RACK.powerKW;
+    const kw = b.kind === 'crac' ? CRAC.powerKW : rackSpec(b).powerKW;
     if (left < kw) break;
     left -= kw;
     out.add(b.id);

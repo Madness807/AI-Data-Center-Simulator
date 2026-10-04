@@ -1,6 +1,6 @@
-import { BUILD_COST, TECH } from '../../sim/balance';
-import type { BuildingKind } from '../../sim/entities';
-import { isUnlocked } from '../../sim/progression';
+import { buildCost, TECH } from '../../sim/balance';
+import { isUnlocked, modifiers } from '../../sim/progression';
+import { toolBuild } from '../../input/build';
 import type { GameState } from '../../sim/state';
 import type { Tool } from '../../input/build';
 import { OVERLAY_MODES, type OverlayMode } from '../../render/overlay-colors';
@@ -36,6 +36,8 @@ export type FamilyId = 'compute' | 'cooling' | 'power' | 'demolish';
 /** Nom court et icône de chaque outil. */
 export const TOOL_INFO: Record<BuildTool, { label: string; icon: IconName }> = {
   rack: { label: 'Rack GPU', icon: 'rack' },
+  rack2: { label: 'Rack G2', icon: 'rack' },
+  rack3: { label: 'Rack G3', icon: 'rack' },
   crac: { label: 'CRAC', icon: 'crac' },
   pdu: { label: 'PDU', icon: 'pdu' },
   ups: { label: 'Onduleur', icon: 'ups' },
@@ -49,14 +51,23 @@ export const TOOL_INFO: Record<BuildTool, { label: string; icon: IconName }> = {
  * clic) passe d'une variante débloquée à la suivante, puis rend la main.
  */
 export const BUILD_FAMILIES: { id: FamilyId; key: string; variants: BuildTool[] }[] = [
-  { id: 'compute', key: 'R', variants: ['rack'] },
+  { id: 'compute', key: 'R', variants: ['rack', 'rack2', 'rack3'] },
   { id: 'cooling', key: 'C', variants: ['crac', 'cdu'] },
   { id: 'power', key: 'P', variants: ['pdu', 'ups', 'generator'] },
   { id: 'demolish', key: 'X', variants: ['demolish'] },
 ];
 
 const familyOf = (tool: Tool) => BUILD_FAMILIES.find((f) => tool !== null && f.variants.includes(tool));
-const available = (s: GameState, tool: BuildTool) => tool === 'demolish' || isUnlocked(s, tool as BuildingKind);
+export const toolAvailable = (s: GameState, tool: BuildTool): boolean => {
+  if (tool === 'demolish') return true;
+  const { kind, gen } = toolBuild(tool);
+  return isUnlocked(s, kind) && (gen === 1 || (s.rules.progression && modifiers(s).maxGen >= gen));
+};
+/** Prix affiché d'un outil. */
+export const toolCost = (tool: Exclude<BuildTool, 'demolish'>) => {
+  const { kind, gen } = toolBuild(tool);
+  return buildCost(kind, gen);
+};
 
 interface FamilyCard {
   root: HTMLButtonElement;
@@ -109,7 +120,7 @@ export class BuildBar {
     for (const family of BUILD_FAMILIES) {
       const first = family.variants[0];
       const info = TOOL_INFO[first];
-      const c = card(info.label, family.key, icon(info.icon, 24), first === 'demolish' ? undefined : money(BUILD_COST[first]));
+      const c = card(info.label, family.key, icon(info.icon, 24), first === 'demolish' ? undefined : money(toolCost(first)));
       const dots = family.variants.length > 1 ? family.variants.map(() => el('span', 'variant-dot')) : [];
       if (dots.length) c.root.append(el('span', 'variant-dots', ...dots));
       c.root.onclick = () => this.cycle(family.id);
@@ -157,7 +168,7 @@ export class BuildBar {
   }
 
   /** Remplace l'icône d'une carte par la vignette du vrai modèle 3D. */
-  setThumbnail(key: BuildingKind | 'technician', url: string): void {
+  setThumbnail(key: BuildTool | 'technician', url: string): void {
     if (key === 'technician') this.hireThumb.replaceChildren(Object.assign(document.createElement('img'), { src: url, alt: '' }));
     else {
       this.urls.set(key, url);
@@ -178,7 +189,7 @@ export class BuildBar {
   cycle(id: FamilyId): void {
     const family = BUILD_FAMILIES.find((f) => f.id === id)!;
     const s = this.state;
-    const open = s ? family.variants.filter((v) => available(s, v)) : family.variants.slice(0, 1);
+    const open = s ? family.variants.filter((v) => toolAvailable(s, v)) : family.variants.slice(0, 1);
     if (!open.length) return;
     const current = this.actions.currentTool();
     let next: Tool;
@@ -209,16 +220,16 @@ export class BuildBar {
         const url = this.urls.get(tool);
         c.thumb.replaceChildren(url ? Object.assign(document.createElement('img'), { src: url, alt: '' }) : icon(info.icon, 24));
         setText(c.name, info.label);
-        if (tool !== 'demolish') setText(c.cost, money(BUILD_COST[tool]));
+        if (tool !== 'demolish') setText(c.cost, money(toolCost(tool)));
         c.root.dataset.tool = tool;
       }
       family.variants.forEach((v, i) => {
         const dot = c.dots[i];
         if (!dot) return;
-        dot.className = `variant-dot ${v === tool ? 'current' : ''} ${available(s, v) ? '' : 'locked'}`;
+        dot.className = `variant-dot ${v === tool ? 'current' : ''} ${toolAvailable(s, v) ? '' : 'locked'}`;
       });
       c.root.classList.toggle('active', owner?.id === family.id);
-      c.root.disabled = tool !== 'demolish' && s.money < BUILD_COST[tool];
+      c.root.disabled = tool !== 'demolish' && s.money < toolCost(tool);
     }
     this.hireCard.disabled = s.money < TECH.hireCost || s.techs.length >= TECH.max;
     if (view.overlay !== this.shownOverlay) {

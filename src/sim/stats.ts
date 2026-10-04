@@ -1,4 +1,4 @@
-import { GENERATOR, RACK } from './balance';
+import { GENERATOR, rackSpec } from './balance';
 import { isRackActive, type Building } from './entities';
 import type { GameState } from './state';
 import { cracWeatherFactor } from './climate';
@@ -21,7 +21,7 @@ export function tempStats(s: GameState): { max: number; avg: number } {
  */
 export function pue(s: GameState): number | null {
   let itKW = 0;
-  for (const b of s.buildings) if (isRackActive(b)) itKW += RACK.powerKW;
+  for (const b of s.buildings) if (isRackActive(b)) itKW += rackSpec(b).powerKW;
   return itKW > 0 ? s.power.loadKW / itKW : null;
 }
 
@@ -71,13 +71,23 @@ export function cracCoolingKW(s: GameState): number {
  * et inspecteur partagent cette règle.
  */
 export function busyRackIds(s: GameState): Set<number> {
+  // Les blocs d'entraînement d'abord : leurs racks sont dédiés.
   const busy = new Set<number>();
-  let left = Math.ceil(s.compute.used / RACK.computeCU);
+  let left = s.compute.used;
+  for (const j of s.jobs) {
+    if (j.status !== 'active' || !j.assigned) continue;
+    for (const id of j.assigned) {
+      const b = s.buildings.find((o) => o.id === id);
+      if (!b || busy.has(id)) continue;
+      busy.add(id);
+      left -= rackSpec(b).computeCU;
+    }
+  }
   for (const b of s.buildings) {
-    if (left <= 0) break;
-    if (isRackActive(b)) {
+    if (left <= 1e-6) break;
+    if (isRackActive(b) && !busy.has(b.id)) {
       busy.add(b.id);
-      left--;
+      left -= rackSpec(b).computeCU;
     }
   }
   return busy;
@@ -91,6 +101,11 @@ export function coolersCovering(s: GameState, x: number, y: number): Building[] 
 /** Racks actifs dans la portée d'un CRAC et chaleur qu'ils dégagent (kW). */
 export function cracHeatLoad(s: GameState, crac: Building): { racks: number; heatKW: number } {
   let racks = 0;
-  for (const b of s.buildings) if (isRackActive(b) && inCoolingRange(crac.x, crac.y, b.x, b.y)) racks++;
-  return { racks, heatKW: racks * RACK.heatKW };
+  let heatKW = 0;
+  for (const b of s.buildings) {
+    if (!isRackActive(b) || !inCoolingRange(crac.x, crac.y, b.x, b.y)) continue;
+    racks++;
+    heatKW += rackSpec(b).heatKW;
+  }
+  return { racks, heatKW };
 }

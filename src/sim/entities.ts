@@ -1,5 +1,8 @@
 export type BuildingKind = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu';
 
+/** Génération de GPU d'un rack (carrière ; 1 par défaut). */
+export type Gen = 1 | 2 | 3;
+
 /** Orientation de la façade (prise d'air) : 0 = +y, 1 = +x, 2 = −y, 3 = −x. */
 export type Facing = 0 | 1 | 2 | 3;
 
@@ -30,6 +33,8 @@ export interface Building {
   warmup?: number;
   /** Rack : côté de la prise d'air ; la chaleur ressort de l'autre côté (carrière). */
   facing?: Facing;
+  /** Rack : génération de GPU (absente = 1). */
+  gen?: Gen;
 }
 
 export type TechTask =
@@ -77,6 +82,15 @@ export interface Job {
   deadline: number;
   /** CU/s reçus au dernier tick, pour l'UI. */
   allocated: number;
+  /** Entraînement : bloc de racks contigus dédié (sinon inférence sur le pool commun). */
+  kind?: 'inference' | 'training';
+  /** Entraînement : taille du bloc demandé, génération minimale, racks attribués. */
+  cluster?: number;
+  minGen?: Gen;
+  assigned?: number[];
+  /** Inférence avec SLA : secondes où le débit servi est resté sous le débit promis. */
+  sla?: boolean;
+  shortS?: number;
 }
 
 export function isRackActive(b: Building): boolean {

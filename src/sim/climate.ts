@@ -1,4 +1,4 @@
-import { AISLE, CDU, CRAC, HEATWAVE, RACK, WEATHER } from './balance';
+import { AISLE, CDU, CRAC, HEATWAVE, rackSpec, WEATHER } from './balance';
 import { FACING_STEP, isRackActive, type Building, type Cell } from './entities';
 import { modifiers } from './progression';
 import { idx, inBounds, type GameState } from './state';
@@ -98,7 +98,7 @@ export function liquidLoads(s: GameState): { byRack: Map<number, number>; byCdu:
   if (!cdus.length) return { byRack: out, byCdu };
   for (const r of s.buildings) {
     if (!isRackActive(r)) continue;
-    let want = RACK.heatKW * CDU.captured;
+    let want = rackSpec(r).heatKW * CDU.captured;
     for (const c of cdus) {
       if (want <= 0) break;
       if (c.left <= 0 || (r.x - c.b.x) ** 2 + (r.y - c.b.y) ** 2 > CDU.radius * CDU.radius) continue;

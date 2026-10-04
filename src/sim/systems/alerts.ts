@@ -95,14 +95,19 @@ function power(s: GameState): void {
  */
 export function predictCompletion(s: GameState): Map<number, number> {
   const ends = new Map<number, number>();
+  // Entraînement : au débit de son bloc ; sans bloc, il n'avance pas.
+  for (const j of s.jobs) {
+    if (j.status !== 'active' || j.kind !== 'training') continue;
+    ends.set(j.id, j.allocated > 0 ? s.time + (j.work - j.progress) / j.allocated : Infinity);
+  }
   let left = s.jobs
-    .filter((j) => j.status === 'active')
+    .filter((j) => j.status === 'active' && j.kind !== 'training')
     .sort((a, b) => a.deadline - b.deadline)
     .map((j) => ({ id: j.id, rate: j.rateCU, work: j.work - j.progress }));
   let t = s.time;
   // Chaque tour termine au moins un contrat ; la garde couvre les arrondis.
   for (let guard = 0; left.length && guard <= s.jobs.length; guard++) {
-    let pool = s.compute.total - researchReserve(s);
+    let pool = s.compute.total - researchReserve(s) - s.jobs.reduce((sum, j) => sum + (j.status === 'active' && j.kind === 'training' ? j.allocated : 0), 0);
     const alloc = left.map((j) => {
       const a = Math.min(pool, j.rate);
       pool -= a;

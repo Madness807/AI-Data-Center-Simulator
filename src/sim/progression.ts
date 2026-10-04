@@ -1,5 +1,5 @@
 import { CRAC, GENERATOR, PDU, TECH, UPS } from './balance';
-import type { BuildingKind, Job } from './entities';
+import type { BuildingKind, Gen, Job } from './entities';
 import { RESEARCH, RESEARCH_POINTS_PER_CU, researchById } from './research';
 import { notify, type GameState } from './state';
 
@@ -25,7 +25,7 @@ export const TIERS: readonly Tier[] = [
     priceMult: 1.1,
     perks: [
       'Contrats jusqu’à 8 racks, payés 10 % de plus',
-      'Recherche de niveau 2 : onduleurs, groupes électrogènes, confinement d’allée',
+      'Recherche de niveau 2 : GPU G2, onduleurs, groupes électrogènes, confinement d’allée',
       'Attention : le réseau électrique peut désormais être coupé',
     ],
   },
@@ -36,7 +36,8 @@ export const TIERS: readonly Tier[] = [
     priceMult: 1.2,
     perks: [
       'Contrats jusqu’à 12 racks, payés 20 % de plus',
-      'Recherche de niveau 3 : refroidissement liquide, free cooling, énergie verte',
+      'Contrats d’entraînement (blocs de racks contigus) et contrats avec SLA',
+      'Recherche de niveau 3 : GPU G3, points de contrôle, refroidissement liquide, free cooling, énergie verte',
       'Attention : la météo compte désormais, et les canicules affaiblissent les CRAC',
     ],
   },
@@ -91,6 +92,11 @@ export interface Modifiers {
   containment: boolean;
   freeCooling: boolean;
   heatReuse: boolean;
+  /** Génération de GPU la plus récente constructible. */
+  maxGen: Gen;
+  retrofit: boolean;
+  checkpoints: boolean;
+  optical: boolean;
 }
 
 const BASE: Modifiers = {
@@ -107,6 +113,10 @@ const BASE: Modifiers = {
   containment: false,
   freeCooling: false,
   heatReuse: false,
+  maxGen: 1,
+  retrofit: false,
+  checkpoints: false,
+  optical: false,
 };
 
 const cache = new WeakMap<GameState, { key: string; value: Modifiers }>();
@@ -134,6 +144,10 @@ export function modifiers(s: GameState): Modifiers {
     if (e.containment) m.containment = true;
     if (e.freeCooling) m.freeCooling = true;
     if (e.heatReuse) m.heatReuse = true;
+    if (e.gen && e.gen > m.maxGen) m.maxGen = e.gen;
+    if (e.retrofit) m.retrofit = true;
+    if (e.checkpoints) m.checkpoints = true;
+    if (e.optical) m.optical = true;
   }
   cache.set(s, { key, value: m });
   return m;

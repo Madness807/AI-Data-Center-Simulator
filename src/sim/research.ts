@@ -1,4 +1,4 @@
-import type { BuildingKind } from './entities';
+import type { BuildingKind, Gen } from './entities';
 
 /** Branches de l'arbre, une colonne chacune dans le panneau Recherche. */
 export type Branch = 'compute' | 'cooling' | 'power' | 'ops';
@@ -28,6 +28,11 @@ export interface ResearchEffect {
   containment?: true;
   freeCooling?: true;
   heatReuse?: true;
+  /** Génération de GPU qui devient constructible. */
+  gen?: Gen;
+  retrofit?: true;
+  checkpoints?: true;
+  optical?: true;
   /** Équipements qui deviennent constructibles. */
   unlocks?: BuildingKind[];
 }
@@ -63,6 +68,56 @@ export const RESEARCH: readonly ResearchNode[] = [
     cost: 300,
     requires: [],
     effect: { opportunistic: true },
+  },
+  {
+    id: 'gpu-g2',
+    branch: 'compute',
+    level: 2,
+    name: 'GPU génération 2',
+    description: 'Rack G2 : 25 CU/s pour 18 kW (×2,5 de calcul pour moins de deux fois la chaleur).',
+    cost: 900,
+    requires: [],
+    effect: { gen: 2 },
+  },
+  {
+    id: 'retrofit',
+    branch: 'compute',
+    level: 2,
+    name: 'Modernisation',
+    description: 'Un technicien remplace les GPU d’un rack sur place, pour la différence de prix plus 20 %.',
+    cost: 600,
+    requires: ['gpu-g2'],
+    effect: { retrofit: true },
+  },
+  {
+    id: 'checkpoints',
+    branch: 'compute',
+    level: 3,
+    name: 'Points de contrôle',
+    description: 'Un entraînement interrompu par une panne ne perd que 5 % de sa progression, au lieu de 25 %.',
+    cost: 1000,
+    requires: [],
+    effect: { checkpoints: true },
+  },
+  {
+    id: 'gpu-g3',
+    branch: 'compute',
+    level: 3,
+    name: 'GPU génération 3',
+    description: 'Rack G3 : 60 CU/s pour 36 kW. Trop dense pour l’air seul : prévoyez un CDU.',
+    cost: 2200,
+    requires: ['gpu-g2', 'liquid-cooling'],
+    effect: { gen: 3 },
+  },
+  {
+    id: 'optical',
+    branch: 'compute',
+    level: 4,
+    name: 'Interconnexion optique',
+    description: 'Les blocs d’entraînement peuvent enjamber une allée : des racks à 2 cases comptent comme voisins.',
+    cost: 2500,
+    requires: ['checkpoints'],
+    effect: { optical: true },
   },
   {
     id: 'crac-he',

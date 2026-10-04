@@ -1,15 +1,17 @@
-import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, TECH } from './balance';
-import type { BuildingKind, Facing, TechTask } from './entities';
+import { BUILD_TIME, buildCost, DEMOLISH_REFUND, GPU, RETROFIT, TECH } from './balance';
+import type { BuildingKind, Facing, Gen, TechTask } from './entities';
 import { MAX_RESEARCH_SHARE } from './career';
 import { keepsAccess } from './pathfinding';
-import { isUnlocked, researchBlocker, unlockedBy } from './progression';
+import { isUnlocked, modifiers, researchBlocker, unlockedBy } from './progression';
 import { refund, spend } from './ledger';
 import { addBuilding, addTech, buildingAt, inBounds, isEntrance, notify, removeBuilding, type GameState, type Speed } from './state';
 import { updatePower } from './systems/power';
 
 export type Command =
   /** `assign` : techniciens à qui confier le chantier (ajouté en fin de file). */
-  | { type: 'build'; kind: BuildingKind; x: number; y: number; assign?: number[]; facing?: Facing }
+  | { type: 'build'; kind: BuildingKind; x: number; y: number; assign?: number[]; facing?: Facing; gen?: Gen }
+  /** Carrière (recherche Modernisation) : passe un rack à la génération suivante, sur place. */
+  | { type: 'upgrade'; id: number; assign?: number[] }
   /** Carrière : fait pivoter un rack d'un quart de tour (prise d'air et soufflage). */
   | { type: 'rotate'; id: number }
   | { type: 'demolish'; x: number; y: number }
@@ -26,13 +28,14 @@ export type Command =
   | { type: 'setPolicy'; autoRepair: boolean };
 
 /** Raison du refus, ou null si la construction est possible. */
-export function canBuild(s: GameState, kind: BuildingKind, x: number, y: number): string | null {
+export function canBuild(s: GameState, kind: BuildingKind, x: number, y: number, gen: Gen = 1): string | null {
   if (!isUnlocked(s, kind)) return `Recherche requise : ${unlockedBy(kind)?.name ?? 'inconnue'}`;
+  if (kind === 'rack' && gen > modifiers(s).maxGen) return `Recherche requise : GPU génération ${gen}`;
   if (!inBounds(s, x, y)) return 'Hors de la salle';
   if (isEntrance(x, y)) return "Zone d'entrée réservée";
   if (buildingAt(s, x, y)) return 'Case occupée';
   if (s.techs.some((t) => Math.round(t.x) === x && Math.round(t.y) === y)) return 'Un technicien est sur la case';
-  if (s.money < BUILD_COST[kind]) return 'Fonds insuffisants';
+  if (s.money < buildCost(kind, gen)) return 'Fonds insuffisants';
   if (!keepsAccess(s, x, y)) return "Bloquerait l'accès d'un équipement";
   return null;
 }
@@ -46,13 +49,15 @@ export function processCommands(s: GameState): void {
   for (const c of commands) {
     switch (c.type) {
       case 'build': {
-        const reason = canBuild(s, c.kind, c.x, c.y);
+        const gen = c.kind === 'rack' && s.rules.progression ? (c.gen ?? 1) : 1;
+        const reason = canBuild(s, c.kind, c.x, c.y, gen);
         if (reason) {
           notify(s, 'error', reason, { cell: c, code: 'refused' });
           break;
         }
-        spend(s, 'construction', BUILD_COST[c.kind]);
+        spend(s, 'construction', buildCost(c.kind, gen));
         const site = addBuilding(s, c.kind, c.x, c.y, true);
+        if (gen > 1) site.gen = gen;
         if (c.kind === 'rack' && s.rules.aisles && c.facing !== undefined) site.facing = c.facing;
         for (const t of s.techs) {
           if (c.assign?.includes(t.id)) t.tasks.push({ type: 'build', target: site.id });
@@ -64,7 +69,7 @@ export function processCommands(s: GameState): void {
         if (!b) break;
         // Un chantier pas encore commencé est remboursé en entier.
         const untouched = b.status === 'construction' && b.workLeft >= BUILD_TIME[b.kind];
-        refund(s, 'construction', Math.round(BUILD_COST[b.kind] * (untouched ? 1 : DEMOLISH_REFUND)));
+        refund(s, 'construction', Math.round(buildCost(b.kind, b.gen) * (untouched ? 1 : DEMOLISH_REFUND)));
         removeBuilding(s, b);
         break;
       }
@@ -121,6 +126,24 @@ export function processCommands(s: GameState): void {
         else s.research.current = c.id;
         break;
       }
+      case 'upgrade': {
+        const b = s.buildings.find((o) => o.id === c.id);
+        const reason = upgradeBlocker(s, b);
+        if (reason || !b) {
+          notify(s, 'error', reason ?? 'Équipement introuvable', { code: 'refused' });
+          break;
+        }
+        const next = ((b.gen ?? 1) + 1) as Gen;
+        spend(s, 'construction', upgradeCost(b));
+        // Le rack repasse en chantier le temps du remplacement des GPU.
+        b.gen = next;
+        b.status = 'construction';
+        b.workLeft = BUILD_TIME.rack;
+        b.builtAt = null;
+        b.powered = false;
+        for (const t of s.techs) if (c.assign?.includes(t.id)) t.tasks.push({ type: 'build', target: b.id });
+        break;
+      }
       case 'rotate': {
         const b = s.buildings.find((o) => o.id === c.id);
         if (b?.kind === 'rack' && s.rules.aisles) b.facing = (((b.facing ?? 0) + 1) % 4) as Facing;
@@ -133,4 +156,23 @@ export function processCommands(s: GameState): void {
   }
   // L'alimentation est instantanée : le joueur voit tout de suite l'effet d'un PDU ou d'un rack.
   updatePower(s);
+}
+
+/** Prix de la modernisation d'un rack vers la génération suivante. */
+export function upgradeCost(b: { gen?: Gen }): number {
+  const gen = b.gen ?? 1;
+  if (gen >= 3) return Infinity;
+  return Math.round((GPU[(gen + 1) as Gen].cost - GPU[gen].cost) * RETROFIT.surcharge);
+}
+
+/** Raison pour laquelle un rack ne peut pas être modernisé, ou null. */
+export function upgradeBlocker(s: GameState, b: { kind: BuildingKind; status: string; gen?: Gen } | undefined): string | null {
+  if (!b || b.kind !== 'rack') return 'Seul un rack se modernise';
+  if (!modifiers(s).retrofit) return 'Recherche requise : Modernisation';
+  if (b.status !== 'ok') return 'Le rack doit être en service';
+  const gen = b.gen ?? 1;
+  if (gen >= 3) return 'Déjà de dernière génération';
+  if (gen + 1 > modifiers(s).maxGen) return `Recherche requise : GPU génération ${gen + 1}`;
+  if (s.money < upgradeCost(b)) return 'Fonds insuffisants';
+  return null;
 }

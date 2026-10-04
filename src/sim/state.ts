@@ -85,7 +85,9 @@ export type EventCode =
   | 'gridBack'
   | 'upsLow'
   | 'heatwave'
-  | 'heatwaveEnd';
+  | 'heatwaveEnd'
+  | 'trainingBroken'
+  | 'slaBreach';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';

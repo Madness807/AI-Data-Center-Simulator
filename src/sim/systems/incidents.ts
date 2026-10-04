@@ -1,4 +1,4 @@
-import { CDU, CRAC, HEATWAVE, OUTAGE, RACK, UPS, WEATHER } from '../balance';
+import { CDU, CRAC, HEATWAVE, OUTAGE, rackSpec, UPS, WEATHER } from '../balance';
 import { outsideTemp } from '../climate';
 import { nextRandom } from '../rng';
 import { notify, type GameState } from '../state';
@@ -80,8 +80,8 @@ function crashUnprotected(s: GameState): void {
   }
   for (const b of s.buildings) {
     if (b.kind !== 'rack' || b.status !== 'ok' || !b.powered) continue;
-    if (left >= RACK.powerKW) {
-      left -= RACK.powerKW;
+    if (left >= rackSpec(b).powerKW) {
+      left -= rackSpec(b).powerKW;
       continue;
     }
     if (nextRandom(s) < OUTAGE.crashChance) {

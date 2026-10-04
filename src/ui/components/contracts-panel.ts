@@ -1,6 +1,7 @@
 import { RACK } from '../../sim/balance';
 import type { Job } from '../../sim/entities';
 import { freeCapacity } from '../../sim/stats';
+import { largestFreeCluster } from '../../sim/clusters';
 import type { GameState } from '../../sim/state';
 import { el, icon, setStyle, setText } from '../dom';
 import { percent, plural, seconds, signedMoney } from '../format';
@@ -117,9 +118,12 @@ export class ContractsPanel {
       el(
         'div',
         'chips',
-        el('span', 'chip', icon('compute', 12), `${job.rateCU} CU/s`),
+        job.kind === 'training'
+          ? el('span', 'chip training', icon('rack', 12), `bloc de ${job.cluster} racks contigus`)
+          : el('span', 'chip', icon('compute', 12), `${job.rateCU} CU/s`),
         el('span', 'chip', icon('time', 12), `${job.durationS} s`),
         el('span', 'chip', icon('target', 12), `délai ${job.deadlineInS} s`),
+        job.sla ? el('span', 'chip sla', icon('alert', 12), 'SLA : débit garanti') : null,
       ),
       el('div', 'contract-reward', el('span', 'reward', signedMoney(job.payment)), el('span', 'penalty', `pénalité ${signedMoney(-job.penalty)}`)),
       capacity,
@@ -145,6 +149,21 @@ export class ContractsPanel {
     return { root, status: 'active', timer, bar, pct, rate, rateLed };
   }
 
+  /** Entraînement : existe-t-il un bloc libre de racks contigus assez grand ? */
+  private fillCluster(slot: HTMLElement, job: Job, s: GameState): void {
+    const taken = new Set(s.jobs.flatMap((j) => (j.status === 'active' && j.assigned ? j.assigned : [])));
+    const largest = largestFreeCluster(s, job.minGen ?? 1, taken);
+    const ok = largest >= (job.cluster ?? 1);
+    const key = `cluster:${largest}:${ok}`;
+    if (slot.dataset.key === key) return;
+    slot.dataset.key = key;
+    slot.replaceChildren(
+      ok
+        ? el('span', 'chip ok', icon('done', 12), `plus grand bloc libre : ${largest} racks`)
+        : el('span', 'chip warn', icon('alert', 12), `plus grand bloc libre : ${largest} ${plural(largest, 'rack')} (racks côte à côte)`),
+    );
+  }
+
   /** Peut-on honorer l'offre avec le calcul encore libre ? Sinon, combien de racks manque-t-il ? */
   private fillCapacity(slot: HTMLElement, rate: number, free: number): void {
     const missing = rate - Math.max(0, free);
@@ -164,7 +183,8 @@ export class ContractsPanel {
       const left = job.expiresAt - s.time;
       setText(card.timer, `expire dans ${seconds(left)}`);
       setStyle(card.bar, 'width', `${Math.max(0, Math.min(1, left / (job.expiresAt - job.offeredAt))) * 100}%`);
-      this.fillCapacity(card.capacity!, job.rateCU, freeCapacity(s));
+      if (job.kind === 'training') this.fillCluster(card.capacity!, job, s);
+      else this.fillCapacity(card.capacity!, job.rateCU, freeCapacity(s));
       return;
     }
     const left = job.deadline - s.time;
@@ -177,7 +197,13 @@ export class ContractsPanel {
     setStyle(card.bar, 'width', `${done * 100}%`);
     setText(card.pct!, percent(done));
     const starved = job.allocated < job.rateCU - 1e-6;
-    setText(card.rate!, `${Math.round(job.allocated)} / ${job.rateCU} CU/s`);
+    if (job.kind === 'training') {
+      setText(card.rate!, job.assigned ? `bloc de ${job.assigned.length} racks · ${Math.round(job.allocated)} CU/s` : 'en attente d’un bloc libre');
+      card.rate!.className = job.assigned ? 'ok' : 'warn';
+      card.rateLed!.className = `led ${job.assigned ? 'ok' : 'warn'}`;
+      return;
+    }
+    setText(card.rate!, `${Math.round(job.allocated)} / ${job.rateCU} CU/s${job.sla && (job.shortS ?? 0) > 0 ? ` · SLA ${Math.round(job.shortS ?? 0)} s manquées` : ''}`);
     card.rate!.className = starved ? 'warn' : 'ok';
     card.rateLed!.className = `led ${starved ? 'warn' : 'ok'}`;
   }

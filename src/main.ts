@@ -236,6 +236,17 @@ const sendTechnician = (id: number) => {
 const demolishAt = (cell: { x: number; y: number }) => enqueue({ type: 'demolish', ...cell });
 const closeInspector = () => (selection.inspected = null);
 const rotateBuilding = (id: number) => enqueue({ type: 'rotate', id });
+/** Modernisation : le rack repasse en chantier, confié au technicien le plus proche (de préférence libre). */
+const upgradeBuilding = (id: number) => {
+  const b = state.buildings.find((o) => o.id === id);
+  if (!b) return;
+  const idle = state.techs.filter((t) => t.tasks.length === 0);
+  const pool = idle.length ? idle : state.techs;
+  const dist = (t: { x: number; y: number }) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
+  const tech = pool.length ? pool.reduce((best, t) => (dist(t) < dist(best) ? t : best)) : null;
+  enqueue({ type: 'upgrade', id, ...(tech ? { assign: [tech.id] } : {}) });
+  view.ping(b, 'build');
+};
 /** F (carrière) : pivote le fantôme pendant la pose d'un rack, sinon le rack inspecté. */
 const rotate = () => {
   if (!state.rules.aisles) return;
@@ -267,6 +278,7 @@ const hud = new Hud(
     demolishAt,
     closeInspector,
     rotateBuilding,
+    upgradeBuilding,
     reportBug: () =>
       copyText(report()).then(
         () => true,

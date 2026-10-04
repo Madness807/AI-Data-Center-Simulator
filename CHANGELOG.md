@@ -34,10 +34,16 @@ Lots suivants de la feuille de route v1.0, en cours.
   - **CDU** (refroidissement liquide, recherche) : capte 75 % de la chaleur des racks à 2 cases (80 kW au plus) et la rejette dehors ;
   - **météo** à partir du palier Labo d'IA : la température extérieure module les CRAC (de −30 % à +15 %), des **canicules** les affaiblissent ; le **free cooling** halve leur consommation quand il fait frais ; la **récupération de chaleur** revend la chaleur des CDU ;
   - calque froid : allées chaudes et racks refroidis par liquide ; bandeau : température extérieure, bannière de canicule.
+- **Générations de GPU et contrats d'entraînement** (carrière) :
+  - **racks G2** (25 CU/s pour 18 kW) et **G3** (60 CU/s pour 36 kW, à poser près d'un CDU), débloqués par la recherche ; R passe d'une génération à l'autre ; couronne cyan ou violette sur le toit ;
+  - **modernisation** (recherche) : un technicien remplace les GPU d'un rack sur place, pour la différence de prix plus 20 % ;
+  - **contrats d'entraînement** à partir du Labo d'IA : un bloc de 3 à 8 racks **côte à côte**, dédié au contrat ; une panne dans le bloc fait reculer la progression de 25 % (5 % avec les **points de contrôle**) ; l'**interconnexion optique** laisse un bloc enjamber une allée ;
+  - **contrats avec SLA** : mieux payés, pénalisés si le débit promis manque plus de 1 % du temps ;
+  - cartes de contrat : bloc demandé et plus grand bloc libre ; calque activité : racks en entraînement.
 
 ### Modifié
 
-- Sauvegarde au format 5. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
+- Sauvegarde au format 6. Les parties d'avant se rechargent (en partie rapide pour celles d'avant la carrière).
 
 ## [0.10.0-beta] — 2026-10-04
 

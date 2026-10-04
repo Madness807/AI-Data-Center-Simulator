@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { BUILDING_SIZE, createTechnician, PALETTE, PROP_MODELS } from './assets';
+import { BUILDING_SIZE, createTechnician, PALETTE, PROP_MODELS, rackCrownGeometry } from './assets';
 import { MATERIALS } from './assets/materials';
 import { rackBodyGeometry, rackLedGeometry } from './assets/props/rack';
 
-export type ThumbnailKey = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu' | 'technician';
+export type ThumbnailKey = 'rack' | 'rack2' | 'rack3' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu' | 'technician';
 
 /**
  * Vignettes des vrais modèles 3D pour la barre de construction, rendues une seule fois
@@ -25,8 +25,13 @@ export function renderThumbnails(size = 128): Record<ThumbnailKey, string> {
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
   const ledMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.status.busy, toneMapped: false });
 
-  const rack = new THREE.Group();
-  rack.add(new THREE.Mesh(rackBodyGeometry(), MATERIALS.vertexColored()), new THREE.Mesh(rackLedGeometry(), ledMaterial));
+  const rackOf = (gen: 1 | 2 | 3) => {
+    const g = new THREE.Group();
+    g.add(new THREE.Mesh(rackBodyGeometry(), MATERIALS.vertexColored()), new THREE.Mesh(rackLedGeometry(), ledMaterial));
+    if (gen > 1) g.add(new THREE.Mesh(rackCrownGeometry(gen as 2 | 3), MATERIALS.vertexColored()));
+    return g;
+  };
+  const rack = rackOf(1);
   // CRAC et PDU montrés en service : écran et voyant allumés.
   const crac = PROP_MODELS.crac();
   const pdu = PROP_MODELS.pdu();
@@ -39,6 +44,8 @@ export function renderThumbnails(size = 128): Record<ThumbnailKey, string> {
   generator.update({ time: 0, dt: 0, speed: 0, powered: true, progress: 1, running: true });
   const models: Record<ThumbnailKey, THREE.Object3D> = {
     rack,
+    rack2: rackOf(2),
+    rack3: rackOf(3),
     crac: crac.root,
     pdu: pdu.root,
     ups: ups.root,

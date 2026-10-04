@@ -1,11 +1,13 @@
-import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, PDU, RACK, REPAIR, TECH, UPS } from '../sim/balance';
+import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, PDU, REPAIR, TECH, UPS } from '../sim/balance';
+import type { Gen } from '../sim/entities';
 import type { Cell } from '../sim/entities';
-import { availableResearch, isUnlocked, modifiers, unlockedBy } from '../sim/progression';
+import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
 import type { Tool } from '../input/build';
 import { tempToRgb } from '../render/overlay-colors';
 import { AlertFeed } from './components/alert-feed';
-import { BUILD_FAMILIES, BuildBar, TOOL_INFO, type FamilyId } from './components/build-bar';
+import { BUILD_FAMILIES, BuildBar, TOOL_INFO, toolAvailable, toolCost, type FamilyId } from './components/build-bar';
+import { toolBuild } from '../input/build';
 import { ContractsPanel } from './components/contracts-panel';
 import { CursorFlash } from './components/cursor-flash';
 import { Dashboard, type DashboardTab } from './components/dashboard';
@@ -25,10 +27,10 @@ import { DefeatScreen, TierScreen, TitleScreen, VictoryScreen, type NewGameKind 
 import { ResearchPanel } from './components/research-panel';
 import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
 import { Tooltip } from './components/tooltip';
-import type { BuildingKind } from '../sim/entities';
 import { el, icon, setHidden } from './dom';
 import { celsius, money, moneyRate, percent, seconds, signedMoney } from './format';
 import { GameHistory, LedgerHistory, TemperatureHistory } from './metrics';
+import type { ThumbnailKey } from '../render/thumbnails';
 
 export interface HudActions {
   setTool: (tool: Tool) => void;
@@ -69,6 +71,8 @@ export interface HudActions {
   closeInspector: () => void;
   /** Carrière : pivote un rack d'un quart de tour. */
   rotateBuilding: (id: number) => void;
+  /** Carrière : modernise un rack, confié au technicien le plus proche. */
+  upgradeBuilding: (id: number) => void;
 }
 
 /** État d'interface (hors simulation) transmis à chaque image. */
@@ -203,6 +207,7 @@ export class Hud {
       focus: actions.focusCell,
       close: actions.closeInspector,
       rotate: actions.rotateBuilding,
+      upgrade: actions.upgradeBuilding,
     });
     this.overlay = region('overlay', this.title.root, this.tier.root, this.victory.root, this.defeat.root);
     this.overlay.classList.add('interactive');
@@ -348,7 +353,7 @@ export class Hud {
   }
 
   /** Remplace l'icône d'une carte de construction par la vignette du vrai modèle. */
-  setThumbnail(key: BuildingKind | 'technician', url: string): void {
+  setThumbnail(key: ThumbnailKey, url: string): void {
     this.build.setThumbnail(key, url);
     if (key !== 'technician') this.inspector.setThumbnail(key, url);
   }
@@ -465,14 +470,25 @@ export class Hud {
 
   /** Infobulles riches des cartes de construction : coût, effets, durée de chantier. */
   private bindBuildTips(): void {
+    const rackTip = (gen: Gen) => () => {
+      const spec = GPU[gen];
+      const hint =
+        gen === 3
+          ? 'Trop dense pour l’air seul : posez-le à portée d’un CDU.'
+          : this.state?.rules.aisles
+            ? 'F : pivoter. L’avant aspire l’air froid, l’arrière souffle la chaleur.'
+            : 'Laissez une case libre devant pour l’entretien.';
+      return tip(`Rack GPU${gen > 1 ? ` G${gen}` : ''} · ${money(spec.cost)}`, [
+        ['Calcul', `${spec.computeCU} CU/s`],
+        ['Consommation', `${spec.powerKW} kW`],
+        ['Chaleur dégagée', `${spec.heatKW} kW`],
+        ['Chantier', `${BUILD_TIME.rack} s`],
+      ], hint);
+    };
     const tips: Record<Exclude<Tool, null>, () => Node> = {
-      rack: () =>
-        tip(`Rack GPU · ${money(BUILD_COST.rack)}`, [
-          ['Calcul', `${RACK.computeCU} CU/s`],
-          ['Consommation', `${RACK.powerKW} kW`],
-          ['Chaleur dégagée', `${RACK.heatKW} kW`],
-          ['Chantier', `${BUILD_TIME.rack} s`],
-        ], 'Laissez une case libre devant pour l’entretien.'),
+      rack: rackTip(1),
+      rack2: rackTip(2),
+      rack3: rackTip(3),
       crac: () =>
         tip(`CRAC · ${money(BUILD_COST.crac)}`, [
           ['Refroidissement', `${Math.round(this.state ? modifiers(this.state).cracCoolingKW : CRAC.coolingKW)} kW`],
@@ -518,14 +534,16 @@ export class Hud {
         if (family.variants.length > 1 && s) {
           // Les variantes de la famille, et ce qu'il faut pour débloquer les autres.
           const rows = family.variants.map((v) => {
-            const kind = v as Exclude<typeof v, 'demolish'>;
-            const open = isUnlocked(s, kind);
+            const tool = v as Exclude<typeof v, 'demolish'>;
+            const { kind, gen } = toolBuild(tool);
+            const open = toolAvailable(s, v);
+            const need = gen > 1 ? `GPU génération ${gen}` : unlockedBy(kind)?.name;
             return el(
               'div',
               `tip-variant ${open ? '' : 'locked'}`,
               icon(open ? TOOL_INFO[v].icon : 'lock', 12),
               el('span', undefined, TOOL_INFO[v].label),
-              el('span', 'mono', open ? money(BUILD_COST[kind]) : s.rules.progression ? `recherche : ${unlockedBy(kind)?.name}` : 'carrière'),
+              el('span', 'mono', open ? money(toolCost(tool)) : s.rules.progression ? `recherche : ${need}` : 'carrière'),
             );
           });
           node.append(el('div', 'tip-variants', el('div', 'tip-hint', `${family.key} : variante suivante`), ...rows));

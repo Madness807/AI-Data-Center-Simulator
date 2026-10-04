@@ -1,8 +1,9 @@
-import { BUILD_COST, CRAC, GENERATOR, PDU, RACK, TECH, UPS } from '../src/sim/balance';
-import { canBuild } from '../src/sim/commands';
-import type { Building, BuildingKind, Facing, Technician } from '../src/sim/entities';
+import { buildCost, CRAC, GENERATOR, GPU, RACK, TECH, UPS } from '../src/sim/balance';
+import { largestFreeCluster } from '../src/sim/clusters';
+import { canBuild, upgradeBlocker } from '../src/sim/commands';
+import type { Building, BuildingKind, Facing, Gen, Technician } from '../src/sim/entities';
 import { step } from '../src/sim/sim';
-import { availableResearch, isUnlocked } from '../src/sim/progression';
+import { availableResearch, isUnlocked, modifiers } from '../src/sim/progression';
 import { createInitialState, type GameState } from '../src/sim/state';
 import { freeCapacity, tempStats } from '../src/sim/stats';
 
@@ -27,8 +28,8 @@ export interface BotProfile {
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
 const RESEARCH_ORDER = [
-  'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'containment', 'opportunistic', 'fast-techs',
-  'free-cooling', 'green-power', 'liquid-cooling', 'switchover-2n', 'heat-reuse',
+  'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'containment', 'gpu-g2', 'opportunistic', 'retrofit',
+  'fast-techs', 'checkpoints', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3', 'switchover-2n', 'heat-reuse', 'optical',
 ];
 export const CAREER_RESEARCH_SHARE = 0.2;
 
@@ -50,7 +51,7 @@ export interface BotRun {
   timeline: string[];
 }
 
-type Item = { kind: BuildingKind; x: number; y: number; facing?: Facing };
+type Item = { kind: BuildingKind; x: number; y: number; facing?: Facing; gen?: Gen };
 
 /**
  * Une rangée : en carrière, les racks tournent le dos à l'allée centrale (y = 8), où soufflent
@@ -75,6 +76,24 @@ const LAYOUT: Item[] = [
   ...row(10, [['rack', 22], ['rack', 6]]),
 ];
 
+/**
+ * Disposition de carrière : deux rangées continues (y = 10 puis y = 6), dos à l'allée centrale,
+ * pour former de grands blocs d'entraînement. Les CRAC vont sur la ligne centrale (y = 8),
+ * entre les deux allées chaudes, à mesure que la chaleur des racks l'exige.
+ */
+const CAREER_RACKS: Item[] = [
+  ...[7, 8, 9, 6, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map((x) => ({ kind: 'rack' as const, x, y: 10, facing: 0 as Facing })),
+  ...[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map((x) => ({ kind: 'rack' as const, x, y: 6, facing: 2 as Facing })),
+];
+const CAREER_CRACS = [11, 14, 17, 20, 5, 12, 15, 18, 9, 21, 6, 13, 16, 19, 10, 22, 7].map((x) => ({ kind: 'crac' as const, x, y: 8 }));
+
+/** Chaleur prévue des racks (construits ou en chantier) face au froid prévu des CRAC. */
+function coolingDeficit(s: GameState): boolean {
+  const heat = s.buildings.reduce((sum, b) => sum + (b.kind === 'rack' ? GPU[b.gen ?? 1].heatKW : 0), 0);
+  const cold = s.buildings.filter((b) => b.kind === 'crac').length * modifiers(s).cracCoolingKW;
+  return heat > cold * 0.85;
+}
+
 /** Secours le long du mur du bas, une case sur deux. */
 const BACKUP_SPOTS = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((x) => ({ x, y: 14 }));
 
@@ -83,14 +102,15 @@ const PDU_SPOTS: Item[] = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21].map((x) => ({ kin
 
 const THINK_EVERY_TICKS = 10;
 
-const kw = (kind: BuildingKind) => (kind === 'rack' ? RACK.powerKW : kind === 'crac' ? CRAC.powerKW : 0);
+const kw = (kind: BuildingKind, gen: Gen = 1) => (kind === 'rack' ? GPU[gen].powerKW : kind === 'crac' ? CRAC.powerKW : 0);
 
 function plannedPower(s: GameState): { demand: number; capacity: number } {
   let demand = 0;
   let capacity = 0;
+  const pduKW = modifiers(s).pduCapacityKW;
   for (const b of s.buildings) {
-    demand += kw(b.kind);
-    if (b.kind === 'pdu') capacity += PDU.capacityKW;
+    demand += kw(b.kind, b.gen);
+    if (b.kind === 'pdu') capacity += pduKW;
   }
   return { demand, capacity };
 }
@@ -103,14 +123,18 @@ function pickTech(s: GameState, at: Building | Item): Technician | undefined {
 
 class Bot {
   private next = 0;
+  private readonly layout: Item[];
 
-  constructor(private readonly profile: BotProfile) {}
+  constructor(private readonly profile: BotProfile) {
+    this.layout = profile.career ? CAREER_RACKS : LAYOUT;
+  }
 
   think(s: GameState): void {
     if (this.profile.career) this.research(s);
     this.repair(s);
     this.contracts(s);
     if (this.profile.career && !this.profile.noBackup && this.backup(s)) return;
+    if (this.profile.career && this.retrofit(s)) return;
     this.expand(s);
     this.hire(s);
   }
@@ -144,7 +168,7 @@ class Bot {
     const [kind, missing] = want.reduce((a, b) => (b[1] > a[1] ? b : a));
     if (missing <= 0) return false;
     if (s.buildings.filter((b) => b.status === 'construction').length >= s.techs.length) return false;
-    if (s.money < BUILD_COST[kind] + this.profile.reserve) return false;
+    if (s.money < buildCost(kind) + this.profile.reserve) return false;
     const spot = BACKUP_SPOTS.find((p) => canBuild(s, kind, p.x, p.y) === null);
     if (!spot) return false;
     this.build(s, { kind, ...spot });
@@ -160,17 +184,42 @@ class Bot {
     }
   }
 
-  /** Les offres les mieux payées au CU d'abord, tant que le parc en service suffit. */
+  /**
+   * Les offres les mieux payées au CU d'abord, tant que le parc en service suffit. Un
+   * entraînement n'est pris que si un bloc libre assez grand existe (hors blocs déjà pris).
+   */
   private contracts(s: GameState): void {
     let free = freeCapacity(s);
+    let training = s.jobs.some((j) => j.status === 'active' && j.kind === 'training' && !j.assigned);
     const offers = s.jobs.filter((j) => j.status === 'offer').sort((a, b) => b.payment / b.work - a.payment / a.work);
     for (const j of offers) {
       if (!this.profile.contracts) s.commands.push({ type: 'rejectJob', id: j.id });
-      else if (j.rateCU <= free) {
+      else if (j.kind === 'training') {
+        const taken = new Set(s.jobs.flatMap((o) => (o.status === 'active' && o.assigned ? o.assigned : [])));
+        if (!training && largestFreeCluster(s, j.minGen ?? 1, taken) >= (j.cluster ?? 1) && free >= j.rateCU) {
+          s.commands.push({ type: 'acceptJob', id: j.id });
+          free -= j.rateCU;
+          training = true;
+        }
+      } else if (j.rateCU <= free * (j.sla ? 0.8 : 1)) {
         s.commands.push({ type: 'acceptJob', id: j.id });
         free -= j.rateCU;
       }
     }
+  }
+
+  /**
+   * Modernisation : quand l'argent abonde, le plus ancien rack G1 passe en G2. Jamais en G3 :
+   * le bot ne pose pas de CDU, et un G3 refroidi à l'air seul surchauffe.
+   */
+  private retrofit(s: GameState): boolean {
+    if (!modifiers(s).retrofit || s.money < 40000 + this.profile.reserve) return false;
+    if (s.buildings.some((b) => b.status === 'construction')) return false;
+    const target = s.buildings.find((b) => b.kind === 'rack' && (b.gen ?? 1) === 1 && upgradeBlocker(s, b) === null);
+    if (!target) return false;
+    const tech = pickTech(s, target);
+    s.commands.push({ type: 'upgrade', id: target.id, assign: tech ? [tech.id] : [] });
+    return true;
   }
 
   /** Plus de racks quand le calcul manque : une offre ne rentre pas, ou moins d'un rack libre. */
@@ -184,8 +233,18 @@ class Bot {
   }
 
   private expand(s: GameState): void {
-    while (this.next < LAYOUT.length && LAYOUT[this.next].kind === 'crac' && !this.profile.cooling) this.next++;
-    const item = LAYOUT[this.next];
+    const layout = this.layout;
+    while (this.next < layout.length && layout[this.next].kind === 'crac' && !this.profile.cooling) this.next++;
+    // Carrière : un CRAC dès que la chaleur prévue dépasse le froid disponible.
+    if (this.profile.career && this.profile.cooling && coolingDeficit(s)) {
+      const spot = CAREER_CRACS.find((c) => canBuild(s, 'crac', c.x, c.y) === null);
+      const sites = s.buildings.filter((b) => b.status === 'construction').length;
+      if (spot && sites < s.techs.length && s.money >= buildCost('crac') + this.profile.reserve) this.build(s, spot);
+      return;
+    }
+    const base = layout[this.next];
+    // Les nouveaux racks prennent la meilleure génération étudiée.
+    const item = base && base.kind === 'rack' && this.profile.career ? { ...base, gen: modifiers(s).maxGen === 3 ? 2 : modifiers(s).maxGen } : base;
     if (!item) return;
     const racks = s.buildings.filter((b) => b.kind === 'rack').length;
     if (racks >= this.profile.maxRacks) return;
@@ -196,13 +255,13 @@ class Bot {
     if (item.kind === 'crac' && !this.wantsCapacity(s)) return;
 
     const power = plannedPower(s);
-    if (power.demand + kw(item.kind) > power.capacity) {
+    if (power.demand + kw(item.kind, item.gen) > power.capacity) {
       const spot = PDU_SPOTS.find((p) => canBuild(s, 'pdu', p.x, p.y) === null);
-      if (spot && s.money >= BUILD_COST.pdu + this.profile.reserve) this.build(s, spot);
+      if (spot && s.money >= buildCost('pdu') + this.profile.reserve) this.build(s, spot);
       return;
     }
-    if (s.money < BUILD_COST[item.kind] + this.profile.reserve) return;
-    if (canBuild(s, item.kind, item.x, item.y) !== null) {
+    if (s.money < buildCost(item.kind, item.gen) + this.profile.reserve) return;
+    if (canBuild(s, item.kind, item.x, item.y, item.gen) !== null) {
       // Case prise (technicien de passage…) : on retentera au prochain tour.
       return;
     }
@@ -212,7 +271,7 @@ class Bot {
 
   private build(s: GameState, item: Item): void {
     const tech = pickTech(s, item);
-    s.commands.push({ type: 'build', kind: item.kind, x: item.x, y: item.y, facing: item.facing, assign: tech ? [tech.id] : [] });
+    s.commands.push({ type: 'build', kind: item.kind, x: item.x, y: item.y, facing: item.facing, gen: item.gen, assign: tech ? [tech.id] : [] });
   }
 
   /** Un technicien de plus tous les 8 racks. */

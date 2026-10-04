@@ -15,7 +15,7 @@ export type { AssetModel, ModelState, TechnicianModel, TechnicianPose } from './
 export { PALETTE } from './palette';
 export { BUILDING_SIZE } from './dimensions';
 export { countTriangles } from './geometry';
-export { createRackInstances, RACK_CAPACITY, type RackInstances } from './props/rack';
+export { createRackCrowns, createRackInstances, RACK_CAPACITY, rackCrownGeometry, type RackInstances } from './props/rack';
 export { createTechnician } from './characters/technician';
 export { createFloor } from './environment/floor';
 export { createWalls, type WallsModel } from './environment/walls';

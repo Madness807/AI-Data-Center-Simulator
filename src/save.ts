@@ -6,7 +6,7 @@ import type { Building, Job, Technician } from './sim/entities';
 import type { GameState, Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 5;
+export const SAVE_FORMAT = 6;
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export const SAVE_SLOTS: readonly SaveSlot[] = ['auto', 1, 2, 3];
@@ -68,6 +68,7 @@ function checkBuilding(b: unknown, w: number, h: number): asserts b is Building 
   need(b.charge === undefined || isNum(b.charge), 'charge d’onduleur invalide');
   need(b.warmup === undefined || isNum(b.warmup), 'état de groupe électrogène invalide');
   need(b.facing === undefined || [0, 1, 2, 3].includes(b.facing as number), 'orientation invalide');
+  need(b.gen === undefined || [1, 2, 3].includes(b.gen as number), 'génération de GPU invalide');
 }
 
 function checkTech(t: unknown): asserts t is Technician {
@@ -81,6 +82,9 @@ function checkJob(j: unknown): asserts j is Job {
   for (const k of ['rateCU', 'durationS', 'work', 'progress', 'deadlineInS', 'payment', 'penalty', 'offeredAt', 'expiresAt', 'deadline', 'allocated']) {
     need(isNum(j[k]), 'contrat incomplet');
   }
+  need(j.kind === undefined || j.kind === 'inference' || j.kind === 'training', 'type de contrat inconnu');
+  need(j.assigned === undefined || (Array.isArray(j.assigned) && j.assigned.every(isInt)), 'bloc d’entraînement illisible');
+  need(j.cluster === undefined || isInt(j.cluster), 'taille de bloc invalide');
 }
 
 type RawState = Record<string, unknown>;
@@ -120,6 +124,8 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
     if (isObject(state.incidents)) Object.assign(state.incidents, { heatwaveEndsAt: null, nextHeatwaveAt: null });
     state.cooling = emptyCooling();
   },
+  // 5 → 6 (lot 5) : générations de GPU, contrats d'entraînement et avec SLA (champs facultatifs).
+  5: () => {},
 };
 
 function migrate(file: RawState): void {

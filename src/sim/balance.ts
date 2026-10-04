@@ -1,4 +1,4 @@
-import type { BuildingKind } from './entities';
+import type { Building, BuildingKind, Gen } from './entities';
 
 export const TICK_HZ = 10;
 export const DT = 1 / TICK_HZ;
@@ -17,6 +17,39 @@ export const START_MONEY = 30_000;
 export const DEMOLISH_REFUND = 0.5;
 
 export const RACK = { cost: 3000, powerKW: 10, heatKW: 10, computeCU: 10 };
+
+/**
+ * Générations de GPU (carrière) : chaque génération donne plus de calcul par kW, mais plus de
+ * chaleur par case ; la troisième demande en pratique un refroidissement liquide.
+ */
+export const GPU: Record<Gen, { cost: number; powerKW: number; heatKW: number; computeCU: number }> = {
+  1: RACK,
+  2: { cost: 6500, powerKW: 18, heatKW: 18, computeCU: 25 },
+  3: { cost: 14000, powerKW: 36, heatKW: 36, computeCU: 60 },
+};
+
+/** Caractéristiques d'un rack selon sa génération. */
+export function rackSpec(b: Pick<Building, 'gen'>): (typeof GPU)[Gen] {
+  return GPU[b.gen ?? 1];
+}
+
+/** Moderniser un rack coûte la différence de prix, majorée. */
+export const RETROFIT = { surcharge: 1.2 };
+
+/** Contrats d'entraînement (carrière) : un bloc de racks contigus, dédié au contrat. */
+export const TRAINING = {
+  minTier: 2,
+  share: 0.35,
+  cluster: { 2: [3, 6], 3: [4, 8] } as Record<number, readonly [number, number]>,
+  duration: [150, 300] as const,
+  priceMult: 1.4,
+  /** Progression perdue quand le bloc est rompu (panne) : sans, puis avec les points de contrôle. */
+  rollback: 0.25,
+  rollbackCheckpoints: 0.05,
+};
+
+/** Inférence avec engagement de disponibilité (SLA) : payée plus, pénalisée si le débit manque. */
+export const SLA = { minTier: 2, share: 0.3, priceMult: 1.3, tolerance: 0.01 };
 export const CRAC = { cost: 4000, powerKW: 4, coolingKW: 30, radius: 3 };
 export const PDU = { cost: 2500, capacityKW: 40 };
 /** Onduleur : batterie qui prend le relais dès la première seconde d'une coupure. */
@@ -60,6 +93,11 @@ export const OUTAGE = {
   /** Risque de panne d'un rack qui perd brutalement le courant (non couvert par les onduleurs). */
   crashChance: 0.2,
 };
+
+/** Prix d'un équipement (d'un rack selon sa génération). */
+export function buildCost(kind: BuildingKind, gen: Gen = 1): number {
+  return kind === 'rack' ? GPU[gen].cost : BUILD_COST[kind];
+}
 
 export const BUILD_COST: Record<BuildingKind, number> = {
   rack: RACK.cost,

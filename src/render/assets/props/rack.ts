@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { once } from '../cache';
+import { once, onceBy } from '../cache';
 import { bake, box, merge, type Part } from '../geometry';
 import { MATERIALS } from '../materials';
 import { PALETTE } from '../palette';
@@ -68,4 +68,37 @@ export function createRackInstances(capacity = RACK_CAPACITY): RackInstances {
   // Créé d'emblée pour que le shader soit compilé avec la couleur par instance.
   led.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
   return { body, led };
+}
+
+/**
+ * Couronne des générations récentes, posée sur le toit : bandeau cyan pour le G2 ; violet,
+ * avec deux raccords de liquide, pour le G3. Repère visible de loin, en vue isométrique.
+ */
+export const rackCrownGeometry = onceBy((gen: 2 | 3) => {
+  const p = PALETTE;
+  const accent = gen === 2 ? p.rackG2 : p.rackG3;
+  const parts: Part[] = [
+    { geometry: box(0.84, 0.035, 0.84, 0, 1.6), color: p.rackPanel },
+    { geometry: box(0.86, 0.05, 0.12, 0, 1.585, 0.36), color: accent },
+    { geometry: box(0.86, 0.05, 0.12, 0, 1.585, -0.36), color: accent },
+  ];
+  if (gen === 3) {
+    parts.push(
+      { geometry: new THREE.CylinderGeometry(0.04, 0.04, 0.16, 8).translate(-0.18, 1.71, 0), color: p.cduPipeCold },
+      { geometry: new THREE.CylinderGeometry(0.04, 0.04, 0.16, 8).translate(0.18, 1.71, 0), color: p.cduPipeHot },
+    );
+  }
+  return bake(parts);
+});
+
+/** Couronnes instanciées des racks G2 et G3 (mêmes matrices que leur rack). */
+export function createRackCrowns(capacity = RACK_CAPACITY): Record<2 | 3, THREE.InstancedMesh> {
+  const make = (gen: 2 | 3) => {
+    const m = new THREE.InstancedMesh(rackCrownGeometry(gen), MATERIALS.vertexColored(), capacity);
+    m.count = 0;
+    m.frustumCulled = false;
+    m.castShadow = true;
+    return m;
+  };
+  return { 2: make(2), 3: make(3) };
 }

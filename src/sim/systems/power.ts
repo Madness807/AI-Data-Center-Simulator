@@ -1,4 +1,4 @@
-import { CDU, DT, GENERATOR, RACK, UPS } from '../balance';
+import { CDU, DT, GENERATOR, rackSpec, UPS } from '../balance';
 import { cracPowerKW } from '../climate';
 import type { Building } from '../entities';
 import { modifiers } from '../progression';
@@ -52,13 +52,13 @@ export function updatePower(s: GameState): void {
   const cracKW = cracPowerKW(s);
   const coolerKW = (b: Building) => (b.kind === 'cdu' ? CDU.powerKW : cracKW);
   for (const c of cracs) serve(c, coolerKW(c));
-  for (const r of racks.sort(byRackPriority)) serve(r, RACK.powerKW);
+  for (const r of racks.sort(byRackPriority)) serve(r, rackSpec(r).powerKW);
 
   const load = supply - remaining;
   const fromGenerators = grid ? 0 : Math.min(load, generatorKW);
   s.power = {
     capacityKW: capacity,
-    demandKW: cracs.reduce((sum, c) => sum + coolerKW(c), 0) + racks.length * RACK.powerKW,
+    demandKW: cracs.reduce((sum, c) => sum + coolerKW(c), 0) + racks.reduce((sum, r) => sum + rackSpec(r).powerKW, 0),
     loadKW: load,
     shedCount: shed,
     grid,
