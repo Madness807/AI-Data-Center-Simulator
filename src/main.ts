@@ -1,4 +1,9 @@
-import './style.css';
+import '@fontsource-variable/inter';
+import '@fontsource/jetbrains-mono/400.css';
+import '@fontsource/jetbrains-mono/600.css';
+import './ui/styles/tokens.css';
+import './ui/styles/base.css';
+import './ui/styles/components.css';
 import { DT, MAX_TICKS_PER_FRAME } from './sim/balance';
 import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
@@ -8,6 +13,9 @@ import { BuildController, type Tool } from './input/build';
 import { pickGroundCell, rayFromScreen } from './input/picking';
 import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
+import { applyTheme } from './ui/theme';
+
+applyTheme();
 
 const state = createInitialState(Date.now() >>> 0);
 const enqueue = (c: Command) => state.commands.push(c);
@@ -76,6 +84,7 @@ const hud = new Hud(document.getElementById('hud')!, {
 const TOOL_KEYS: Record<string, Tool> = { KeyR: 'rack', KeyC: 'crac', KeyP: 'pdu', KeyX: 'demolish' };
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.metaKey || e.ctrlKey) return;
+  if (hud.handleKey(e)) return;
   if (e.code in TOOL_KEYS) setTool(TOOL_KEYS[e.code]);
   else if (e.code === 'Escape') {
     if (build.tool) build.setTool(null);

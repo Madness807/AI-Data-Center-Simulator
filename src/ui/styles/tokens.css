@@ -1,0 +1,44 @@
+/*
+ * Jetons de design du HUD « console d'opérateur ». Les couleurs d'état (--status-*,
+ * --ping-*) sont écrites au démarrage depuis la palette 3D (ui/theme.ts) : mêmes
+ * couleurs pour les LEDs des racks, la mini-carte et les pastilles de l'interface.
+ */
+:root {
+  --font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --bg: #0b0e14;
+  --glass: rgba(13, 18, 26, 0.8);
+  --glass-strong: rgba(9, 13, 19, 0.94);
+  --glass-border: rgba(126, 206, 255, 0.14);
+  --glass-edge: rgba(79, 209, 255, 0.55);
+  --surface: rgba(255, 255, 255, 0.035);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.07);
+
+  --text: #e4ecf6;
+  --text-dim: #93a0b2;
+  --text-faint: #5f6b7c;
+
+  --accent: #4fd1ff;
+  --accent-soft: rgba(79, 209, 255, 0.14);
+  --ok: #3dffa0;
+  --warn: #f2c14e;
+  --danger: #ff5a4f;
+  --info: #5aa8ff;
+
+  /* Valeurs de repli ; theme.ts les remplace par celles de la palette 3D. */
+  --status-busy: #3dffa0;
+  --status-idle: #2a8fd0;
+  --status-shed: #ff3b3b;
+  --status-failed: #ff3b3b;
+  --status-repairing: #ffa23b;
+
+  --radius-s: 6px;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --gap: 10px;
+  --edge: 12px;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.38);
+  --blur: blur(10px) saturate(1.2);
+}
