@@ -161,7 +161,7 @@ Toutes les valeurs sont dans `balance.ts`.
 
 **But** : vérifier que gérer la chaleur et l'énergie est déjà intéressant.
 
-### v0.1b — Pression ✅ (rendu à vérifier dans le navigateur)
+### v0.1b — Pression ✅
 
 1. Contrats : génération, acceptation, pool de calcul, deadlines.
 2. Pannes liées à la température, état « en panne » visible.

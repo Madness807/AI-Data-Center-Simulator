@@ -146,7 +146,7 @@ export function createPduMesh(): THREE.Group {
 /** Losange flottant au-dessus des racks en panne (rouge) ou en réparation (orange). */
 export function createStatusMarkers(): THREE.InstancedMesh {
   const m = new THREE.InstancedMesh(
-    new THREE.OctahedronGeometry(0.22),
+    new THREE.OctahedronGeometry(0.3),
     new THREE.MeshBasicMaterial({ color: 0xffffff }),
     RACK_CAPACITY,
   );

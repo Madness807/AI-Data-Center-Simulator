@@ -218,6 +218,9 @@ export class SceneView {
     body.instanceMatrix.needsUpdate = led.instanceMatrix.needsUpdate = markers.instanceMatrix.needsUpdate = true;
     if (led.instanceColor) led.instanceColor.needsUpdate = true;
     if (markers.instanceColor) markers.instanceColor.needsUpdate = true;
+    // Le raycast d'un InstancedMesh teste d'abord sa sphère englobante, mise en cache : sans
+    // recalcul, les racks posés après le premier raycast sont invisibles au picking.
+    body.computeBoundingSphere();
   }
 
   private syncOthers(s: GameState, realDt: number): void {
@@ -226,6 +229,12 @@ export class SceneView {
       if (b.kind === 'rack') continue;
       seen.add(b.id);
       let obj = this.others.get(b.id);
+      // Les id repartent de 1 après « Recommencer » : un id connu peut désigner un autre bâtiment.
+      const cell = obj?.userData.cell as Cell | undefined;
+      if (obj && (obj.userData.kind !== b.kind || cell?.x !== b.x || cell?.y !== b.y)) {
+        this.scene.remove(obj);
+        obj = undefined;
+      }
       if (!obj) {
         obj = this.createObject(b);
         this.others.set(b.id, obj);
@@ -245,6 +254,7 @@ export class SceneView {
     const obj = b.kind === 'crac' ? createCracMesh() : createPduMesh();
     cellCenter(b.x, b.y, obj.position);
     obj.userData.cell = { x: b.x, y: b.y };
+    obj.userData.kind = b.kind;
     return obj;
   }
 
