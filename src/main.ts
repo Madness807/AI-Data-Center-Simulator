@@ -150,5 +150,5 @@ requestAnimationFrame(frame);
 // Débogage en dev : window.__game.step() fait avancer la simulation depuis la console,
 // et __game.view.renderer.info donne les compteurs de rendu (appels de dessin, triangles).
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { state, step: () => step(state), selection, view };
+  (window as unknown as { __game: unknown }).__game = { state, step: () => step(state), selection, view, hud };
 }

@@ -213,6 +213,13 @@
   .region-top { right: var(--edge); }
   .region-right { top: 112px; max-height: calc(100% - 240px); width: 296px; }
 }
+/* Sous 1 150 px : la barre du haut prend toute la largeur, la colonne de gauche passe dessous
+   et la sélection remonte au-dessus de la barre de construction. */
+@media (max-width: 1150px) {
+  .region-top { left: var(--edge); right: var(--edge); }
+  .region-top-left { top: 112px; }
+  .region-bottom-left { bottom: 132px; }
+}
 @media (max-width: 1100px) {
   .res-label, .res .meter { display: none; }
   .res { padding: 2px 8px; }
