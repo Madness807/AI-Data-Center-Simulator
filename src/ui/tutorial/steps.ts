@@ -1,7 +1,9 @@
+import { ECONOMY } from '../../sim/balance';
 import type { Command } from '../../sim/commands';
 import type { Cell } from '../../sim/entities';
 import type { GameState } from '../../sim/state';
 import { inCoolingRange } from '../../sim/systems/heat';
+import { money } from '../format';
 
 /** Ce que le tutoriel observe : la partie et l'état de l'interface. */
 export interface TutorialContext {
@@ -129,7 +131,7 @@ export const STEPS: TutorialStep[] = [
   {
     id: 'goal',
     title: 'À vous de jouer',
-    text: 'Objectif : 50 000 $. Enchaînez les contrats, ajoutez un PDU quand l’énergie sature, gardez la salle au frais. Échap ouvre le menu (sauvegarde, options).',
+    text: `Objectif : ${money(ECONOMY.goalMoney)}. Enchaînez les contrats, ajoutez un PDU quand l’énergie sature, gardez la salle au frais. Échap ouvre le menu (sauvegarde, options).`,
     done: () => false,
   },
 ];

@@ -42,8 +42,8 @@ export const HEAT = {
 export const FAILURE = {
   /** °C au-delà duquel le taux de panne grimpe. */
   thresholdC: 35,
-  /** Pannes/s d'un rack actif à froid (usure normale). */
-  baseRate: 1 / 3600,
+  /** Pannes/s d'un rack actif à froid (usure normale, ~0,8 %/min) : la chaleur reste la vraie menace. */
+  baseRate: 1 / 7200,
   /** Pannes/s par °C² au-dessus du seuil : ~1/min à 50 °C, ~1/20 s à 60 °C. */
   quadRate: 7.5e-5,
 };
@@ -53,7 +53,7 @@ export const REPAIR = { cost: 400, seconds: 8 };
 export const ECONOMY = {
   /** $ par kW et par seconde de jeu, facturé sur la charge servie. */
   electricityPerKWs: 0.09,
-  goalMoney: 50_000,
+  goalMoney: 100_000,
   bankruptcySeconds: 30,
 };
 
@@ -63,12 +63,13 @@ export const JOBS = {
   offerInterval: [20, 40] as const,
   offerExpiry: 45,
   firstOfferExpiry: 150,
-  /** Débit demandé, en multiples de RACK.computeCU. */
-  maxUnits: 8,
+  /** Débit demandé, en multiples de RACK.computeCU : de quoi occuper un grand parc. */
+  maxUnits: 12,
   duration: [60, 180] as const,
   /** Délai = durée × marge ; une marge serrée paie plus. */
   slack: [1.3, 2.0] as const,
-  pricePerCU: 0.4,
+  /** $ par CU livré : un rack bien occupé se rembourse en une dizaine de minutes. */
+  pricePerCU: 0.8,
   penaltyRatio: 0.5,
 };
 
