@@ -42,6 +42,8 @@ export interface EconomyStats {
 }
 
 export interface GameState {
+  /** Graine de la partie, conservée pour reproduire un bug. */
+  seed: number;
   tick: number;
   /** Secondes de jeu écoulées. */
   time: number;
@@ -75,6 +77,7 @@ export interface GameState {
 
 export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H): GameState {
   return {
+    seed,
     tick: 0,
     time: 0,
     speed: 1,

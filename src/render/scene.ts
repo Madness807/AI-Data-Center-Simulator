@@ -203,9 +203,11 @@ export class SceneView {
   private readonly tmpQuat = new THREE.Quaternion();
   private readonly tmpScale = new THREE.Vector3();
 
-  constructor(container: HTMLElement, w: number, h: number) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  private readonly sun: THREE.DirectionalLight;
+  private pixelRatio = 2;
+
+  constructor(container: HTMLElement, w: number, h: number, graphics: { antialias: boolean; shadows: boolean; pixelRatio: 1 | 2 }) {
+    this.renderer = new THREE.WebGLRenderer({ antialias: graphics.antialias });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -215,15 +217,24 @@ export class SceneView {
     this.scene.background = new THREE.Color(PALETTE.background);
     this.rts = new RtsCamera(this.renderer.domElement, w, h);
 
-    this.scene.add(createLighting(w, h), createFloor(w, h));
+    const lighting = createLighting(w, h);
+    this.sun = lighting.sun;
+    this.scene.add(lighting.root, createFloor(w, h));
     this.walls = createWalls(w, h);
     this.heatmap = new Heatmap(w, h);
     this.racks = createRackInstances(RACK_CAPACITY);
     this.inspectRange.visible = false;
     this.scene.add(this.walls.root, this.heatmap.mesh, this.racks.body, this.racks.led, this.markers, this.inspectBrackets, this.inspectRange);
 
-    this.resize();
+    this.applyGraphics(graphics);
     window.addEventListener('resize', () => this.resize());
+  }
+
+  /** Applique les options graphiques modifiables en cours de partie. */
+  applyGraphics(graphics: { shadows: boolean; pixelRatio: 1 | 2 }): void {
+    this.sun.castShadow = graphics.shadows;
+    this.pixelRatio = graphics.pixelRatio;
+    this.resize();
   }
 
   /** Case du bâtiment visé par le rayon (le volume 3D, pas le sol derrière), ou null. */
@@ -422,6 +433,7 @@ export class SceneView {
   private resize(): void {
     const w = window.innerWidth;
     const h = window.innerHeight;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.pixelRatio));
     this.renderer.setSize(w, h);
     this.rts.resize(w, h);
   }

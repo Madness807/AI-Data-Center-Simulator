@@ -49,7 +49,7 @@ export class ResourceBar {
   private readonly bankruptBanner = el('div', 'banner banner-bankrupt', icon('alert', 15));
   private readonly bankruptText = el('span');
 
-  constructor(setSpeed: (speed: Speed) => void) {
+  constructor(setSpeed: (speed: Speed) => void, openMenu: () => void) {
     this.moneyBlock.sub.append(this.trend, this.moneyRate);
     const goalRow = el('div', 'res-sub', this.goal.root, this.goalPct);
     this.moneyBlock.root.querySelector('.res-body')!.append(goalRow);
@@ -64,6 +64,10 @@ export class ResourceBar {
       speed.append(b);
       this.speedButtons.set(sp.speed, b);
     }
+    const menu = el('button', 'btn btn-icon menu-button', icon('menu', 16));
+    menu.title = 'Menu (Échap)';
+    menu.onclick = openMenu;
+    speed.append(menu);
     const bar = el(
       'div',
       'resource-bar glass',

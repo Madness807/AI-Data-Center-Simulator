@@ -51,6 +51,7 @@ export class TitleScreen {
         el('span', 'chip danger', icon('alert', 12), `Faillite après ${ECONOMY.bankruptcySeconds} s dans le rouge`),
       ),
       el('div', 'screen-actions', action('play', 'Nouvelle partie', start, true, 'Entrée'), action('keyboard', 'Commandes', showHelp, false, '?')),
+      el('div', 'title-version mono', `version ${__APP_VERSION__}`),
     );
   }
 }

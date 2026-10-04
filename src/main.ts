@@ -16,13 +16,47 @@ import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
 import { createShowcaseState } from './ui/showcase';
 import { applyTheme } from './ui/theme';
+import { copyText, installCrashHandler, showFatal } from './ui/components/error-screen';
+import { buildReport } from './report';
+import { SettingsStore } from './settings';
+import type { GameEvent } from './sim/state';
 
 applyTheme();
+const settings = new SettingsStore();
 
 const state = createInitialState(Date.now() >>> 0);
 const enqueue = (c: Command) => state.commands.push(c);
+/** Derniers événements de la partie, pour les rapports de bug. */
+const eventLog: GameEvent[] = [];
+const report = (error?: unknown) =>
+  buildReport(
+    {
+      state,
+      settings: settings.value,
+      events: eventLog,
+      error,
+      environment: { userAgent: navigator.userAgent, screen: `${innerWidth}×${innerHeight} @${devicePixelRatio}x` },
+    },
+    __APP_VERSION__,
+  );
+installCrashHandler({ buildReport: report });
 
-const view = new SceneView(document.getElementById('app')!, state.w, state.h);
+function webglAvailable(): boolean {
+  try {
+    return !!document.createElement('canvas').getContext('webgl2');
+  } catch {
+    return false;
+  }
+}
+if (!webglAvailable()) {
+  showFatal(
+    'WebGL 2 indisponible',
+    'Ce jeu a besoin de WebGL 2. Utilisez une version récente de Chrome, Firefox, Edge ou Safari, et vérifiez que l’accélération matérielle est activée.',
+  );
+  throw new Error('WebGL 2 indisponible');
+}
+
+const view = new SceneView(document.getElementById('app')!, state.w, state.h, settings.value);
 
 const pickTarget = (clientX: number, clientY: number) => {
   const ray = rayFromScreen(view.rts.camera, view.domElement, clientX, clientY);
@@ -58,7 +92,7 @@ const setSpeed = (speed: Speed) => {
 };
 const setTool = (tool: Tool) => build.setTool(build.tool === tool ? null : tool);
 const toggleHeatmap = () => (view.heatmap.visible = !view.heatmap.visible);
-const toggleEdgePan = () => (view.rts.edgePan = !view.rts.edgePan);
+const toggleEdgePan = () => settings.update({ edgePan: !settings.value.edgePan });
 const hire = () => enqueue({ type: 'hire' });
 const acceptJob = (id: number) => enqueue({ type: 'acceptJob', id });
 const rejectJob = (id: number) => enqueue({ type: 'rejectJob', id });
@@ -125,9 +159,36 @@ const hud = new Hud(
     sendTechnician,
     demolishAt,
     closeInspector,
+    reportBug: () =>
+      copyText(report()).then(
+        () => true,
+        () => false,
+      ),
   },
   { w: state.w, h: state.h, camera: { footprint: () => view.rts.footprint(), setTarget: (x, z) => view.rts.setTarget(x, z) } },
+  settings,
 );
+
+/**
+ * Taille d'interface effective et seuils de disposition. Le zoom choisi est plafonné à ce
+ * que la fenêtre permet (le HUD est conçu pour au moins 1 000 × 680 px effectifs), puis les
+ * seuils se calculent sur la largeur effective (fenêtre ÷ zoom).
+ */
+const applyLayout = () => {
+  const scale = Math.max(0.9, Math.min(settings.value.uiScale, innerWidth / 1000, innerHeight / 680));
+  document.documentElement.style.setProperty('--ui-scale', String(scale));
+  const width = innerWidth / scale;
+  const root = document.getElementById('hud')!;
+  for (const limit of [1520, 1320, 1100]) root.classList.toggle(`lt-${limit}`, width <= limit);
+};
+window.addEventListener('resize', applyLayout);
+
+// Les options s'appliquent en direct (l'anticrénelage, lui, au prochain lancement).
+settings.subscribe((s) => {
+  view.applyGraphics(s);
+  view.rts.edgePan = s.edgePan;
+  applyLayout();
+});
 // Vignettes des vrais modèles 3D dans la barre de construction.
 for (const [key, url] of Object.entries(renderThumbnails())) hud.setThumbnail(key as ThumbnailKey, url);
 
@@ -137,8 +198,10 @@ window.addEventListener('keydown', (e) => {
   if (hud.handleKey(e)) return;
   if (e.code in TOOL_KEYS) setTool(TOOL_KEYS[e.code]);
   else if (e.code === 'Escape') {
+    // Échap annule d'abord ce qui est en cours, puis ouvre le menu pause.
     if (build.tool) build.setTool(null);
-    else selection.clear();
+    else if (selection.selected.size || selection.inspected !== null) selection.clear();
+    else hud.openPause();
   } else if (e.code === 'KeyT') hire();
   else if (e.code === 'KeyH') toggleHeatmap();
   else if (e.code === 'KeyB') toggleEdgePan();
@@ -173,6 +236,10 @@ function frame(now: number) {
   build.update();
   const inspected = selection.inspected === null ? null : (state.buildings.find((b) => b.id === selection.inspected) ?? null);
   view.render(state, now / 1000, realDt, acc / DT, selection.selected, inspected);
+  if (state.events.length) {
+    eventLog.push(...state.events);
+    eventLog.splice(0, Math.max(0, eventLog.length - 20));
+  }
   hud.update(
     state,
     {

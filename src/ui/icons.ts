@@ -32,6 +32,18 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
+  Menu,
+  Settings,
+  Bug,
+  Save,
+  FolderOpen,
+  Download,
+  Upload,
+  Volume2,
+  Monitor,
+  Eye,
+  Copy,
+  LogOut,
   type IconNode,
 } from 'lucide';
 
@@ -70,6 +82,18 @@ export const ICONS = {
   close: X,
   expand: ChevronDown,
   collapse: ChevronUp,
+  menu: Menu,
+  settings: Settings,
+  bug: Bug,
+  save: Save,
+  load: FolderOpen,
+  download: Download,
+  upload: Upload,
+  volume: Volume2,
+  display: Monitor,
+  accessibility: Eye,
+  copy: Copy,
+  quit: LogOut,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;

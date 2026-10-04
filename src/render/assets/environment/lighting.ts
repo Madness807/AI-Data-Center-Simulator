@@ -5,7 +5,7 @@ import { PALETTE } from '../palette';
  * Éclairage de studio : ciel bleuté, soleil chaud qui porte les ombres, et une lumière
  * d'appoint froide à l'opposé pour déboucher les faces à contre-jour.
  */
-export function createLighting(w: number, h: number): THREE.Group {
+export function createLighting(w: number, h: number): { root: THREE.Group; sun: THREE.DirectionalLight } {
   const g = new THREE.Group();
   g.add(new THREE.HemisphereLight(PALETTE.lightSky, PALETTE.lightGround, 1.35));
 
@@ -28,5 +28,5 @@ export function createLighting(w: number, h: number): THREE.Group {
   fill.target.position.set(w / 2, 0, h / 2);
 
   g.add(sun, sun.target, fill, fill.target);
-  return g;
+  return { root: g, sun };
 }

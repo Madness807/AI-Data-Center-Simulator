@@ -11,6 +11,8 @@ import { CursorFlash } from './components/cursor-flash';
 import { HelpOverlay } from './components/help-overlay';
 import { Inspector } from './components/inspector';
 import { Minimap, type MinimapCamera } from './components/minimap';
+import { PauseMenu } from './components/pause-menu';
+import type { SettingsStore } from '../settings';
 import { ResourceBar } from './components/resource-bar';
 import { DefeatScreen, TitleScreen, VictoryScreen } from './components/screens';
 import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
@@ -32,6 +34,8 @@ export interface HudActions {
   newGame: () => void;
   /** Revient à l'écran titre. */
   showTitle: () => void;
+  /** Copie un rapport de bug ; renvoie vrai si la copie a réussi. */
+  reportBug: () => Promise<boolean>;
   /** Reprend la partie à sa vitesse précédente (après la victoire). */
   resume: () => void;
   /** Recentre la caméra sur une case (alerte cliquée). */
@@ -103,12 +107,29 @@ export class Hud {
   private victorySeen = false;
   private victoryOpen = false;
   private readonly actions: HudActions;
+  readonly pause: PauseMenu;
+  /** Vitesse à rétablir en sortant du menu pause. */
+  private speedBeforePause: Speed = 1;
   private state: GameState | null = null;
 
-  constructor(root: HTMLElement, actions: HudActions, world: { w: number; h: number; camera: MinimapCamera }) {
+  constructor(
+    root: HTMLElement,
+    actions: HudActions,
+    world: { w: number; h: number; camera: MinimapCamera },
+    settings: SettingsStore,
+  ) {
     this.root = root;
     this.actions = actions;
-    this.resources = new ResourceBar(actions.setSpeed);
+    this.resources = new ResourceBar(actions.setSpeed, () => this.openPause());
+    this.pause = new PauseMenu(settings, {
+      resume: () => this.closePause(),
+      showHelp: () => this.help.toggle(),
+      reportBug: actions.reportBug,
+      mainMenu: () => {
+        this.pause.close();
+        actions.showTitle();
+      },
+    });
     this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle() });
     this.contracts = new ContractsPanel(actions);
     this.title = new TitleScreen(actions.newGame, () => this.help.toggle());
@@ -138,9 +159,24 @@ export class Hud {
       region('bottom-left', this.inspector.root, this.selection.root),
       this.flash.root,
       this.overlay,
+      this.pause.root,
       this.help.root,
       this.tooltip.root,
     );
+  }
+
+  /** Ouvre le menu pause et fige la partie (elle reprendra à sa vitesse d'avant). */
+  openPause(): void {
+    if (this.phase !== 'playing' || this.pause.isOpen || this.victoryOpen || this.state?.outcome === 'lost') return;
+    this.speedBeforePause = this.state?.speed ?? 1;
+    this.actions.setSpeed(0);
+    this.pause.open();
+  }
+
+  closePause(): void {
+    if (!this.pause.isOpen) return;
+    this.pause.close();
+    if (this.speedBeforePause !== 0) this.actions.setSpeed(this.speedBeforePause);
   }
 
   /** Écran titre (salle de démonstration, HUD masqué) ou partie en cours. */
@@ -161,6 +197,10 @@ export class Hud {
     }
     if (e.code === 'Escape' && this.help.isOpen) {
       this.help.close();
+      return true;
+    }
+    if (this.pause.isOpen) {
+      if (e.code === 'Escape') this.closePause();
       return true;
     }
     if (this.phase === 'title') {
