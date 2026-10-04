@@ -12,6 +12,19 @@ export interface PowerStats {
   shedCount: number;
 }
 
+/** Nature de l'événement, pour réagir sans analyser le texte (son, routage dans le HUD). */
+export type EventCode =
+  | 'failure'
+  | 'built'
+  | 'repaired'
+  | 'delivered'
+  | 'late'
+  | 'offer'
+  | 'won'
+  | 'bankrupt'
+  | 'refused'
+  | 'saved';
+
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';
   message: string;
@@ -19,11 +32,18 @@ export interface GameEvent {
   time: number;
   /** Case concernée, quand il y en a une : l'interface peut y centrer la caméra. */
   cell?: Cell;
+  code?: EventCode;
 }
 
-/** Émet un événement pour l'interface, horodaté et éventuellement localisé. */
-export function notify(s: GameState, type: GameEvent['type'], message: string, cell?: Cell): void {
-  s.events.push({ type, message, time: s.time, ...(cell ? { cell: { x: cell.x, y: cell.y } } : {}) });
+/** Émet un événement pour l'interface, horodaté, éventuellement localisé et typé. */
+export function notify(
+  s: GameState,
+  type: GameEvent['type'],
+  message: string,
+  extra: { cell?: Cell; code?: EventCode } = {},
+): void {
+  const { cell, code } = extra;
+  s.events.push({ type, message, time: s.time, ...(cell ? { cell: { x: cell.x, y: cell.y } } : {}), ...(code ? { code } : {}) });
 }
 
 export type Outcome = 'playing' | 'won' | 'lost';

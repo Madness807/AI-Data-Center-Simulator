@@ -62,7 +62,7 @@ export function updateTechnicians(s: GameState, dt: number): void {
       if (!t.path || (t.path.length && !isWalkable(s, t.path[0].x, t.path[0].y))) {
         t.path = planPath(s, task, here);
         if (!t.path) {
-          notify(s, 'error', `Technicien ${t.id} : destination inaccessible`, { x: Math.round(t.x), y: Math.round(t.y) });
+          notify(s, 'error', `Technicien ${t.id} : destination inaccessible`, { cell: { x: Math.round(t.x), y: Math.round(t.y) }, code: 'refused' });
           nextTask(t);
           continue;
         }
@@ -107,7 +107,7 @@ function work(s: GameState, t: Technician, task: TechTask, dt: number): boolean 
   if (b.status === 'failed') {
     // Les pièces sont payées à l'arrivée du technicien.
     if (s.money < REPAIR.cost) {
-      notify(s, 'error', 'Fonds insuffisants pour réparer', b);
+      notify(s, 'error', 'Fonds insuffisants pour réparer', { cell: b, code: 'refused' });
       return true;
     }
     spend(s, 'repairs', REPAIR.cost);
@@ -119,8 +119,9 @@ function work(s: GameState, t: Technician, task: TechTask, dt: number): boolean 
   if (b.workLeft > 1e-9) return false;
   b.workLeft = 0;
   const label = b.kind === 'rack' ? 'Rack' : b.kind === 'crac' ? 'CRAC' : 'PDU';
-  notify(s, 'info', b.status === 'construction' ? `${label} ${b.x},${b.y} construit` : `${label} ${b.x},${b.y} réparé`, b);
-  if (b.status === 'construction') b.builtAt = s.time;
+  const built = b.status === 'construction';
+  notify(s, 'info', `${label} ${b.x},${b.y} ${built ? 'construit' : 'réparé'}`, { cell: b, code: built ? 'built' : 'repaired' });
+  if (built) b.builtAt = s.time;
   b.status = 'ok';
   return true;
 }

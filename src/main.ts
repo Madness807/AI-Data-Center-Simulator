@@ -4,7 +4,7 @@ import '@fontsource/jetbrains-mono/600.css';
 import './ui/styles/tokens.css';
 import './ui/styles/base.css';
 import './ui/styles/components.css';
-import { DT, MAX_TICKS_PER_FRAME } from './sim/balance';
+import { DT, HEAT, MAX_TICKS_PER_FRAME } from './sim/balance';
 import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
 import { buildingAt, createInitialState, notify, type GameState, type Speed } from './sim/state';
@@ -20,10 +20,23 @@ import { copyText, installCrashHandler, showFatal } from './ui/components/error-
 import { buildReport } from './report';
 import { SettingsStore, safeStorage } from './settings';
 import { SaveManager, deserialize, serialize, type SaveSlot } from './save';
+import { AudioEngine } from './audio/engine';
+import { SoundDirector, type SoundId } from './audio/director';
+import { tempStats } from './sim/stats';
 import type { GameEvent } from './sim/state';
 
 applyTheme();
 const settings = new SettingsStore();
+const audio = new AudioEngine();
+/** Derniers sons joués (vérification en mode dev). */
+const soundLog: SoundId[] = [];
+const director = new SoundDirector((id) => {
+  audio.play(id);
+  soundLog.push(id);
+  soundLog.splice(0, Math.max(0, soundLog.length - 30));
+});
+// Les navigateurs n'autorisent le son qu'après un geste du joueur.
+for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => audio.unlock(), { capture: true });
 const saves = new SaveManager(safeStorage(), __APP_VERSION__);
 /** Écran titre ou partie en cours : on ne sauvegarde que les vraies parties. */
 let phase: 'title' | 'playing' = 'title';
@@ -82,7 +95,10 @@ const selection = new SelectionController(view.domElement, {
   techScreenPositions: () => view.techScreenPositions(),
   pickTarget,
   enqueue,
-  ping: (cell, kind) => view.ping(cell, kind),
+  ping: (cell, kind) => {
+    view.ping(cell, kind);
+    director.trigger('order');
+  },
 });
 const build = new BuildController(
   view.scene,
@@ -117,6 +133,7 @@ let lastAutosave = 0;
 const startPlaying = (next: GameState) => {
   loadState(next);
   lastAutosave = next.time;
+  director.sync(next);
   phase = 'playing';
   view.rts.settle();
   hud.setPhase('playing');
@@ -148,7 +165,7 @@ const loadSlot = (slot: SaveSlot): string | null => {
 const saveSlot = (slot: SaveSlot): string | null => {
   if (!canSave()) return 'Rien à sauvegarder pour l’instant.';
   const error = saves.save(slot, state);
-  if (!error) notify(state, 'success', `Partie sauvegardée (${slot === 'auto' ? 'automatique' : `emplacement ${slot}`})`);
+  if (!error) notify(state, 'success', `Partie sauvegardée (${slot === 'auto' ? 'automatique' : `emplacement ${slot}`})`, { code: 'saved' });
   return error;
 };
 /** Export de la partie en fichier .json (à joindre à un rapport de bug). */
@@ -182,7 +199,7 @@ const sendTechnician = (id: number) => {
   const b = state.buildings.find((o) => o.id === id);
   if (!b) return;
   if (!state.techs.length) {
-    notify(state, 'error', 'Aucun technicien : embauchez-en un (T)');
+    notify(state, 'error', 'Aucun technicien : embauchez-en un (T)', { code: 'refused' });
     return;
   }
   const idle = state.techs.filter((t) => t.tasks.length === 0);
@@ -226,6 +243,10 @@ const hud = new Hud(
   settings,
 );
 
+document.getElementById('hud')!.addEventListener('pointerdown', (e) => {
+  if ((e.target as Element).closest('button')) director.trigger('click');
+});
+
 /**
  * Taille d'interface effective et seuils de disposition. Le zoom choisi est plafonné à ce
  * que la fenêtre permet (le HUD est conçu pour au moins 1 000 × 680 px effectifs), puis les
@@ -242,6 +263,7 @@ window.addEventListener('resize', applyLayout);
 
 // Les options s'appliquent en direct (l'anticrénelage, lui, au prochain lancement).
 settings.subscribe((s) => {
+  audio.setVolumes({ master: s.volumeMaster, sfx: s.volumeSfx, ambience: s.volumeAmbience });
   view.applyGraphics(s);
   view.rts.edgePan = s.edgePan;
   applyLayout();
@@ -295,6 +317,13 @@ function frame(now: number) {
   build.update();
   const inspected = selection.inspected === null ? null : (state.buildings.find((b) => b.id === selection.inspected) ?? null);
   view.render(state, now / 1000, realDt, acc / DT, selection.selected, inspected);
+  // Son : événements et transitions de la partie, ambiance qui suit l'activité et la chaleur.
+  if (phase === 'playing') {
+    director.onEvents(state.events);
+    director.onFrame(state);
+  }
+  const activeRacks = state.compute.total / 10;
+  audio.setAmbience(Math.min(1, activeRacks / 20), Math.min(1, Math.max(0, (tempStats(state).max - HEAT.ambient) / 30)), state.speed === 0);
   if (state.events.length) {
     eventLog.push(...state.events);
     eventLog.splice(0, Math.max(0, eventLog.length - 20));
@@ -318,5 +347,5 @@ requestAnimationFrame(frame);
 // Débogage en dev : window.__game.step() fait avancer la simulation depuis la console,
 // et __game.view.renderer.info donne les compteurs de rendu (appels de dessin, triangles).
 if (import.meta.env.DEV) {
-  (window as unknown as { __game: unknown }).__game = { state, step: () => step(state), selection, view, hud };
+  (window as unknown as { __game: unknown }).__game = { state, step: () => step(state), selection, view, hud, sounds: soundLog, audio, director };
 }

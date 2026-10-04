@@ -16,7 +16,7 @@ export function updateEconomy(s: GameState, dt: number): void {
     if (s.economy.bankruptTimer >= ECONOMY.bankruptcySeconds) {
       s.outcome = 'lost';
       s.speed = 0;
-      notify(s, 'error', 'Faillite : le data center ferme ses portes');
+      notify(s, 'error', 'Faillite : le data center ferme ses portes', { code: 'bankrupt' });
     }
   } else {
     s.economy.bankruptTimer = 0;
@@ -24,6 +24,6 @@ export function updateEconomy(s: GameState, dt: number): void {
 
   if (s.outcome === 'playing' && s.money >= ECONOMY.goalMoney) {
     s.outcome = 'won';
-    notify(s, 'success', 'Objectif atteint ! La partie continue en mode libre.');
+    notify(s, 'success', 'Objectif atteint ! La partie continue en mode libre.', { code: 'won' });
   }
 }

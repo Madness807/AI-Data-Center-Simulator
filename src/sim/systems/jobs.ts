@@ -30,12 +30,12 @@ export function updateJobs(s: GameState, dt: number): void {
     if (j.progress >= j.work - 1e-6) {
       earn(s, j.payment);
       s.economy.jobsDone++;
-      notify(s, 'success', `Contrat livré : ${j.name} (+${fmt(j.payment)})`);
+      notify(s, 'success', `Contrat livré : ${j.name} (+${fmt(j.payment)})`, { code: 'delivered' });
       finished.add(j);
     } else if (s.time >= j.deadline) {
       spend(s, 'penalties', j.penalty);
       s.economy.jobsFailed++;
-      notify(s, 'warning', `Délai dépassé : ${j.name} (−${fmt(j.penalty)})`);
+      notify(s, 'warning', `Délai dépassé : ${j.name} (−${fmt(j.penalty)})`, { code: 'late' });
       finished.add(j);
     }
   }
@@ -47,7 +47,7 @@ export function updateJobs(s: GameState, dt: number): void {
   if (s.time >= s.nextOfferAt) {
     if (s.jobs.filter((j) => j.status === 'offer').length < JOBS.maxOffers) {
       s.jobs.push(generateOffer(s));
-      notify(s, 'info', 'Nouvelle offre de contrat');
+      notify(s, 'info', 'Nouvelle offre de contrat', { code: 'offer' });
     }
     s.nextOfferAt = s.time + lerp(JOBS.offerInterval, nextRandom(s));
   }

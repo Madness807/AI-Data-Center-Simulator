@@ -273,7 +273,7 @@ export class Hud {
     this.updateWorldTip(s, view.hover);
     // Les refus vont près du curseur ; le reste rejoint l'historique des alertes.
     for (const e of s.events) {
-      if (e.type === 'error' && !e.message.startsWith('Faillite')) this.flash.show(e.message);
+      if (e.code === 'refused') this.flash.show(e.message);
       else this.alerts.push(e);
     }
     s.events.length = 0;

@@ -37,7 +37,7 @@ export function processCommands(s: GameState): void {
       case 'build': {
         const reason = canBuild(s, c.kind, c.x, c.y);
         if (reason) {
-          notify(s, 'error', reason, c);
+          notify(s, 'error', reason, { cell: c, code: 'refused' });
           break;
         }
         spend(s, 'construction', BUILD_COST[c.kind]);
@@ -67,8 +67,8 @@ export function processCommands(s: GameState): void {
         }
         break;
       case 'hire':
-        if (s.techs.length >= TECH.max) notify(s, 'error', `Équipe complète (${TECH.max} max)`);
-        else if (s.money < TECH.hireCost) notify(s, 'error', 'Fonds insuffisants pour embaucher');
+        if (s.techs.length >= TECH.max) notify(s, 'error', `Équipe complète (${TECH.max} max)`, { code: 'refused' });
+        else if (s.money < TECH.hireCost) notify(s, 'error', 'Fonds insuffisants pour embaucher', { code: 'refused' });
         else {
           spend(s, 'hiring', TECH.hireCost);
           addTech(s);

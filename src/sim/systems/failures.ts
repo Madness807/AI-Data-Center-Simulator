@@ -27,7 +27,7 @@ export function updateFailures(s: GameState, dt: number): void {
       if (nextRandom(s) < failureProbability(t, dt)) {
         b.status = 'failed';
         b.failures++;
-        notify(s, 'warning', `Panne du rack ${b.x},${b.y} (${t.toFixed(0)} °C)`, b);
+        notify(s, 'warning', `Panne du rack ${b.x},${b.y} (${t.toFixed(0)} °C)`, { cell: b, code: 'failure' });
       }
     }
   }

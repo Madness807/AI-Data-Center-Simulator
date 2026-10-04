@@ -38,7 +38,7 @@ describe('options', () => {
 describe('rapport de bug', () => {
   it('contient la version, la graine, les options, les événements et l’erreur', () => {
     const s = createInitialState(4242);
-    notify(s, 'warning', 'Panne du rack 3,3 (51 °C)', { x: 3, y: 3 });
+    notify(s, 'warning', 'Panne du rack 3,3 (51 °C)', { cell: { x: 3, y: 3 }, code: 'failure' });
     const report = buildReport(
       { state: s, settings: DEFAULT_SETTINGS, events: s.events, error: new Error('boum'), environment: { userAgent: 'Test', screen: '800x600' } },
       '0.9.0-beta',
