@@ -12,13 +12,14 @@ import { HelpOverlay } from './components/help-overlay';
 import { Inspector } from './components/inspector';
 import { Minimap, type MinimapCamera } from './components/minimap';
 import { PauseMenu } from './components/pause-menu';
+import { SaveSlots, type SaveSlotsActions } from './components/save-slots';
 import type { SettingsStore } from '../settings';
 import { ResourceBar } from './components/resource-bar';
 import { DefeatScreen, TitleScreen, VictoryScreen } from './components/screens';
 import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
 import { Tooltip } from './components/tooltip';
 import type { BuildingKind } from '../sim/entities';
-import { el, setHidden } from './dom';
+import { el, icon, setHidden } from './dom';
 import { celsius, money, moneyRate, percent, seconds, signedMoney } from './format';
 import { LedgerHistory, TemperatureHistory } from './metrics';
 
@@ -36,6 +37,9 @@ export interface HudActions {
   showTitle: () => void;
   /** Copie un rapport de bug ; renvoie vrai si la copie a réussi. */
   reportBug: () => Promise<boolean>;
+  /** Charge la sauvegarde la plus récente (écran titre). */
+  continueGame: () => void;
+  saves: SaveSlotsActions;
   /** Reprend la partie à sa vitesse précédente (après la victoire). */
   resume: () => void;
   /** Recentre la caméra sur une case (alerte cliquée). */
@@ -108,6 +112,7 @@ export class Hud {
   private victoryOpen = false;
   private readonly actions: HudActions;
   readonly pause: PauseMenu;
+  private readonly slots: SaveSlots;
   /** Vitesse à rétablir en sortant du menu pause. */
   private speedBeforePause: Speed = 1;
   private state: GameState | null = null;
@@ -132,7 +137,14 @@ export class Hud {
     });
     this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle() });
     this.contracts = new ContractsPanel(actions);
-    this.title = new TitleScreen(actions.newGame, () => this.help.toggle());
+    this.slots = new SaveSlots(actions.saves);
+    this.title = new TitleScreen(actions.newGame, () => this.help.toggle(), actions.continueGame, () => this.slots.open('load'));
+    const pauseItem = (name: 'save' | 'load', label: string) => {
+      const b = el('button', 'btn menu-item', icon(name, 16), el('span', undefined, label));
+      b.onclick = () => this.slots.open(name);
+      return b;
+    };
+    this.pause.addItems(pauseItem('save', 'Sauvegarder'), pauseItem('load', 'Charger'));
     this.victory = new VictoryScreen(() => {
       this.victoryOpen = false;
       actions.resume();
@@ -160,6 +172,7 @@ export class Hud {
       this.flash.root,
       this.overlay,
       this.pause.root,
+      this.slots.root,
       this.help.root,
       this.tooltip.root,
     );
@@ -183,6 +196,9 @@ export class Hud {
   setPhase(phase: 'title' | 'playing'): void {
     this.phase = phase;
     this.root.classList.toggle('phase-title', phase === 'title');
+    this.slots.close();
+    this.pause.close();
+    if (phase === 'title') this.title.setSaves(this.actions.saves.list().length > 0);
   }
 
   /**
@@ -197,6 +213,10 @@ export class Hud {
     }
     if (e.code === 'Escape' && this.help.isOpen) {
       this.help.close();
+      return true;
+    }
+    if (this.slots.isOpen) {
+      if (e.code === 'Escape') this.slots.close();
       return true;
     }
     if (this.pause.isOpen) {

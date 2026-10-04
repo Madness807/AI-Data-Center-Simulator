@@ -18,11 +18,16 @@ import { createShowcaseState } from './ui/showcase';
 import { applyTheme } from './ui/theme';
 import { copyText, installCrashHandler, showFatal } from './ui/components/error-screen';
 import { buildReport } from './report';
-import { SettingsStore } from './settings';
+import { SettingsStore, safeStorage } from './settings';
+import { SaveManager, deserialize, serialize, type SaveSlot } from './save';
 import type { GameEvent } from './sim/state';
 
 applyTheme();
 const settings = new SettingsStore();
+const saves = new SaveManager(safeStorage(), __APP_VERSION__);
+/** Écran titre ou partie en cours : on ne sauvegarde que les vraies parties. */
+let phase: 'title' | 'playing' = 'title';
+const canSave = () => phase === 'playing' && state.outcome !== 'lost';
 
 const state = createInitialState(Date.now() >>> 0);
 const enqueue = (c: Command) => state.commands.push(c);
@@ -39,7 +44,11 @@ const report = (error?: unknown) =>
     },
     __APP_VERSION__,
   );
-installCrashHandler({ buildReport: report });
+installCrashHandler({
+  buildReport: report,
+  // Sauvegarde de secours : la partie en cours survit à un plantage.
+  onCrash: () => canSave() && saves.save('auto', state),
+});
 
 function webglAvailable(): boolean {
   try {
@@ -104,16 +113,62 @@ const loadState = (next: GameState) => {
   selection.clear();
   hud.reset();
 };
-const newGame = () => {
-  loadState(createInitialState(Date.now() >>> 0));
+let lastAutosave = 0;
+const startPlaying = (next: GameState) => {
+  loadState(next);
+  lastAutosave = next.time;
+  phase = 'playing';
   view.rts.settle();
   hud.setPhase('playing');
 };
+const newGame = () => startPlaying(createInitialState(Date.now() >>> 0));
 /** Écran titre : salle de démonstration en pause, caméra en rotation lente. */
 const showTitle = () => {
+  phase = 'title';
   loadState(createShowcaseState());
   view.rts.autoOrbit = true;
   hud.setPhase('title');
+};
+
+/** Sauvegarde automatique : toutes les 60 s de jeu, à la mise en arrière-plan et à la fermeture. */
+const autosave = () => {
+  if (!canSave()) return;
+  saves.save('auto', state);
+  lastAutosave = state.time;
+};
+document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && autosave());
+window.addEventListener('pagehide', autosave);
+
+const loadSlot = (slot: SaveSlot): string | null => {
+  const result = saves.load(slot);
+  if (!result.ok) return result.error;
+  startPlaying(result.state);
+  return null;
+};
+const saveSlot = (slot: SaveSlot): string | null => {
+  if (!canSave()) return 'Rien à sauvegarder pour l’instant.';
+  const error = saves.save(slot, state);
+  if (!error) notify(state, 'success', `Partie sauvegardée (${slot === 'auto' ? 'automatique' : `emplacement ${slot}`})`);
+  return error;
+};
+/** Export de la partie en fichier .json (à joindre à un rapport de bug). */
+const exportGame = () => {
+  const blob = new Blob([serialize(state, __APP_VERSION__)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `datacenter-ia-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+};
+const importText = (text: string): string | null => {
+  const result = deserialize(text);
+  if (!result.ok) return result.error;
+  startPlaying(result.state);
+  return null;
+};
+const continueGame = () => {
+  const slot = saves.latest();
+  if (slot !== null) loadSlot(slot);
 };
 const resume = () => setSpeed(lastSpeed);
 
@@ -164,6 +219,8 @@ const hud = new Hud(
         () => true,
         () => false,
       ),
+    continueGame,
+    saves: { list: () => saves.list(), save: saveSlot, load: loadSlot, importText, exportGame },
   },
   { w: state.w, h: state.h, camera: { footprint: () => view.rts.footprint(), setTarget: (x, z) => view.rts.setTarget(x, z) } },
   settings,
@@ -231,6 +288,8 @@ function frame(now: number) {
     ticks++;
   }
   if (ticks === MAX_TICKS_PER_FRAME) acc = 0;
+
+  if (phase === 'playing' && state.time - lastAutosave >= 60) autosave();
 
   selection.prune(state);
   build.update();

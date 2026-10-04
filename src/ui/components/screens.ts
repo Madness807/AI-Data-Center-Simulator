@@ -37,8 +37,12 @@ class EndStats {
 /** Écran titre, au-dessus de la salle de démonstration qui tourne lentement. */
 export class TitleScreen {
   readonly root: HTMLElement;
+  private readonly continueButton: HTMLButtonElement;
+  private readonly loadButton: HTMLButtonElement;
 
-  constructor(start: () => void, showHelp: () => void) {
+  constructor(start: () => void, showHelp: () => void, continueGame: () => void, openLoad: () => void) {
+    this.continueButton = action('play', 'Continuer', continueGame, true);
+    this.loadButton = action('load', 'Charger', openLoad);
     this.root = el(
       'div',
       'screen title glass',
@@ -50,9 +54,17 @@ export class TitleScreen {
         el('span', 'chip ok', icon('trophy', 12), `Objectif : ${money(ECONOMY.goalMoney)}`),
         el('span', 'chip danger', icon('alert', 12), `Faillite après ${ECONOMY.bankruptcySeconds} s dans le rouge`),
       ),
-      el('div', 'screen-actions', action('play', 'Nouvelle partie', start, true, 'Entrée'), action('keyboard', 'Commandes', showHelp, false, '?')),
+      el('div', 'screen-actions', this.continueButton, action('restart', 'Nouvelle partie', start, false, 'Entrée')),
+      el('div', 'screen-actions secondary', this.loadButton, action('keyboard', 'Commandes', showHelp, false, '?')),
       el('div', 'title-version mono', `version ${__APP_VERSION__}`),
     );
+    this.setSaves(false);
+  }
+
+  /** « Continuer » et « Charger » n'apparaissent que s'il existe une sauvegarde. */
+  setSaves(available: boolean): void {
+    this.continueButton.hidden = !available;
+    this.loadButton.hidden = !available;
   }
 }
 
