@@ -1,4 +1,4 @@
-# Data Center IA — bêta 0.9
+# Data Center IA — bêta 0.10
 
 Jeu de stratégie en temps réel dans le navigateur : construisez et exploitez un data center d'IA. Il faut honorer les contrats de calcul, garder la salle au frais et réparer les pannes avant que la trésorerie ne passe dans le rouge.
 
@@ -50,7 +50,8 @@ Commencez par la **partie guidée** : en neuf étapes, elle montre toute la bouc
 | Inspecter un équipement | clic sur l'équipement |
 | Embaucher un technicien | T |
 | Pause / vitesse ×1, ×2, ×4 | Espace / 1, 2, 3 |
-| Carte de chaleur | H |
+| Calques : chaleur, énergie, froid, occupation, risque | H (Maj+H : précédent) |
+| Tableau de bord / équipe | Tab / G |
 | Défilement par les bords | B |
 | Menu (sauvegarde, options, bug) | Échap |
 | Aide des commandes | ? ou F1 |

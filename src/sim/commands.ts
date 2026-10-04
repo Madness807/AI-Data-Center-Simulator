@@ -81,6 +81,7 @@ export function processCommands(s: GameState): void {
         if (!b || b.kind !== 'rack' || b.status !== 'ok') break;
         b.status = 'failed';
         b.failures++;
+        s.economy.failures++;
         notify(s, 'warning', `Panne du rack ${b.x},${b.y} (exercice)`, { cell: b, code: 'failure' });
         break;
       }

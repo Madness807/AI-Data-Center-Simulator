@@ -1,4 +1,6 @@
 import { OPERATING, type ExpenseKind, type Ledger } from '../sim/ledger';
+import type { GameState } from '../sim/state';
+import { availability, pue, tempStats } from '../sim/stats';
 
 /** Fenêtre glissante du bilan affiché (secondes de jeu). */
 export const BALANCE_WINDOW = 60;
@@ -79,5 +81,77 @@ export class TemperatureHistory {
   /** Températures d'une case, de la plus ancienne à la plus récente. */
   series(cell: number): number[] {
     return this.frames.map((f) => f[cell]);
+  }
+}
+
+/** Mesure du tableau de bord, prise toutes les HISTORY_STEP secondes de jeu. */
+export interface Sample {
+  time: number;
+  /** Grand livre cumulé : les montants par minute se calculent par différence. */
+  ledger: Ledger;
+  computeUsed: number;
+  computeTotal: number;
+  pue: number | null;
+  availability: number | null;
+  failures: number;
+  avgTemp: number;
+  maxTemp: number;
+}
+
+export const HISTORY_STEP = 5;
+/** Au-delà (4 h de jeu), on ne garde qu'une mesure sur deux des plus anciennes. */
+export const HISTORY_MAX = 2880;
+
+/** Historique de la partie pour le tableau de bord ; repart de zéro quand le temps recule. */
+export class GameHistory {
+  private list: Sample[] = [];
+
+  get samples(): readonly Sample[] {
+    return this.list;
+  }
+
+  clear(): void {
+    this.list = [];
+  }
+
+  record(s: GameState): void {
+    const last = this.list[this.list.length - 1];
+    if (last && s.time < last.time) this.list = [];
+    else if (last && s.time - last.time < HISTORY_STEP) return;
+    const t = tempStats(s);
+    this.list.push({
+      time: s.time,
+      ledger: { ...s.economy.ledger },
+      computeUsed: s.compute.used,
+      computeTotal: s.compute.total,
+      pue: pue(s),
+      availability: availability(s),
+      failures: s.economy.failures,
+      avgTemp: t.avg,
+      maxTemp: t.max,
+    });
+    if (this.list.length > HISTORY_MAX) {
+      const half = Math.floor(HISTORY_MAX / 2);
+      this.list = [...this.list.slice(0, half).filter((_, i) => i % 2 === 0), ...this.list.slice(half)];
+    }
+  }
+
+  /**
+   * Revenus et dépenses d'exploitation par minute, sur la minute qui précède chaque mesure
+   * (moins en tout début de partie). Les investissements sont à part.
+   */
+  flows(): { time: number; revenue: number; operating: number; investment: number }[] {
+    const out: { time: number; revenue: number; operating: number; investment: number }[] = [];
+    let j = 0;
+    for (const b of this.list) {
+      while (j < this.list.length - 1 && b.time - this.list[j + 1].time >= BALANCE_WINDOW) j++;
+      const a = this.list[j];
+      const bal = balanceBetween(a.ledger, b.ledger, b.time - a.time);
+      if (!bal) continue;
+      const perMinute = 60 / bal.seconds;
+      const spent = OPERATING.reduce((sum, k) => sum + bal.operating[k], 0);
+      out.push({ time: b.time, revenue: bal.revenue * perMinute, operating: spent * perMinute, investment: bal.investment * perMinute });
+    }
+    return out;
   }
 }

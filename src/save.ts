@@ -1,9 +1,10 @@
 import type { KeyValueStore } from './settings';
+import { emptyAlerts } from './sim/alert-memory';
 import type { Building, Job, Technician } from './sim/entities';
 import type { GameState, Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 1;
+export const SAVE_FORMAT = 2;
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export const SAVE_SLOTS: readonly SaveSlot[] = ['auto', 1, 2, 3];
@@ -72,6 +73,38 @@ function checkJob(j: unknown): asserts j is Job {
   }
 }
 
+type RawState = Record<string, unknown>;
+
+/**
+ * Mises à niveau successives, indexées par le format de départ : chaque étape ajoute ce que
+ * le format suivant a introduit. Une sauvegarde de la bêta 0.9 (format 1) se recharge donc.
+ */
+const MIGRATIONS: Record<number, (state: RawState) => void> = {
+  // 1 → 2 (0.10) : alertes préventives et compteurs d'exploitation.
+  1: (state) => {
+    state.alerts = emptyAlerts();
+    const buildings = Array.isArray(state.buildings) ? state.buildings : [];
+    if (isObject(state.economy)) {
+      Object.assign(state.economy, {
+        failures: buildings.reduce((n: number, b: unknown) => n + (isObject(b) && isInt(b.failures) ? b.failures : 0), 0),
+        rackSecondsInstalled: 0,
+        rackSecondsActive: 0,
+      });
+    }
+  },
+};
+
+function migrate(file: RawState): void {
+  if (!isObject(file.state)) return;
+  for (let format = file.format as number; format < SAVE_FORMAT; format++) MIGRATIONS[format]?.(file.state);
+  file.format = SAVE_FORMAT;
+}
+
+function checkAlerts(a: unknown): void {
+  need(isObject(a) && Array.isArray(a.hotRacks) && Array.isArray(a.lateJobs) && Array.isArray(a.unattended), 'alertes illisibles');
+  need(typeof a.power === 'boolean' && typeof a.cash === 'boolean', 'alertes incomplètes');
+}
+
 /** Vérifie la forme et la cohérence d'un état chargé (types, grille, occupation des cases). */
 function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'events'> {
   need(isObject(s), 'partie illisible');
@@ -89,6 +122,8 @@ function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'even
   const occupant = s.occupant as number[];
   for (const b of s.buildings as Building[]) need(occupant[b.y * (s.w as number) + b.x] === b.id, 'équipement et case en désaccord');
   need(isObject(s.power) && isObject(s.compute) && isObject(s.economy) && isObject(s.economy.ledger), 'statistiques manquantes');
+  for (const k of ['failures', 'rackSecondsInstalled', 'rackSecondsActive']) need(isNum(s.economy[k]), `compteur « ${k} » manquant`);
+  checkAlerts(s.alerts);
 }
 
 /** Relit une sauvegarde ; tout problème donne un refus explicite, jamais un état bancal. */
@@ -101,7 +136,7 @@ export function deserialize(json: string): LoadResult {
   }
   if (!isObject(file) || !isInt(file.format)) return { ok: false, error: 'Fichier illisible : ce n’est pas une sauvegarde.' };
   if ((file.format as number) > SAVE_FORMAT) return { ok: false, error: 'Sauvegarde créée par une version plus récente du jeu.' };
-  // Point de migration : les formats plus anciens seront convertis ici.
+  migrate(file);
   try {
     checkState(file.state);
   } catch (e) {

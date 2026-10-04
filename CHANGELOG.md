@@ -2,6 +2,29 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.10.0-beta] — 2026-10-04
+
+Premier lot de la feuille de route v1.0 : des outils de supervision pour voir venir les problèmes.
+
+### Ajouté
+
+- **Alertes préventives** dans le fil d'alertes, avec un son discret. Chacune ne part qu'une fois par épisode :
+  - rack à 32 °C ou plus ;
+  - énergie à 90 % de la capacité ;
+  - contrat en retard probable au débit actuel ;
+  - trésorerie couvrant moins d'une minute de dépenses ;
+  - rack en panne depuis 20 s sans technicien.
+- **Tableau de bord** (Tab, ou bouton du bandeau), en trois onglets :
+  - Finances : recettes et dépenses par minute, détail par poste ;
+  - Exploitation : PUE, disponibilité, calcul utilisé, pannes, contrats ;
+  - Thermique : températures et risque de panne.
+- **Panneau Équipe** (G, ou clic sur « Équipe » dans le bandeau) : chaque technicien (désormais avec un prénom), sa tâche, sa file et sa case. Un clic le sélectionne et centre la vue.
+- **Calques** (H pour avancer, Maj+H pour reculer, ou menu « Calques » de la barre) : chaleur, énergie, couverture des CRAC, occupation des racks, risque de panne. La légende suit le calque, y compris en mode daltonien.
+
+### Modifié
+
+- Sauvegarde au format 2. Les parties de la bêta 0.9 se rechargent sans perte.
+
 ## [0.9.0-beta] — 2026-10-04
 
 Première bêta. Le jeu est complet : il reste à l'équilibrer et à le corriger avec les retours des testeurs.

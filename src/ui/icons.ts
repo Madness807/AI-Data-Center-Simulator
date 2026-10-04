@@ -44,6 +44,8 @@ import {
   Eye,
   Copy,
   LogOut,
+  ChartLine,
+  Layers,
   type IconNode,
 } from 'lucide';
 
@@ -94,6 +96,8 @@ export const ICONS = {
   accessibility: Eye,
   copy: Copy,
   quit: LogOut,
+  dashboard: ChartLine,
+  layers: Layers,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;

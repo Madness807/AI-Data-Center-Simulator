@@ -86,4 +86,9 @@ export const RECIPES: Record<SoundId, Recipe> = {
   },
   saved: (c, o, t) => tone(c, o, t, NOTE.E5, 0.15, { gain: 0.1, to: NOTE.A5 }),
   offer: (c, o, t) => tone(c, o, t, NOTE.G5, 0.12, { gain: 0.06 }),
+  // Alerte préventive : deux notes douces qui descendent, plus discrètes qu'une panne.
+  caution: (c, o, t) => {
+    tone(c, o, t, NOTE.A5, 0.12, { type: 'triangle', gain: 0.08 });
+    tone(c, o, t + 0.14, NOTE.E5, 0.16, { type: 'triangle', gain: 0.08 });
+  },
 };

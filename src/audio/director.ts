@@ -16,7 +16,8 @@ export type SoundId =
   | 'victory'
   | 'defeat'
   | 'saved'
-  | 'offer';
+  | 'offer'
+  | 'caution';
 
 /** Son associé à un événement de la simulation (null : silencieux). */
 export function soundForEvent(code: EventCode | undefined): SoundId | null {
@@ -41,13 +42,19 @@ export function soundForEvent(code: EventCode | undefined): SoundId | null {
       return 'refused';
     case 'saved':
       return 'saved';
+    case 'overheat':
+    case 'powerHigh':
+    case 'lateRisk':
+    case 'cashLow':
+    case 'unattended':
+      return 'caution';
     default:
       return null;
   }
 }
 
 /** Délai minimal entre deux occurrences d'un même son (ms) : 5 pannes simultanées = 1 alarme. */
-const COOLDOWN: Partial<Record<SoundId, number>> = { failure: 1500, refused: 400, offer: 2000, place: 60, click: 40, built: 300, repaired: 300 };
+const COOLDOWN: Partial<Record<SoundId, number>> = { caution: 2500, failure: 1500, refused: 400, offer: 2000, place: 60, click: 40, built: 300, repaired: 300 };
 const DEFAULT_COOLDOWN = 150;
 
 /**

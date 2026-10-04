@@ -2,7 +2,7 @@ import { ENTRANCE } from '../../sim/balance';
 import type { GameState } from '../../sim/state';
 import { busyRackIds } from '../../sim/stats';
 import { PALETTE, statusColor } from '../../render/assets';
-import { HEAT_STOPS, tempToRgb } from '../../render/overlays';
+import { HEAT_STOPS, tempToRgb } from '../../render/overlay-colors';
 import { el, icon } from '../dom';
 
 /** Ce dont la mini-carte a besoin de la caméra. */

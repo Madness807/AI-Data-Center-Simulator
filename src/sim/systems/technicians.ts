@@ -2,6 +2,7 @@ import { REPAIR, TECH } from '../balance';
 import type { Building, Cell, Technician, TechTask } from '../entities';
 import { findPath, isAdjacent, isWalkable, pathNextTo } from '../pathfinding';
 import { spend } from '../ledger';
+import { techName } from '../names';
 import { buildingAt, buildingById, notify, type GameState } from '../state';
 
 /** Le bâtiment visé par la tâche, s'il a encore besoin d'elle. */
@@ -62,7 +63,7 @@ export function updateTechnicians(s: GameState, dt: number): void {
       if (!t.path || (t.path.length && !isWalkable(s, t.path[0].x, t.path[0].y))) {
         t.path = planPath(s, task, here);
         if (!t.path) {
-          notify(s, 'error', `Technicien ${t.id} : destination inaccessible`, { cell: { x: Math.round(t.x), y: Math.round(t.y) }, code: 'refused' });
+          notify(s, 'error', `${techName(s, t)} : destination inaccessible`, { cell: { x: Math.round(t.x), y: Math.round(t.y) }, code: 'refused' });
           nextTask(t);
           continue;
         }

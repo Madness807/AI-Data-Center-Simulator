@@ -24,6 +24,9 @@ export const percent = (ratio: number) => `${Math.round(ratio * 100)} %`;
 export const celsius = (t: number) => `${nf1.format(t)} °C`;
 
 /** Pourcentage avec une décimale sous 10 % (« 1,7 % »), entier au-delà. */
+const nf2 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Nombre à virgule : une décimale (pannes par heure) ou deux (PUE). */
+export const decimal = (n: number, digits: 1 | 2 = 1) => (digits === 2 ? nf2 : nf1).format(n);
 export const percentFine = (ratio: number) => `${(ratio < 0.1 ? nf1 : nf).format(ratio * 100)} %`;
 
 export const plural = (n: number, one: string, many = `${one}s`) => (n > 1 ? many : one);

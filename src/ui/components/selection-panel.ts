@@ -1,4 +1,5 @@
 import type { BuildingKind, Technician } from '../../sim/entities';
+import { techName } from '../../sim/names';
 import { buildingById, type GameState } from '../../sim/state';
 import { el, icon, setText } from '../dom';
 import { plural } from '../format';
@@ -51,7 +52,7 @@ export class SelectionPanel {
         const led = el('span', 'led');
         const task = el('span', 'task');
         const queue = el('span', 'chip queue');
-        row = { root: el('div', 'tech-row', led, el('b', undefined, `Tech ${t.id}`), task, queue), led, task, queue };
+        row = { root: el('div', 'tech-row', led, el('b', undefined, techName(s, t)), task, queue), led, task, queue };
         this.rows.set(t.id, row);
         this.list.append(row.root);
       }

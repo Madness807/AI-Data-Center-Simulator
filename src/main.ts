@@ -9,6 +9,7 @@ import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
 import { buildingAt, createInitialState, notify, type GameState, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
+import { OVERLAY_MODES, type OverlayMode } from './render/overlay-colors';
 import { renderThumbnails, type ThumbnailKey } from './render/thumbnails';
 import { BuildController, type Tool } from './input/build';
 import { pickGroundCell, rayFromScreen } from './input/picking';
@@ -117,7 +118,19 @@ const setSpeed = (speed: Speed) => {
   enqueue({ type: 'setSpeed', speed });
 };
 const setTool = (tool: Tool) => build.setTool(build.tool === tool ? null : tool);
-const toggleHeatmap = () => (view.heatmap.visible = !view.heatmap.visible);
+const setOverlay = (mode: OverlayMode | null) => (view.overlay.mode = mode);
+/** H : calque suivant (Maj : précédent), en passant par « aucun ». */
+const cycleOverlay = (dir: 1 | -1) => {
+  const order: (OverlayMode | null)[] = [null, ...OVERLAY_MODES];
+  view.overlay.mode = order[(order.indexOf(view.overlay.mode) + dir + order.length) % order.length];
+};
+/** Panneau Équipe : sélection des techniciens et caméra sur le premier. */
+const selectTechs = (ids: number[], focus: boolean) => {
+  selection.clear();
+  for (const id of ids) selection.selected.add(id);
+  const first = state.techs.find((t) => t.id === ids[0]);
+  if (focus && first) view.rts.focusOn(first.x + 0.5, first.y + 0.5);
+};
 const toggleEdgePan = () => settings.update({ edgePan: !settings.value.edgePan });
 const hire = () => enqueue({ type: 'hire' });
 const acceptJob = (id: number) => enqueue({ type: 'acceptJob', id });
@@ -225,9 +238,10 @@ const hud = new Hud(
   {
     setTool,
     setSpeed,
-    toggleHeatmap,
+    setOverlay,
     toggleEdgePan,
     hire,
+    selectTechs,
     acceptJob,
     rejectJob,
     newGame,
@@ -292,7 +306,7 @@ window.addEventListener('keydown', (e) => {
     else if (selection.selected.size || selection.inspected !== null) selection.clear();
     else hud.openPause();
   } else if (e.code === 'KeyT') hire();
-  else if (e.code === 'KeyH') toggleHeatmap();
+  else if (e.code === 'KeyH') cycleOverlay(e.shiftKey ? -1 : 1);
   else if (e.code === 'KeyB') toggleEdgePan();
   else if (e.code === 'Space') {
     e.preventDefault();
@@ -342,7 +356,7 @@ function frame(now: number) {
     state,
     {
       tool: build.tool,
-      heatmap: view.heatmap.visible,
+      overlay: view.overlay.mode,
       edgePan: view.rts.edgePan,
       hover: build.hover,
       selected: selection.selected,

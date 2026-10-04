@@ -1,6 +1,7 @@
 import { DT } from './balance';
 import { processCommands } from './commands';
 import type { GameState } from './state';
+import { updateAlerts } from './systems/alerts';
 import { updateEconomy } from './systems/economy';
 import { updateFailures } from './systems/failures';
 import { updateHeat } from './systems/heat';
@@ -10,7 +11,7 @@ import { updateTechnicians } from './systems/technicians';
 
 /**
  * Un tick de simulation, dans un ordre fixe : commandes → techniciens → pannes →
- * énergie → contrats → chaleur → économie. Une partie perdue est figée.
+ * énergie → contrats → chaleur → économie, puis alertes préventives. Une partie perdue est figée.
  */
 export function step(s: GameState): void {
   processCommands(s);
@@ -23,4 +24,5 @@ export function step(s: GameState): void {
   updateEconomy(s, DT);
   s.tick++;
   s.time = s.tick * DT;
+  updateAlerts(s);
 }

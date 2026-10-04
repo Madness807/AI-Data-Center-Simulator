@@ -271,6 +271,78 @@
 .legend-threshold { position: absolute; top: -3px; bottom: -3px; width: 2px; border-radius: 1px; background: #fff; }
 .legend-ticks { position: relative; font: 500 10px var(--font-mono); color: var(--text-faint); }
 .legend-ticks span { position: absolute; top: 4px; transform: translateX(-50%); }
+.legend:has(.legend-scale[hidden]) { padding-bottom: 10px; }
+.legend-icon { display: inline-flex; }
+.legend-scale[hidden], .legend-swatches[hidden], .legend-note[hidden] { display: none; }
+.legend-swatches { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.swatch.dashed { height: 3px; border-radius: 0; }
+.swatch.threshold { height: 0; border-top: 2px dashed var(--warn); border-radius: 0; }
+.legend-note { margin-top: 6px; font-size: 10.5px; color: var(--text-faint); }
+
+/* ───────────── Calques (barre de construction) ───────────── */
+.overlay-picker { position: relative; display: grid; }
+.overlay-icon { display: inline-flex; }
+.overlay-menu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 5; display: flex; flex-direction: column; gap: 4px; padding: 6px; min-width: 190px; }
+.overlay-menu[hidden] { display: none; }
+.overlay-item { justify-content: flex-start; gap: 8px; padding: 7px 10px; font-size: 12px; }
+.overlay-item.active { border-color: var(--glass-edge); color: var(--accent); }
+
+/* ───────────── Tableau de bord ───────────── */
+.res.clickable { cursor: pointer; border-radius: var(--radius-s); }
+.res.clickable:hover { background: var(--surface-hover); }
+.dashboard { width: min(880px, calc(100% - 32px)); height: min(640px, calc(100vh / var(--ui-scale, 1) - 48px)); overflow-y: auto; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+.dashboard .menu-head { gap: 10px; margin-bottom: 0; }
+.dash-tabs { display: flex; gap: 6px; margin-left: auto; }
+.dash-tab { gap: 6px; padding: 6px 11px; font-size: 12px; }
+.dash-tab.active { border-color: var(--glass-edge); color: var(--accent); background: var(--accent-soft); }
+.dash-page { display: flex; flex-direction: column; gap: 12px; }
+.dash-page[hidden] { display: none; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.kpi { display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); min-width: 0; }
+.kpi-label { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.kpi-value { font-size: 18px; font-weight: 600; }
+.kpi-value.ok { color: var(--ok); }
+.kpi-value.warn { color: var(--warn); }
+.kpi-value.danger { color: var(--danger); }
+.kpi-sub { font-size: 11px; line-height: 1.35; color: var(--text-dim); }
+.chart { margin: 0; padding: 10px 12px 8px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }
+.chart-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.chart-title { font-size: 12px; font-weight: 600; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.chart-plot { position: relative; height: 140px; margin-left: 58px; }
+.chart-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart-grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.chart-threshold { stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; opacity: 0.85; }
+.chart-line { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.chart-line.dashed { stroke-dasharray: 6 4; }
+.chart-y { position: absolute; left: -58px; width: 52px; text-align: right; font-size: 10.5px; color: var(--text-faint); }
+.chart-y-max { top: -6px; }
+.chart-y-min { bottom: -6px; }
+.chart-x { display: flex; justify-content: space-between; margin: 4px 0 0 58px; font-size: 10.5px; color: var(--text-faint); }
+.chart-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: var(--text-faint); }
+.chart-empty[hidden] { display: none; }
+.dash-section { display: flex; flex-direction: column; gap: 8px; }
+.dash-section-title { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.expense-table { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 12px; font-size: 12px; }
+.expense-table .mono { text-align: right; }
+.expense-track { height: 6px; border-radius: 3px; background: var(--surface-hover); overflow: hidden; }
+.expense-bar { display: block; height: 100%; border-radius: 3px; background: var(--danger); opacity: 0.75; }
+.expense-bar.ok { background: var(--ok); }
+
+/* ───────────── Équipe ───────────── */
+.team { width: min(600px, calc(100% - 32px)); max-height: calc(100vh / var(--ui-scale, 1) - 48px); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.team .menu-head { gap: 10px; margin-bottom: 0; }
+.team .menu-head .kbd { margin-left: auto; }
+.team-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
+.team-row { display: grid; grid-template-columns: auto 90px 1fr auto 70px; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-s); border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; }
+.team-row:hover { background: var(--surface-hover); border-color: var(--glass-border); }
+.team-row b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-row .task { color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-row .queue[hidden] { display: none; }
+.team-where { color: var(--text-faint); font-size: 11px; text-align: right; }
+.team-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* ───────────── Aide clavier ───────────── */
 .modal-backdrop { position: absolute; inset: 0; background: rgba(5, 8, 12, 0.62); display: grid; place-items: center; }
@@ -337,6 +409,11 @@
 /* Sous la barre du haut : mini-carte puis légende de la heatmap, que l'inspecteur ne doit pas atteindre. */
 #hud.lt-1320 .inspector { max-height: calc(100vh / var(--ui-scale, 1) - 380px); }
 #hud.lt-1320 .alerts { max-height: 200px; }
+/* La colonne de gauche s'arrête au-dessus de la barre du bas : les alertes rétrécissent. */
+#hud.lt-1320 .region-top-left { max-height: calc(100vh / var(--ui-scale, 1) - 112px - 140px); }
+#hud.lt-1320 .region-top-left > * { flex-shrink: 0; }
+#hud.lt-1320 .region-top-left > .alerts { flex-shrink: 1; min-height: 0; }
+#hud.lt-1320:has(.legend:not([hidden])) .inspector { max-height: calc(100vh / var(--ui-scale, 1) - 420px); }
 #hud.lt-1320:has(.inspector:not([hidden])) .alerts, #hud.lt-1320:has(.selection:not([hidden])) .alerts { display: none; }
 #hud.lt-1320:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1320:has(.selection:not([hidden])) .region-bottom { left: calc(50% + 160px); }
 #hud.lt-1100 .res-label, #hud.lt-1100 .res .meter { display: none; }

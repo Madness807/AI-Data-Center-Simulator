@@ -13,6 +13,22 @@ export function tempStats(s: GameState): { max: number; avg: number } {
   return { max, avg: sum / s.temp.length };
 }
 
+/**
+ * PUE (Power Usage Effectiveness) : énergie totale ÷ énergie des racks. 1 serait parfait ;
+ * les CRAC l'augmentent. null sans rack en service.
+ */
+export function pue(s: GameState): number | null {
+  let itKW = 0;
+  for (const b of s.buildings) if (isRackActive(b)) itKW += RACK.powerKW;
+  return itKW > 0 ? s.power.loadKW / itKW : null;
+}
+
+/** Part du temps où les racks installés ont fonctionné, depuis le début de la partie. */
+export function availability(s: GameState): number | null {
+  const e = s.economy;
+  return e.rackSecondsInstalled > 0 ? e.rackSecondsActive / e.rackSecondsInstalled : null;
+}
+
 /** Débit réservé par les contrats en cours (CU/s). */
 export function committedCompute(s: GameState): number {
   let total = 0;

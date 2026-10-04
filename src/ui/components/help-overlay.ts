@@ -36,7 +36,9 @@ const SECTIONS: { title: string; lines: [string, string[]][] }[] = [
     lines: [
       ['Pause', ['Espace']],
       ['Vitesse ×1, ×2, ×4', ['1', '2', '3']],
-      ['Carte de chaleur', ['H']],
+      ['Calques (chaleur, énergie, froid…)', ['H', 'Maj H']],
+      ['Tableau de bord', ['Tab']],
+      ['Équipe', ['G']],
       ['Cette aide', ['?', 'F1']],
     ],
   },

@@ -66,6 +66,25 @@ describe('sauvegarde', () => {
     }
   });
 
+  it('migre une sauvegarde de la bêta 0.9 (format 1)', () => {
+    const s = playedGame();
+    s.buildings[3].failures = 2;
+    const file = JSON.parse(serialize(s, '0.9.0-beta'));
+    // Ce que la bêta 0.9 écrivait : ni alertes ni compteurs d'exploitation.
+    file.format = 1;
+    delete file.state.alerts;
+    for (const k of ['failures', 'rackSecondsInstalled', 'rackSecondsActive']) delete file.state.economy[k];
+    const r = deserialize(JSON.stringify(file));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.file.format).toBe(SAVE_FORMAT);
+    expect(r.state.alerts).toEqual({ hotRacks: [], power: false, lateJobs: [], cash: false, unattended: [] });
+    expect(r.state.economy.failures).toBe(s.buildings.reduce((n, b) => n + b.failures, 0));
+    expect(r.state.economy.rackSecondsActive).toBe(0);
+    runSeconds(r.state, 60);
+    expect(r.state.economy.rackSecondsActive).toBeGreaterThan(0);
+  });
+
   it('gère les emplacements et désigne la plus récente', () => {
     const m = new SaveManager(memoryStore(), 'test');
     expect(m.latest()).toBeNull();

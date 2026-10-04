@@ -87,8 +87,8 @@ export const STEPS: TutorialStep[] = [
   {
     id: 'heatmap',
     title: 'Surveiller la chaleur',
-    text: 'Les racks chauffent. Ouvrez la carte de chaleur (touche H) : au-delà de 35 °C, les pannes se multiplient.',
-    highlight: '[data-toggle="heatmap"]',
+    text: 'Les racks chauffent. Ouvrez le calque de chaleur (touche H) : au-delà de 35 °C, les pannes se multiplient.',
+    highlight: '[data-toggle="overlay"]',
     done: ({ heatmap }) => heatmap,
   },
   {

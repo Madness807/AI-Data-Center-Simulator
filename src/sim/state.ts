@@ -1,6 +1,7 @@
 import { BUILD_TIME, ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_MONEY, TECH } from './balance';
 import type { Command } from './commands';
 import type { Building, BuildingKind, Cell, Job, Technician } from './entities';
+import { emptyAlerts, type AlertMemory } from './alert-memory';
 import { emptyLedger, type Ledger } from './ledger';
 
 export type Speed = 0 | 1 | 2 | 4;
@@ -23,7 +24,13 @@ export type EventCode =
   | 'won'
   | 'bankrupt'
   | 'refused'
-  | 'saved';
+  | 'saved'
+  // Alertes préventives (systems/alerts.ts).
+  | 'overheat'
+  | 'powerHigh'
+  | 'lateRisk'
+  | 'cashLow'
+  | 'unattended';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';
@@ -59,6 +66,11 @@ export interface EconomyStats {
   ledger: Ledger;
   jobsDone: number;
   jobsFailed: number;
+  /** Pannes depuis le début de la partie, racks démolis compris. */
+  failures: number;
+  /** Secondes × racks installés (hors chantier) et en service : la disponibilité est leur rapport. */
+  rackSecondsInstalled: number;
+  rackSecondsActive: number;
 }
 
 export interface GameState {
@@ -88,6 +100,8 @@ export interface GameState {
   nextJobId: number;
   nextOfferAt: number;
   economy: EconomyStats;
+  /** Mémoire des alertes préventives : une alerte par épisode. */
+  alerts: AlertMemory;
   /** 'won' laisse la partie continuer en mode libre ; 'lost' la fige. */
   outcome: Outcome;
   commands: Command[];
@@ -116,7 +130,18 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H): GameState {
     jobs: [],
     nextJobId: 1,
     nextOfferAt: 0,
-    economy: { electricityPerS: 0, salariesPerS: 0, bankruptTimer: 0, jobsDone: 0, jobsFailed: 0, ledger: emptyLedger() },
+    economy: {
+      electricityPerS: 0,
+      salariesPerS: 0,
+      bankruptTimer: 0,
+      jobsDone: 0,
+      jobsFailed: 0,
+      failures: 0,
+      rackSecondsInstalled: 0,
+      rackSecondsActive: 0,
+      ledger: emptyLedger(),
+    },
+    alerts: emptyAlerts(),
     outcome: 'playing',
     commands: [],
     events: [],

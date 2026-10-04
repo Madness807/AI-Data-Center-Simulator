@@ -2,21 +2,23 @@ import { BUILD_COST, TECH } from '../../sim/balance';
 import type { BuildingKind } from '../../sim/entities';
 import type { GameState } from '../../sim/state';
 import type { Tool } from '../../input/build';
-import { el, icon } from '../dom';
+import { OVERLAY_MODES, type OverlayMode } from '../../render/overlay-colors';
+import { el, icon, setText } from '../dom';
 import { money } from '../format';
 import type { IconName } from '../icons';
+import { OVERLAY_INFO } from './overlay-legend';
 
 export interface BuildBarActions {
   setTool: (tool: Tool) => void;
   hire: () => void;
-  toggleHeatmap: () => void;
+  setOverlay: (mode: OverlayMode | null) => void;
   toggleEdgePan: () => void;
   toggleHelp: () => void;
 }
 
 export interface BuildBarView {
   tool: Tool;
-  heatmap: boolean;
+  overlay: OverlayMode | null;
   edgePan: boolean;
   helpOpen: boolean;
 }
@@ -49,7 +51,12 @@ export class BuildBar {
   readonly toolCards = new Map<Exclude<Tool, null>, HTMLButtonElement>();
   readonly hireCard: HTMLButtonElement;
   private readonly thumbs = new Map<string, HTMLElement>();
-  private readonly heatButton: HTMLButtonElement;
+  private readonly overlayButton: HTMLButtonElement;
+  private readonly overlayIcon = el('span', 'overlay-icon');
+  private readonly overlayLabel = el('span');
+  private readonly overlayMenu: HTMLElement;
+  private readonly overlayItems = new Map<OverlayMode | null, HTMLButtonElement>();
+  private shownOverlay: OverlayMode | null | undefined;
   private readonly edgeButton: HTMLButtonElement;
   private readonly helpButton: HTMLButtonElement;
 
@@ -68,11 +75,30 @@ export class BuildBar {
     this.hireCard = hire.root;
     this.thumbs.set('technician', hire.thumb);
 
-    this.heatButton = toggle('heatmap', 'Chaleur', 'H', actions.toggleHeatmap);
-    this.heatButton.dataset.toggle = 'heatmap';
+    // Calques : un bouton (H les fait défiler) et un menu pour choisir directement.
+    this.overlayButton = el('button', 'btn overlay-button', this.overlayIcon, this.overlayLabel, el('span', 'kbd', 'H'));
+    this.overlayButton.dataset.toggle = 'overlay';
+    this.overlayMenu = el('div', 'overlay-menu glass');
+    this.overlayMenu.hidden = true;
+    for (const mode of [...OVERLAY_MODES, null]) {
+      const info = mode ? OVERLAY_INFO[mode] : { label: 'Aucun calque', icon: 'close' as IconName };
+      const item = el('button', 'btn overlay-item', icon(info.icon, 14), el('span', undefined, info.label));
+      item.onclick = () => {
+        actions.setOverlay(mode);
+        this.overlayMenu.hidden = true;
+      };
+      this.overlayItems.set(mode, item);
+      this.overlayMenu.append(item);
+    }
+    this.overlayButton.onclick = () => (this.overlayMenu.hidden = !this.overlayMenu.hidden);
+    document.addEventListener('pointerdown', (e) => {
+      const target = e.target as Node;
+      if (!this.overlayMenu.hidden && !this.overlayMenu.contains(target) && !this.overlayButton.contains(target)) this.overlayMenu.hidden = true;
+    });
     this.edgeButton = toggle('edgePan', 'Bords', 'B', actions.toggleEdgePan);
     this.helpButton = toggle('help', 'Aide', '?', actions.toggleHelp);
-    const toggles = el('div', 'toggle-group', this.heatButton, this.edgeButton, this.helpButton);
+    const overlays = el('div', 'overlay-picker', this.overlayButton, this.overlayMenu);
+    const toggles = el('div', 'toggle-group', overlays, this.edgeButton, this.helpButton);
     bar.append(el('div', 'build-sep'), hire.root, el('div', 'build-sep'), toggles);
     this.root = bar;
   }
@@ -89,7 +115,14 @@ export class BuildBar {
       b.disabled = tool !== 'demolish' && s.money < BUILD_COST[tool];
     }
     this.hireCard.disabled = s.money < TECH.hireCost || s.techs.length >= TECH.max;
-    this.heatButton.classList.toggle('active', view.heatmap);
+    if (view.overlay !== this.shownOverlay) {
+      this.shownOverlay = view.overlay;
+      const info = view.overlay ? OVERLAY_INFO[view.overlay] : { short: 'Calques', icon: 'layers' as IconName };
+      this.overlayIcon.replaceChildren(icon(info.icon, 14));
+      setText(this.overlayLabel, info.short);
+      this.overlayButton.classList.toggle('active', view.overlay !== null);
+      for (const [mode, item] of this.overlayItems) item.classList.toggle('active', mode === view.overlay);
+    }
     this.edgeButton.classList.toggle('active', view.edgePan);
     this.helpButton.classList.toggle('active', view.helpOpen);
   }

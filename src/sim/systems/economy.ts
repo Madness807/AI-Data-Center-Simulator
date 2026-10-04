@@ -1,4 +1,5 @@
 import { ECONOMY, TECH } from '../balance';
+import { isRackActive } from '../entities';
 import { spend } from '../ledger';
 import { notify, type GameState } from '../state';
 
@@ -10,6 +11,13 @@ export function updateEconomy(s: GameState, dt: number): void {
   s.economy.salariesPerS = salaries;
   spend(s, 'electricity', perS * dt);
   spend(s, 'salaries', salaries * dt);
+
+  // Disponibilité : temps de service des racks installés (une panne ou un délestage la fait baisser).
+  for (const b of s.buildings) {
+    if (b.kind !== 'rack' || b.status === 'construction') continue;
+    s.economy.rackSecondsInstalled += dt;
+    if (isRackActive(b)) s.economy.rackSecondsActive += dt;
+  }
 
   if (s.money < 0) {
     s.economy.bankruptTimer += dt;

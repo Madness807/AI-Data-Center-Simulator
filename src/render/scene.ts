@@ -30,7 +30,7 @@ import {
   type StatusName,
 } from './assets';
 import { cellCenter } from './grid';
-import { Heatmap } from './overlays';
+import { FloorOverlay } from './overlays';
 
 const ELEVATION = Math.atan(1 / Math.SQRT2); // isométrie vraie
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -203,7 +203,8 @@ export class SceneView {
   readonly scene = new THREE.Scene();
   readonly renderer: THREE.WebGLRenderer;
   readonly rts: RtsCamera;
-  readonly heatmap: Heatmap;
+  /** Calque au sol (chaleur, énergie, refroidissement, occupation, risque), ou aucun. */
+  readonly overlay: FloorOverlay;
   private readonly racks: RackInstances;
   private readonly markers = createStatusMarkers(RACK_CAPACITY);
   private readonly shedMarkers = createShedMarkers(RACK_CAPACITY);
@@ -240,12 +241,12 @@ export class SceneView {
     this.sun = lighting.sun;
     this.scene.add(lighting.root, createFloor(w, h));
     this.walls = createWalls(w, h);
-    this.heatmap = new Heatmap(w, h);
+    this.overlay = new FloorOverlay(w, h);
     this.racks = createRackInstances(RACK_CAPACITY);
     this.inspectRange.visible = false;
     this.scene.add(
       this.walls.root,
-      this.heatmap.mesh,
+      this.overlay.mesh,
       this.racks.body,
       this.racks.led,
       this.markers,
@@ -298,7 +299,7 @@ export class SceneView {
     this.syncOthers(s, realTime, realDt);
     this.syncTechs(s, realTime, alpha, selected);
     this.updatePings(realDt);
-    this.heatmap.update(s);
+    this.overlay.update(s);
     this.rts.update(realDt);
     this.walls.update(this.rts.yaw, realDt);
     this.renderer.render(this.scene, this.rts.camera);

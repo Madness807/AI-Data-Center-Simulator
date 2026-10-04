@@ -3,7 +3,7 @@ import { isRackActive, type Building, type BuildingKind, type Cell, type Technic
 import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad } from '../../sim/stats';
 import { failureRiskPerMinute } from '../../sim/systems/failures';
-import { tempToRgb } from '../../render/overlays';
+import { tempToRgb } from '../../render/overlay-colors';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { celsius, clock, money, percent, percentFine, plural, seconds, signedMoney } from '../format';
 import type { IconName } from '../icons';

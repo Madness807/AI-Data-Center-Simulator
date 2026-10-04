@@ -2,6 +2,7 @@ import { ECONOMY, FAILURE } from '../../sim/balance';
 import type { GameState, Speed } from '../../sim/state';
 import { tempStats } from '../../sim/stats';
 import type { Balance } from '../metrics';
+import type { DashboardTab } from './dashboard';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { celsius, clock, money, moneyRate, percent, plural, seconds } from '../format';
 import type { IconName } from '../icons';
@@ -49,7 +50,7 @@ export class ResourceBar {
   private readonly bankruptBanner = el('div', 'banner banner-bankrupt', icon('alert', 15));
   private readonly bankruptText = el('span');
 
-  constructor(setSpeed: (speed: Speed) => void, openMenu: () => void) {
+  constructor(setSpeed: (speed: Speed) => void, openMenu: () => void, panels: { dashboard: (tab: DashboardTab) => void; team: () => void }) {
     this.moneyBlock.sub.append(this.trend, this.moneyRate);
     const goalRow = el('div', 'res-sub', this.goal.root, this.goalPct);
     this.moneyBlock.root.querySelector('.res-body')!.append(goalRow);
@@ -64,6 +65,19 @@ export class ResourceBar {
       b.onclick = () => setSpeed(sp.speed);
       speed.append(b);
       this.speedButtons.set(sp.speed, b);
+    }
+    // Chaque bloc ouvre son détail : l'onglet du tableau de bord (Tab), ou le panneau Équipe (G).
+    const opens: [HTMLElement, () => void, string | null][] = [
+      [this.moneyBlock.root, () => panels.dashboard('finances'), null],
+      [this.power.root, () => panels.dashboard('operations'), 'Tableau de bord : exploitation (Tab)'],
+      [this.compute.root, () => panels.dashboard('operations'), 'Tableau de bord : exploitation (Tab)'],
+      [this.temp.root, () => panels.dashboard('thermal'), 'Tableau de bord : thermique (Tab)'],
+      [this.team.root, panels.team, 'Équipe (G)'],
+    ];
+    for (const [root, open, title] of opens) {
+      root.classList.add('clickable');
+      root.onclick = open;
+      if (title) root.title = title;
     }
     const menu = el('button', 'btn btn-icon menu-button', icon('menu', 16));
     menu.title = 'Menu (Échap)';

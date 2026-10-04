@@ -2,12 +2,15 @@ import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, PDU, RACK, REPAIR, TECH 
 import type { Cell } from '../sim/entities';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
 import type { Tool } from '../input/build';
-import { tempToRgb } from '../render/overlays';
+import { tempToRgb } from '../render/overlay-colors';
 import { AlertFeed } from './components/alert-feed';
 import { BuildBar } from './components/build-bar';
 import { ContractsPanel } from './components/contracts-panel';
-import { createHeatLegend } from './components/heat-legend';
 import { CursorFlash } from './components/cursor-flash';
+import { Dashboard, type DashboardTab } from './components/dashboard';
+import { OverlayLegend } from './components/overlay-legend';
+import { TeamPanel } from './components/team-panel';
+import type { OverlayMode } from '../render/overlay-colors';
 import { HelpOverlay } from './components/help-overlay';
 import { Inspector } from './components/inspector';
 import { Minimap, type MinimapCamera } from './components/minimap';
@@ -23,14 +26,16 @@ import { Tooltip } from './components/tooltip';
 import type { BuildingKind } from '../sim/entities';
 import { el, icon, setHidden } from './dom';
 import { celsius, money, moneyRate, percent, seconds, signedMoney } from './format';
-import { LedgerHistory, TemperatureHistory } from './metrics';
+import { GameHistory, LedgerHistory, TemperatureHistory } from './metrics';
 
 export interface HudActions {
   setTool: (tool: Tool) => void;
   setSpeed: (speed: Speed) => void;
-  toggleHeatmap: () => void;
+  setOverlay: (mode: OverlayMode | null) => void;
   toggleEdgePan: () => void;
   hire: () => void;
+  /** Sélectionne ces techniciens ; `focus` centre la caméra sur le premier (panneau Équipe). */
+  selectTechs: (ids: number[], focus: boolean) => void;
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
   /** Lance une nouvelle partie (guidée depuis l'écran titre si demandé). */
@@ -58,7 +63,8 @@ export interface HudActions {
 /** État d'interface (hors simulation) transmis à chaque image. */
 export interface HudView {
   tool: Tool;
-  heatmap: boolean;
+  /** Calque affiché au sol, ou null. */
+  overlay: OverlayMode | null;
   edgePan: boolean;
   hover: Cell | null;
   selected: ReadonlySet<number>;
@@ -97,7 +103,10 @@ export class Hud {
   private readonly build: BuildBar;
   private readonly contracts: ContractsPanel;
   private readonly selection = new SelectionPanel();
-  private readonly legend = createHeatLegend();
+  private readonly legend = new OverlayLegend();
+  private readonly dashboard = new Dashboard();
+  private readonly team: TeamPanel;
+  private readonly gameHistory = new GameHistory();
   private readonly help = new HelpOverlay();
   private readonly alerts: AlertFeed;
   private readonly flash = new CursorFlash();
@@ -131,7 +140,11 @@ export class Hud {
   ) {
     this.root = root;
     this.actions = actions;
-    this.resources = new ResourceBar(actions.setSpeed, () => this.openPause());
+    this.resources = new ResourceBar(actions.setSpeed, () => this.openPause(), {
+      dashboard: (tab) => this.togglePanel('dashboard', tab),
+      team: () => this.togglePanel('team'),
+    });
+    this.team = new TeamPanel({ select: actions.selectTechs, hire: actions.hire });
     this.pause = new PauseMenu(settings, {
       resume: () => this.closePause(),
       showHelp: () => this.help.toggle(),
@@ -182,12 +195,14 @@ export class Hud {
 
     root.append(
       region('top', this.resources.root, this.tutorial.root),
-      region('top-left', this.minimap.root, this.legend, this.alerts.root),
+      region('top-left', this.minimap.root, this.legend.root, this.alerts.root),
       region('right', this.contracts.root),
       region('bottom', this.build.root),
       region('bottom-left', this.inspector.root, this.selection.root),
       this.flash.root,
       this.overlay,
+      this.dashboard.root,
+      this.team.root,
       this.pause.root,
       this.slots.root,
       this.help.root,
@@ -217,12 +232,30 @@ export class Hud {
     if (this.speedBeforePause !== 0) this.actions.setSpeed(this.speedBeforePause);
   }
 
+  /**
+   * Ouvre ou ferme le tableau de bord (sur l'onglet demandé) ou le panneau Équipe ; un seul
+   * des deux à la fois. Un clic sur un autre onglet que celui affiché change d'onglet.
+   */
+  togglePanel(which: 'dashboard' | 'team', tab?: DashboardTab): void {
+    if (this.phase !== 'playing') return;
+    if (which === 'team') {
+      this.dashboard.close();
+      this.team.toggle();
+      return;
+    }
+    this.team.close();
+    if (this.dashboard.isOpen && (!tab || tab === this.dashboard.currentTab)) this.dashboard.close();
+    else this.dashboard.open(tab);
+  }
+
   /** Écran titre (salle de démonstration, HUD masqué) ou partie en cours. */
   setPhase(phase: 'title' | 'playing'): void {
     this.phase = phase;
     this.root.classList.toggle('phase-title', phase === 'title');
     this.slots.close();
     this.pause.close();
+    this.dashboard.close();
+    this.team.close();
     if (phase === 'title') this.title.setSaves(this.actions.saves.list().length > 0);
   }
 
@@ -252,13 +285,31 @@ export class Hud {
       if (e.code === 'Enter') this.title.primary();
       return true;
     }
-    return this.victoryOpen || this.state?.outcome === 'lost';
+    if (this.victoryOpen || this.state?.outcome === 'lost') return true;
+    const panelKey = e.code === 'Tab' ? 'dashboard' : e.code === 'KeyG' ? 'team' : null;
+    if (panelKey) {
+      e.preventDefault();
+      this.togglePanel(panelKey);
+      return true;
+    }
+    if (this.dashboard.isOpen || this.team.isOpen) {
+      if (e.code === 'Escape') {
+        this.dashboard.close();
+        this.team.close();
+        return true;
+      }
+      // Fenêtre ouverte : seules la pause et la vitesse passent au jeu.
+      return !['Space', 'Digit1', 'Digit2', 'Digit3'].includes(e.code);
+    }
+    return false;
   }
 
   /** Vide les cartes et l'historique, après un redémarrage. */
   reset(): void {
     this.contracts.reset();
     this.alerts.clear();
+    this.gameHistory.clear();
+    this.team.reset();
     this.victorySeen = false;
     this.victoryOpen = false;
   }
@@ -273,17 +324,21 @@ export class Hud {
     this.state = s;
     this.history.record(s.time, s.economy.ledger);
     this.temps.record(s.time, s.temp);
-    this.resources.update(s, this.history.balance());
-    this.minimap.update(s, view.heatmap, view.selected, now);
-    this.build.update(s, { tool: view.tool, heatmap: view.heatmap, edgePan: view.edgePan, helpOpen: this.help.isOpen });
+    this.gameHistory.record(s);
+    const balance = this.history.balance();
+    this.resources.update(s, balance);
+    this.minimap.update(s, view.overlay === 'heat', view.selected, now);
+    this.build.update(s, { tool: view.tool, overlay: view.overlay, edgePan: view.edgePan, helpOpen: this.help.isOpen });
+    this.dashboard.update(s, this.gameHistory, balance, now);
+    this.team.update(s);
     this.contracts.update(s);
     this.selection.update(s, view.selected);
     const inspected = view.inspected === null ? null : (s.buildings.find((b) => b.id === view.inspected) ?? null);
     this.inspector.update(s, inspected, this.temps);
     if (this.phase === 'playing') {
-      this.tutorial.update({ s, selected: view.selected, inspected: view.inspected, heatmap: view.heatmap }, now);
+      this.tutorial.update({ s, selected: view.selected, inspected: view.inspected, heatmap: view.overlay === 'heat' }, now);
     }
-    setHidden(this.legend, !view.heatmap);
+    this.legend.update(view.overlay, s);
     // Première victoire de la partie : pause et fenêtre de choix.
     if (this.phase === 'playing' && s.outcome === 'won' && !this.victorySeen) {
       this.victorySeen = true;
@@ -356,7 +411,7 @@ export class Hud {
           ['Pénalités', signedMoney(-o.penalties)],
           ['Investissements', signedMoney(-b.investment)],
         ],
-        'Le bilan exclut les investissements (construction, embauche).',
+        'Le bilan exclut les investissements (construction, embauche). Clic : tableau de bord.',
       );
     });
   }
