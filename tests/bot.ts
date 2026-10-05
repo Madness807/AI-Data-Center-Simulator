@@ -75,6 +75,9 @@ export interface BotRun {
   maxIntake: number;
   /** Relevé minute par minute, pour comprendre une partie. */
   timeline: string[];
+  /** Contrats d'entraînement livrés à temps, et en retard. */
+  trainingsDone: number;
+  trainingsLate: number;
 }
 
 type Item = { kind: BuildingKind; x: number; y: number; facing?: Facing; gen?: Gen };
@@ -350,11 +353,18 @@ class Bot {
 export function playBot(seed: number, profile: BotProfile, maxSeconds: number): BotRun {
   const s = createInitialState(seed, profile.career ? 'career' : 'quick');
   const bot = new Bot(profile);
-  const run: BotRun = { state: s, tierAt: [0], researchAt: {}, wonAt: null, lostAt: null, firstDeliveryAt: null, maxTemp: 0, maxIntake: 0, timeline: [] };
+  const run: BotRun = { state: s, tierAt: [0], researchAt: {}, wonAt: null, lostAt: null, firstDeliveryAt: null, maxTemp: 0, maxIntake: 0, timeline: [], trainingsDone: 0, trainingsLate: 0 };
   const totalTicks = Math.round(maxSeconds * TICK_HZ);
   for (let tick = 0; tick < totalTicks; tick++) {
     if (tick % BOT.thinkEveryTicks === 0) bot.think(s);
+    const trainings = s.jobs.filter((j) => j.kind === 'training' && j.status === 'active');
     step(s);
+    // Un entraînement qui quitte la liste est livré s'il est allé au bout, sinon il est en retard.
+    for (const j of trainings) {
+      if (s.jobs.includes(j)) continue;
+      if (j.progress >= j.work - 1e-6) run.trainingsDone++;
+      else run.trainingsLate++;
+    }
     for (const e of s.events) {
       if (e.code === 'delivered' && run.firstDeliveryAt === null) run.firstDeliveryAt = s.time;
       if (e.code === 'tierUp' || (e.code === 'won' && s.mode === 'career')) run.tierAt[s.career.tier] = s.time;
