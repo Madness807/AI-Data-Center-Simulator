@@ -1,6 +1,6 @@
 # Assets 3D
 
-Tous les modèles du jeu sont générés par le code (aucun fichier à charger) et rangés dans `src/render/assets/`. Le reste du jeu n'importe que `src/render/assets/index.ts`.
+Tous les modèles du jeu sont générés par le code (aucun fichier à charger) et rangés dans `src/render/assets/`. Le reste du jeu passe par `src/render/assets/index.ts`, sauf quelques imports directs et assumés : la palette et sa conversion `toRgb` (calques, vignettes), le fantôme de construction (`FACING_ANGLE`).
 
 ## Arborescence
 
@@ -8,13 +8,14 @@ Tous les modèles du jeu sont générés par le code (aucun fichier à charger) 
 src/render/assets/
 ├─ index.ts            point d'entrée unique + registre des modèles (PROP_MODELS)
 ├─ types.ts            contrats AssetModel, TechnicianModel, ModelState
-├─ palette.ts          toutes les couleurs
+├─ palette.ts          toutes les couleurs, y compris celles des calques (groupe overlay), et toRgb()
+├─ status-colors.ts    couleurs d'état (LEDs, mini-carte, HUD), variante daltonienne Okabe-Ito
 ├─ materials.ts        tous les matériaux, partagés
 ├─ geometry.ts         outils de géométrie (pavés, fusion, cuisson des couleurs, triangles)
 ├─ textures.ts         textures générées en pur JS (DataTexture) : dalles, rayures, panneaux
 ├─ cache.ts            once / onceBy : créer une fois, partager ensuite
 ├─ dimensions.ts       BUILDING_SIZE, l'encombrement de chaque bâtiment
-├─ props/              équipements : rack (instancié), crac, pdu, ups (onduleur), generator
+├─ props/              équipements : rack (instancié), crac, pdu, ups (onduleur), generator, cdu
 ├─ characters/         technicien et ses animations
 ├─ environment/        sol, murs, éclairage
 └─ fx/                 chantier, marqueurs d'état, anneaux, fantôme de construction
@@ -40,7 +41,7 @@ Low-poly stylisé, lisible en vue isométrique :
 | Origine | Centre de la base du modèle, posé au sol (y = 0). La scène place le modèle au centre de sa case. |
 | Orientation | Façade tournée vers +Z. |
 | Encombrement | Égal à `BUILDING_SIZE`, sans déborder de la case (±0,5). |
-| Couleurs | Uniquement dans `palette.ts`. Aucune couleur en dur ailleurs. |
+| Couleurs | Uniquement dans `palette.ts` (et sa variante daltonienne dans `status-colors.ts`). Aucune couleur en dur ailleurs. |
 | Matériaux | Uniquement dans `materials.ts`, créés une fois et partagés. Ne jamais modifier un matériau partagé pour une seule instance. |
 | Géométries | Créées une fois au niveau du module (`once`, `onceBy`) et partagées. |
 | Animations | Portées par le modèle (`update`, `animate`) ; la scène se contente de lui passer l'état. |
@@ -66,7 +67,7 @@ interface AssetModel {
   update(state: ModelState): void;     // appelé à chaque frame
 }
 
-interface ModelState { time; dt; speed; powered; progress }
+interface ModelState { time; dt; speed; powered; progress; charge?; discharging?; starting?; … }  // champs propres à l'onduleur et au groupe
 
 interface TechnicianModel {
   readonly root: THREE.Group;
@@ -79,11 +80,11 @@ Les racks ne suivent pas `AssetModel` : ils sont instanciés (`createRackInstanc
 
 ## Ajouter un équipement
 
-1. Ajouter son type à `BuildingKind` et à l'équilibrage (`src/sim/balance.ts`).
+1. Ajouter son type à `BUILDING_KINDS` (`src/sim/entities.ts` : la sauvegarde le reconnaît d'office), son nom à `KIND_INFO` (`src/ui/catalog.ts`) et ses réglages à `src/sim/balance.ts`. Le `switch` exhaustif de `updatePower` signale l'oubli de son alimentation.
 2. Ajouter son encombrement à `dimensions.ts`, ses couleurs à `palette.ts` et ses matériaux à `materials.ts`.
 3. Créer `props/<nom>.ts`, qui exporte une fabrique `createXxx(): AssetModel`.
 4. L'inscrire dans `PROP_MODELS` (`index.ts`).
-5. Lancer `npx vitest run tests/assets.test.ts` : le test vérifie l'encombrement, la pose au sol, le budget et le partage.
+5. Lancer `docker compose exec app npx vitest run tests/assets.test.ts` : le test vérifie l'encombrement, la pose au sol, le budget et le partage.
 
 ## Remplacer un modèle par un fichier .glb
 
@@ -94,5 +95,5 @@ Les racks ne suivent pas `AssetModel` : ils sont instanciés (`createRackInstanc
 
 ## Vérifier
 
-- `npx vitest run tests/assets.test.ts` vérifie les conventions ci-dessus.
+- `docker compose exec app npx vitest run tests/assets.test.ts` vérifie les conventions ci-dessus (les dépendances n'existent que dans le conteneur).
 - `window.__game` (en mode dev) permet de mettre la partie dans un état donné pour regarder un modèle.

@@ -17,7 +17,7 @@ Dans le dossier du jeu :
 docker compose --profile beta up -d --build beta
 ```
 
-Ouvrez ensuite **http://localhost:8080**. La première construction prend une à deux minutes : l'image installe les dépendances, puis vérifie le jeu (typage et tests) avant de le compiler.
+Ouvrez ensuite **http://localhost:8080**. La première construction prend quelques minutes : l'image installe les dépendances, puis vérifie le jeu (lint, typage et tests, dont les parties d'équilibrage) avant de le compiler.
 
 | Pour… | Commande |
 |---|---|
@@ -49,7 +49,7 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
 
 | Action | Touches |
 |---|---|
-| Déplacer la caméra / pivoter / zoomer | W A S D · Q E · molette |
+| Déplacer la caméra / pivoter / zoomer | W A S D (Z Q S D sur un clavier AZERTY) ou flèches · Q E (A E en AZERTY) · molette |
 | Sélectionner des techniciens | clic, ou glisser un rectangle (Maj pour ajouter) |
 | Ordonner : aller, construire, réparer, entretenir un rack usé (carrière) | clic droit (Maj + clic droit : mettre en file) |
 | Construire un rack, un CRAC, un PDU | R, C, P, puis clic (glisser pour enchaîner) ; réappuyer passe à la variante suivante (en carrière : racks G2 et G3, CDU, onduleur, groupe électrogène) |
@@ -114,7 +114,8 @@ Le jeu a été vérifié sous Chrome. Sur Firefox et sur Safari, une partie rapi
 
 ```sh
 APP_PORT=5174 docker compose up -d          # serveur de développement (rechargement à chaud)
-docker compose exec app npm run check       # typage, tests, build
+docker compose exec app npm run check       # lint (oxlint), typage, tests, build
+docker compose exec app npm run test:fast   # les tests sans les parties d'équilibrage (quelques secondes)
 docker compose up -d --build --renew-anon-volumes   # après un changement de dépendances
 docker compose stop beta                    # arrête la bêta sans toucher au serveur de développement
 ```
@@ -125,6 +126,13 @@ Attention : `docker compose --profile beta down` arrête **aussi** le serveur de
   - `src/sim/` : simulation déterministe, sans rendu ;
   - `src/render/` : Three.js et assets procéduraux ;
   - `src/ui/` : HUD et tutoriel ;
+  - `src/input/` : souris et clavier ;
   - `src/audio/` : sons synthétisés.
+- **Où changer quoi** :
+  - un réglage de jeu : `src/sim/balance.ts` ;
+  - un nom affiché : `src/ui/catalog.ts` ;
+  - une touche : `src/input/keymap.ts` ;
+  - une couleur : `src/ui/styles/tokens.css` ou `src/render/assets/palette.ts` ;
+  - un seuil de couleur du HUD : `src/ui/tones.ts`.
 - **Équilibrage** : `tests/balance.test.ts` fait jouer un bot sans rendu (`tests/bot.ts`). Si un réglage de `src/sim/balance.ts` fait échouer ces tests, c'est l'expérience de jeu qui a changé.
-- **Feuille de route** : [PLAN.md](PLAN.md). **Historique** : [CHANGELOG.md](CHANGELOG.md). **Licences tierces** : [public/assets/LICENSES.md](public/assets/LICENSES.md).
+- **Feuille de route** : [PLAN.md](PLAN.md). **Historique** : [CHANGELOG.md](CHANGELOG.md). **Audit de propreté** : [docs/AUDIT.md](docs/AUDIT.md). **Licences tierces** : [public/assets/LICENSES.md](public/assets/LICENSES.md).

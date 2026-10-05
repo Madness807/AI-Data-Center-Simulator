@@ -2,6 +2,39 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [Non publié]
+
+### Interne
+
+- **Audit de propreté du code** (rapport complet : `docs/AUDIT.md`). La simulation est restée identique au bit près ; une empreinte de huit parties l'a vérifié à chaque étape.
+- **Une seule source par donnée** :
+  - réglages dans `src/sim/balance.ts` : offres, premier contrat, paliers, réputation, recherche, alertes ;
+  - noms dans `src/ui/catalog.ts` ;
+  - touches dans `src/input/keymap.ts` ;
+  - teintes et seuils de couleur dans `tokens.css` et `src/ui/tones.ts` ;
+  - disposition dans `src/ui/layout.ts`.
+- **Code factorisé** :
+  - simulation : `failRack`, `makeOffer`, `math.ts`, helpers d'activation ;
+  - sauvegarde : listes de valeurs partagées avec les types ;
+  - interface : confirmation, couleurs, SVG, formats.
+- **Nettoyage** : code et CSS morts retirés.
+- **Outillage** :
+  - oxlint dans `npm run check` (ESLint attendra que typescript-eslint prenne en charge TypeScript 7) ;
+  - trois options strictes de plus pour le compilateur ;
+  - un script `test:fast`.
+- **Tests** : fabriques communes, attentes tirées des constantes, test de cohérence du bot.
+
+### Modifié
+
+- Les nouveautés des paliers listent tous les nœuds de recherche qu'ils ouvrent ; les descriptions des nœuds sont calculées depuis les réglages.
+- Le prix et la durée de réparation affichés tiennent compte du « Stock de pièces ».
+- **Mode daltonien** : les fonds et contours teintés suivent enfin la palette adaptée.
+- **Une même valeur a la même couleur dans tous les panneaux** (température, risque, autonomie des onduleurs).
+- **Aide** : avec Chrome ou Edge, les touches de caméra suivent le clavier du joueur (Z Q S D sur un AZERTY) ; une ligne pour les flèches.
+- **Noms** :
+  - « Rack GPU G2 » dans les infobulles et les tâches ;
+  - « CDU (liquide) » partout.
+
 ## [1.0.0] — 2026-10-05
 
 La v1.0 « Carrière » : une partie d'une heure et demie environ, de la start-up à l'hyperscaler, dans un data center bien plus proche du réel (énergie de secours, allées chaudes, refroidissement liquide, générations de GPU, usure et maintenance). La partie rapide garde exactement les règles de la bêta.

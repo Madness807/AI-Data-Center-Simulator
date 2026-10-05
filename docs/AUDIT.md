@@ -30,19 +30,19 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
    - Sa sensibilité a été vérifiée : 0,0001 kW de froid en plus sur un CRAC suffit à le faire échouer.
    - Chaque lot l'a passé tel quel.
 
-   Pour le recréer : reprendre le fichier depuis l'historique git et relever de nouvelles valeurs de référence.
+   Il a été retiré au lot 11. Pour le recréer, reprendre le fichier depuis l'historique git (`git show 0900ac1:tests/fingerprint.test.ts`), relever de nouvelles valeurs de référence, puis les figer.
 
 ## Mesures
 
 | Mesure | Avant (`d46d473`) | Après |
 |---|---|---|
-| Nombres hors 0 et 1 dans le code de `src/sim` (hors `balance.ts`) | 160 | — |
-| Nombres recopiés dans des textes de `src/sim` | 44 | — |
-| Couleurs littérales dans le CSS (hors `tokens.css`) | 11 hexadécimales, 57 `rgb()`/`rgba()` | — |
-| Recherches d'un bâtiment par id réécrites | 15 | — |
-| Arrondis à 10 $ recopiés | 8 | — |
-| Plus gros fichiers (lignes) | `hud.ts` 580, `scene.ts` 524, `components.css` 501, `inspector.ts` 494, `main.ts` 419, `bot.ts` 374 | — |
-| Durée des tests (dont équilibrage) | 24 s (24 s) | — |
+| Nombres hors 0 et 1 dans le code de `src/sim` (hors `balance.ts`) | 160 | 93, dont 51 dans la table des nœuds de recherche (contenu) |
+| Nombres recopiés dans des textes de `src/sim` | 44 | 16 |
+| Couleurs littérales dans le CSS (hors `tokens.css`) | 11 hexadécimales, 57 `rgb()`/`rgba()` | 2 hexadécimales, 15 `rgba()` : blancs et noirs neutres, fonds de bandeaux uniques |
+| Recherches d'un bâtiment par id réécrites | 15 | 4 (tutoriel et inspecteur, sur des ids qui peuvent manquer) |
+| Arrondis à 10 $ recopiés | 8 | 1 (`roundTo10` lui-même) |
+| Plus gros fichiers (lignes) | `hud.ts` 580, `scene.ts` 524, `components.css` 501, `inspector.ts` 494, `main.ts` 419, `bot.ts` 374 | 578, 525, 485, 489, 417, 393 : leur découpage est une refonte profonde ⏸ |
+| Durée des tests (dont équilibrage) | 24 s (24 s), 162 tests | environ 25 s, 167 tests ; `test:fast` en quelques secondes |
 | Linter | aucun | oxlint, 0 avertissement |
 
 ## Constats
@@ -303,7 +303,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - les volumes par défaut sont recopiés d'une source à l'autre ;
     - les coefficients d'ambiance sont écrits en ligne dans `main.ts` ;
     - `/ 10` suppose 10 CU/s par rack.
-  - **Statut** : 🐞 pour `/ 10` (l'ambiance changerait en carrière) ; le reste est prévu au lot 9.
+  - **Statut** : 🐞 pour `/ 10` (l'ambiance changerait en carrière). Le reste est ⏸ : les volumes par défaut du moteur, les coefficients d'ambiance écrits en ligne, la table exhaustive des sons par événement.
 - **U23 · Les touches de caméra restent actives sous les fenêtres et l'écran titre** (basse)
   - **Statut** : 🐞 Non corrigé (comportement) : les touches de caméra sont désormais lues dans la table des raccourcis, mais le passage par `hud.handleKey` reste à ajouter.
 ### Tests, outillage, documentation
@@ -331,7 +331,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : ✅ lot 10. Les parties rapides du joueur compétent sont jouées une fois pour deux tests, et chaque test d'équilibrage a une durée maximale nommée (`QUICK_TIMEOUT_MS`, `CAREER_TIMEOUT_MS`). `npm run test:fast` passe l'équilibrage (lot 1).
 - **T5 · L'arborescence d'architecture de `PLAN.md` est périmée** (haute)
   - **Constat** : `meshes.ts` et `interpolate.ts` n'existent plus ; la moitié des modules manque.
-  - **Statut** : prévu au lot 11.
+  - **Statut** : ✅ lot 11. L'arborescence est régénérée d'après les fichiers réels, un dossier ou un groupe de modules par ligne.
 - **T6 · Structure de `tests/bot.ts`** (moyenne)
   - **Constat** : 374 lignes, réglages sans nom, rythme des ticks codé en dur, aides dupliquées.
   - **Statut** : ✅ lot 10 pour les réglages : un objet `BOT` commenté et `TICK_HZ` au lieu de 10 et 600 ; la fonction `describe()` du bot devient `timelineLine()`, pour ne plus cacher celle de Vitest. Les décisions sont identiques (vérifié par l'empreinte). Le découpage en modules est ⏸.
@@ -357,7 +357,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : ⏸ il faudrait `@types/node`.
 - **T12 · `docs/ASSETS.md` est inexact** (moyenne)
   - **Constat** : imports, arborescence, règle des couleurs, `ModelState`, commandes `npx` sur l'hôte.
-  - **Statut** : prévu au lot 11.
+  - **Statut** : ✅ lot 11. Imports assumés, `status-colors.ts` et le CDU dans l'arborescence, `ModelState`, la procédure « ajouter un équipement » (`BUILDING_KINDS`, `KIND_INFO`, le `switch` de l'énergie), les commandes lancées dans le conteneur.
 - **T13 · Fichiers d'exploration jetables** (moyenne)
   - **Constat** : les sessions d'équilibrage recréent des tests à la main.
   - **Statut** : ⏸ un rapport de bot activable serait un ajout de fonctionnalité.
@@ -377,8 +377,9 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - `PLAN.md` dit « B = construction » ;
     - il parle d'esbuild et rollup ;
     - le README annonce « une à deux minutes » de première construction.
-  - **Statut** : prévu au lot 11.
-
+  - **Statut** : ✅ lot 11.
+    - `PLAN.md` : contexte, `npm ci`, binaires natifs, `VITE_USE_POLLING`, commandes et tâches, touches (B = défilement), 3 racks dans le scénario.
+    - README : durée de construction, touches AZERTY et flèches, `lint`, `test:fast`, et une rubrique « où changer quoi ».
 ## Changements visibles
 
 Tous corrigent une incohérence ou un texte faux ; aucun ne change une règle du jeu.

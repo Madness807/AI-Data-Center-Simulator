@@ -2,7 +2,7 @@
 
 ## Contexte
 
-Prototype web d'un RTS où le joueur construit et exploite un data center IA en temps réel. On commence par Three.js (et pas Unreal) pour itérer vite. Tout tourne dans Docker. Le dossier `/Users/jonathan/Desktop/jeux_data_center_ai` est vide : on part de zéro.
+Prototype web d'un RTS où le joueur construit et exploite un data center IA en temps réel. On a commencé par Three.js (et pas Unreal) pour itérer vite. Tout tourne dans Docker. Le projet est parti de zéro (v0.1a) ; la v1.0 « Carrière » est sortie le 5 octobre 2026.
 
 Choix validés : caméra isométrique 3D, pas d'IA ennemie en v1 (la pression vient des pannes, des deadlines et de la chaleur). La v0.1 (boucle complète) est découpée en trois tranches jouables. Recherche, énergie avancée, réseau et extension arrivent dans les jalons suivants.
 
@@ -11,10 +11,10 @@ Choix validés : caméra isométrique 3D, pas d'IA ennemie en v1 (la pression vi
 - TypeScript + Vite + Three.js (le seul gros paquet à installer)
 - UI : HTML/CSS par-dessus le canvas, sans framework
 - Docker :
-  - `Dockerfile` (node:22-alpine) qui fait le `npm install` **dans l'image**
+  - `Dockerfile` (node:22-alpine) qui fait le `npm ci` **dans l'image**
   - `docker-compose.yml` qui lance `vite --host` sur le port 5173, avec le dossier monté en volume pour le rechargement automatique
-  - volume anonyme `- /app/node_modules` pour que les binaires natifs Linux musl (esbuild, rollup) ne soient pas écrasés par ceux de macOS
-  - si le rechargement ne se déclenche pas sur macOS : `server.watch.usePolling: true` dans `vite.config.ts` (Vite ignore `CHOKIDAR_USEPOLLING`)
+  - volume anonyme `- /app/node_modules` pour que les binaires natifs Linux musl (rolldown, lightningcss, TypeScript, oxlint) ne soient pas écrasés par ceux de macOS
+  - si le rechargement ne se déclenche pas sur macOS : `VITE_USE_POLLING=true docker compose up` (lu par `vite.config.ts`)
   - depuis la bêta, l'étape `beta` du `Dockerfile` produit une image nginx qui sert `dist/` (service `beta`, profil compose `beta`, port 8080) ; elle n'est construite que si `npm run check` passe
 - Tests : Vitest sur la simulation pure (sans rendu), plus des bots d'équilibrage qui jouent des parties complètes
 
@@ -28,43 +28,35 @@ On sépare la simulation du rendu :
 Principes :
 
 - **State sérialisable** : uniquement des données simples (objets, tableaux, nombres), pas de classes. La sauvegarde et les replays deviennent faciles plus tard.
-- **File de commandes** : l'input ne modifie jamais le state. Il produit des commandes (`build`, `move`, `repair`, `acceptJob`, `rejectJob`, `setSpeed`…) que la simulation applique au tick suivant.
+- **File de commandes** : l'input ne modifie jamais le state. Il produit des commandes (`build`, `order`, `acceptJob`, `rejectJob`, `setSpeed`…) que la simulation applique au tick suivant ; se déplacer, construire ou réparer sont des tâches confiées aux techniciens par `order`.
 - **RNG à graine** stockée dans le state : simulation déterministe, donc tests reproductibles.
 - **Constantes d'équilibrage centralisées** dans `sim/balance.ts`.
 - **Contrôle du temps** : pause, x1, x2, x4. Un multiplicateur règle le nombre de ticks exécutés par frame ; le `dt` de la simulation ne change pas.
 
 ```
 src/
-  main.ts              boot, boucle (ticks sim fixes × vitesse + rendu rAF)
-  sim/
-    state.ts           GameState : grille, entités, argent, temps, rng, file de commandes
-    balance.ts         toutes les constantes (coûts, kW, °C, taux de panne…)
-    commands.ts        types de commandes + application au state
-    rng.ts             PRNG à graine (mulberry32)
-    pathfinding.ts     A* sur 4 voisins, accessibilité depuis l'entrée
-    entities.ts        types : Rack, Cooler, PowerUnit, Technician, Construction
-    sim.ts             step(state, dt) : enchaîne les systèmes dans un ordre fixe
-    systems/
-      power.ts         capacité vs charge → délestage par priorité
-      heat.ts          diffusion de chaleur sur la grille, refroidissement borné
-      jobs.ts          contrats : génération, acceptation, progression, deadline
-      failures.ts      pannes (taux/s × dt, ↑ avec la température)
-      technicians.ts   A* sur grille, tâches (move/repair/build), accessibilité
-      economy.ts       revenus, électricité, salaires, faillite
-  render/
-    scene.ts           scène, lumières, caméra iso (pan/zoom/rotation 90°)
-    meshes.ts          modèles low-poly procéduraux, InstancedMesh pour les racks
-    overlays.ts        heatmap (DataTexture sur un plan), indicateurs de panne
-    interpolate.ts     lissage des positions des techniciens entre deux ticks
-  input/
-    picking.ts         raycast sur le plan du sol → case ; les bâtiments sont visés par leur volume 3D
-    selection.ts       clic / sélection par rectangle, clic droit = commande
-    build.ts           mode construction : fantôme, validation, accessibilité
-  ui/
-    hud.ts             ressources, vitesse, barre de construction, contrats, alertes
-tests/
-  power.test.ts  heat.test.ts  jobs.test.ts  failures.test.ts
-  technicians.test.ts  economy.test.ts  scenario.test.ts
+  main.ts                 démarrage, boucle de jeu (ticks fixes × vitesse, rendu rAF), actions du HUD
+  save.ts  settings.ts  report.ts   sauvegardes (format, migrations, validation), options, rapport de bug
+  sim/                    simulation pure, déterministe, sans rendu
+    balance.ts            tous les réglages du jeu (coûts, kW, °C, taux, paliers, alertes…)
+    state.ts  entities.ts état sérialisable, types d'équipements, de techniciens, de contrats
+    sim.ts                step(s) : les systèmes dans un ordre fixe
+    commands.ts           commandes du joueur (construire, ordonner, accepter…) appliquées au tick
+    systems/              power, heat, jobs, failures, technicians, economy, incidents, alerts
+    career.ts  progression.ts  research.ts   modes, paliers, modificateurs, arbre de recherche
+    climate.ts  clusters.ts  stats.ts  ledger.ts   allées et météo, blocs d'entraînement, indicateurs, grand livre
+    pathfinding.ts  rng.ts  math.ts  names.ts  alert-memory.ts   A*, hasard à graine, petits calculs, prénoms
+  render/                 Three.js : lit l'état sans le modifier
+    scene.ts  overlays.ts  overlay-colors.ts  thumbnails.ts  grid.ts
+    assets/               modèles low-poly procéduraux, palette, matériaux (voir docs/ASSETS.md)
+  input/                  souris et clavier : build.ts, selection.ts, picking.ts, keymap.ts (table des raccourcis)
+  audio/                  sons synthétisés (sfx.ts), moteur, chef d'orchestre (director.ts)
+  ui/                     HUD en DOM, sans framework
+    hud.ts                orchestrateur des composants
+    components/           barre du haut, construction, contrats, inspecteur, tableau de bord, panneaux…
+    catalog.ts  tones.ts  layout.ts  format.ts  color.ts  confirm.ts   noms, teintes, disposition, formats
+    tutorial/  styles/    partie guidée ; jetons de design (tokens.css) et feuilles de style
+tests/                    Vitest sur la simulation et les modules purs, plus les bots d'équilibrage (bot.ts)
 ```
 
 ## Règles de jeu (v0.1)
@@ -82,7 +74,7 @@ Toutes les valeurs sont dans `balance.ts`.
 
 ### Énergie
 
-- La capacité est **globale** : c'est la somme des PDU construits. L'énergie locale par rayon de PDU arrive en v0.3.
+- La capacité est **globale** : c'est la somme des PDU construits. L'énergie locale par rayon de PDU reste une idée pour plus tard (voir « Suite »).
 - La charge est la somme des racks actifs et des CRAC actifs. **Les CRAC consomment de l'électricité.**
 - Si la charge dépasse la capacité, on coupe les racks les plus récents d'abord. Avec le pool global de calcul, aucun rack n'est attaché à un contrat : l'ordre « sans contrat, puis deadline la plus lointaine » reviendra avec l'assignation manuelle.
 - Les CRAC ne sont jamais délestés.
@@ -151,7 +143,7 @@ Toutes les valeurs sont dans `balance.ts`.
 - Zoom à la molette, borné.
 - Q/E : rotation par **pas de 90°** avec une animation courte, pour garder la lecture isométrique.
 - Espace : pause. Touches 1, 2, 3 : vitesse x1, x2, x4.
-- H : heatmap. B ou barre UI : mode construction. Échap : annuler.
+- H : calques (chaleur, énergie…). B : défilement par les bords. Échap : annuler. Les raccourcis sont tous dans `src/input/keymap.ts`.
 
 ## Jalons
 
@@ -265,6 +257,6 @@ Une carrière d'une heure et demie environ, en 4 paliers (réputation, puis calc
   - `balance` : bots d'équilibrage (joueur compétent, sans refroidissement, sans contrats, premier contrat ; en carrière : joueur soigné, sans recherche, sans énergie de secours).
 - `tests/scenario.test.ts` : le scénario du test manuel ci-dessous, rejoué sans rendu avec une graine fixe pour vérifier la même séquence (garde-fou contre les régressions d'équilibrage).
 - Scénario manuel :
-  1. Poser 4 racks sans refroidissement : surchauffe, puis pannes.
+  1. Poser 3 racks sans refroidissement : surchauffe, puis pannes.
   2. Envoyer un technicien réparer.
   3. Ajouter un CRAC : la température redescend.
