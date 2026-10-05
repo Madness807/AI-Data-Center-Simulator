@@ -1,8 +1,7 @@
 import { buildCost, TECH } from '../../sim/balance';
 import { isUnlocked, modifiers } from '../../sim/progression';
-import { toolBuild } from '../../input/build';
+import { toolBuild, type Tool } from '../../input/build';
 import type { GameState } from '../../sim/state';
-import type { Tool } from '../../input/build';
 import { OVERLAY_MODES, type OverlayMode } from '../../render/overlay-colors';
 import { el, icon, setText } from '../dom';
 import { money } from '../format';

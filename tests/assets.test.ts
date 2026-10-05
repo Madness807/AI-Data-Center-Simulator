@@ -146,7 +146,7 @@ describe('textures générées', () => {
 
 describe('mode daltonien', () => {
   it('bascule la palette d’état et signale le changement', async () => {
-    const { setColorblind, statusColor, statusVersion, PALETTE } = await import('../src/render/assets');
+    const { setColorblind, statusColor, statusVersion } = await import('../src/render/assets');
     const v = statusVersion();
     expect(statusColor('busy')).toBe(PALETTE.status.busy);
     setColorblind(true);

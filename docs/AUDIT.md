@@ -43,7 +43,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 | Arrondis à 10 $ recopiés | 8 | — |
 | Plus gros fichiers (lignes) | `hud.ts` 580, `scene.ts` 524, `components.css` 501, `inspector.ts` 494, `main.ts` 419, `bot.ts` 374 | — |
 | Durée des tests (dont équilibrage) | 24 s (24 s) | — |
-| Linter | aucun | — |
+| Linter | aucun | oxlint, 0 avertissement |
 
 ## Constats
 
@@ -279,13 +279,17 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : prévu au lot 10.
 - **T9 · Ni linter ni formateur** (moyenne)
   - **Constat** : style tenu à la main, environ 160 colonnes.
-  - **Statut** : oxlint au lot 1 ; formateur ⏸ (un commit de reformatage à part).
+  - **Statut** : ✅ lot 1, oxlint (`.oxlintrc.json`, `npm run lint`, dans `check`).
+    - Catégories correctness et suspicious, plus 8 garde-fous (`eqeqeq`, `no-console`, `no-explicit-any`, imports en double…) ; 0 avertissement.
+    - Les règles écartées sont justifiées dans le fichier.
+    - ESLint est impossible pour l'instant : typescript-eslint exige TypeScript < 6.1.
+    - Formateur ⏸ (un commit de reformatage à part).
 - **T10 · Options du compilateur** (moyenne)
   - **Constat** :
     - 3 options sans aucune erreur aujourd'hui ;
     - `exactOptionalPropertyTypes` : 5 erreurs ;
     - `noUncheckedIndexedAccess` : 230 erreurs.
-  - **Statut** : les 3 options au lot 1 ; le reste ⏸.
+  - **Statut** : ✅ lot 1 pour `noFallthroughCasesInSwitch`, `noImplicitReturns` et `noImplicitOverride` ; le reste ⏸.
 - **T11 · `vite.config.ts` n'est jamais typé** (moyenne)
   - **Statut** : ⏸ il faudrait `@types/node`.
 - **T12 · `docs/ASSETS.md` est inexact** (moyenne)
@@ -295,10 +299,13 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Constat** : les sessions d'équilibrage recréent des tests à la main.
   - **Statut** : ⏸ un rapport de bot activable serait un ajout de fonctionnalité.
 - **T14 · Images Docker non épinglées, pas d'`engines`** (basse)
-  - **Statut** : `engines` au lot 1 ; épinglage ⏸.
+  - **Statut** : ✅ lot 1 pour `engines` (Node 22.12 ou plus) ; épinglage ⏸.
 - **T15 · Détails nginx** (basse)
   - **Constat** : `favicon.ico` en 404, `add_header` sans `always`, `.gitkeep` servis, espace `/assets/` partagé avec Vite.
-  - **Statut** : favicon au lot 1 ; le reste ⏸.
+  - **Statut** : ✅ lot 1 pour le favicon (icône vide dans `index.html`) ; le reste ⏸.
+- **T18 · Scripts npm** (basse)
+  - **Constat** : `check` relançait `tsc` comme `build`, `dev` répétait `--host` (déjà dans `vite.config.ts`), il n'y avait pas de `lint` ni de `test:fast`.
+  - **Statut** : ✅ lot 1. `check` enchaîne lint, typage, tests et build. `test:fast` passe le fichier d'équilibrage. `.editorconfig` ajouté.
 - **T16 · Petits écarts dans les tests** (basse)
   - **Constat** : titres trompeurs, tests rangés dans le mauvais fichier, `y*s.w+x` au lieu d'`idx()`.
   - **Statut** : prévu au lot 10.

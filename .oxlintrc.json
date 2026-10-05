@@ -1,0 +1,37 @@
+{
+  // oxlint (règles compatibles ESLint et typescript-eslint) : typescript-eslint ne prend pas encore
+  // en charge TypeScript 7. Lancé par `npm run lint`, et donc par `npm run check`.
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import"],
+  "env": { "browser": true, "es2022": true },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "rules": {
+    // Garde-fous : aucune occurrence aujourd'hui, et il ne doit pas en apparaître.
+    "eqeqeq": "error",
+    "no-console": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-imports": "error",
+    "import/no-duplicates": "error",
+    // Les feuilles de style et les polices s'importent pour leur effet de bord.
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css", "@fontsource-variable/inter"] }],
+
+    // Écartées, avec la raison :
+    // un seul gestionnaire par élément (`onclick =`), volontairement remplaçable ; addEventListener cumulerait.
+    "unicorn/prefer-add-event-listener": "off",
+    // les tris et inversions portent sur des copies fraîches (filter, [...]) ; toSorted et toReversed demandent ES2023.
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off",
+    // de petites fonctions locales, gardées près de leur seul usage.
+    "unicorn/consistent-function-scoping": "off",
+    // `new Array(n).fill(v)` est l'idiome le plus lisible pour une grille.
+    "unicorn/no-new-array": "off",
+    // le préfixe _ marque une variable volontairement inutilisée (déstructuration).
+    "no-underscore-dangle": "off"
+  },
+  "ignorePatterns": ["dist/**", "node_modules/**"]
+}

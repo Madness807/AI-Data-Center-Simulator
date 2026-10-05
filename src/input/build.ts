@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import type * as THREE from 'three';
 import { CRAC } from '../sim/balance';
 import { canBuild, type Command } from '../sim/commands';
 import type { BuildingKind, Facing, Gen } from '../sim/entities';

@@ -1,9 +1,8 @@
 import type { KeyValueStore } from './settings';
 import { emptyAlerts } from './sim/alert-memory';
 import { defaultPolicies, emptyCareer, emptyResearch, rulesFor } from './sim/career';
-import { emptyCooling, emptyIncidents, emptyPower } from './sim/state';
+import { emptyCooling, emptyIncidents, emptyPower, type GameState, type Outcome } from './sim/state';
 import type { Building, Job, Technician } from './sim/entities';
-import type { GameState, Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
 export const SAVE_FORMAT = 7;

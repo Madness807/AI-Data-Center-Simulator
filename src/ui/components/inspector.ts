@@ -1,14 +1,12 @@
-import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, rackSpec, REPAIR, UPS } from '../../sim/balance';
+import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, REPAIR, UPS } from '../../sim/balance';
 import { upgradeBlocker, upgradeCost } from '../../sim/commands';
-import { MAINTENANCE } from '../../sim/balance';
-import { rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
+import { failureRiskPerMinute, rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
 import { isRackActive, type Building, type BuildingKind, type Cell, type Technician } from '../../sim/entities';
 import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad, redundancy } from '../../sim/stats';
 import { upsAutonomy } from '../../sim/systems/power';
-import { failureRiskPerMinute } from '../../sim/systems/failures';
 import { tempToRgb } from '../../render/overlay-colors';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { celsius, clock, decimal, money, percent, percentFine, plural, seconds, signedMoney } from '../format';

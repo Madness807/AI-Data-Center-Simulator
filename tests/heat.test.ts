@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { DT, HEAT } from '../src/sim/balance';
-import { addBuilding, createEmptyState, idx } from '../src/sim/state';
+import { addBuilding, createEmptyState, idx, type GameState } from '../src/sim/state';
 import { tempStats } from '../src/sim/stats';
 import { updateHeat } from '../src/sim/systems/heat';
 import { updatePower } from '../src/sim/systems/power';
-import type { GameState } from '../src/sim/state';
 
 /** Énergie + chaleur seules, sans pannes ni contrats. */
 function runHeat(s: GameState, seconds: number): void {

@@ -1,5 +1,4 @@
-import type { SaveSlot, SlotInfo } from '../../save';
-import { SAVE_SLOTS } from '../../save';
+import { SAVE_SLOTS, type SaveSlot, type SlotInfo } from '../../save';
 import { el, icon, setText } from '../dom';
 import { clock, money, plural } from '../format';
 

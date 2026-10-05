@@ -1,8 +1,7 @@
-import { FAILURE } from '../balance';
+import { FAILURE, PREDICTIVE } from '../balance';
 import { isRackActive, type Building } from '../entities';
 import { modifiers, researchReserve } from '../progression';
 import { rackRiskPerMinute } from './failures';
-import { PREDICTIVE } from '../balance';
 import { upsAutonomy } from './power';
 import { rackTemp } from '../climate';
 import { notify, type GameState } from '../state';

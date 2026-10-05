@@ -33,7 +33,7 @@ describe('scénario', () => {
     expect(buildingAt(s, 11, 6)?.status).toBe('ok');
 
     // D'autres pannes ont pu survenir pendant la chauffe : on les fait réparer aussi.
-    for (const r of racks.filter((r) => r.status === 'failed')) {
+    for (const r of racks.filter((b) => b.status === 'failed')) {
       s.commands.push({ type: 'order', techs: [tech.id], task: { type: 'repair', target: r.id }, append: true });
     }
     runSeconds(s, 180);

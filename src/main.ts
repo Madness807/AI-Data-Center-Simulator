@@ -7,7 +7,7 @@ import './ui/styles/components.css';
 import { DT, HEAT, MAX_TICKS_PER_FRAME } from './sim/balance';
 import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
-import { buildingAt, createInitialState, notify, type GameState, type Speed } from './sim/state';
+import { buildingAt, createInitialState, notify, type GameEvent, type GameState, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
 import { OVERLAY_MODES, type OverlayMode } from './render/overlay-colors';
 import { renderThumbnails, type ThumbnailKey } from './render/thumbnails';
@@ -27,7 +27,6 @@ import { SaveManager, deserialize, serialize, type SaveSlot } from './save';
 import { AudioEngine } from './audio/engine';
 import { SoundDirector, type SoundId } from './audio/director';
 import { tempStats } from './sim/stats';
-import type { GameEvent } from './sim/state';
 
 applyTheme();
 const settings = new SettingsStore();
