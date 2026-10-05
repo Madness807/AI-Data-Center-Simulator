@@ -91,11 +91,11 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : prévu au lot 4.
 - **S6 · Le bloc « un rack tombe en panne » est copié 3 fois** (moyenne)
   - **Où** : `systems/failures.ts:68-71`, `systems/incidents.ts:88-91`, `commands.ts:100-103`.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lot 3. `failRack()` dans `systems/failures.ts`, utilisé par les pannes, les coupures et l'exercice du tutoriel.
 - **S7 · Les contrats sont construits 4 fois à la main** (moyenne)
   - **Où** : `state.ts:233-248`, `systems/jobs.ts:145-219`.
   - **Constat** : 4 objets de 15 champs, la formule de pénalité 3 fois, l'arrondi à 10 $ 8 fois.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lot 3. `makeOffer()` et `roundTo10()` pour les 3 offres de `jobs.ts`, avec le même ordre des tirages et des champs. Le premier contrat de `state.ts` reste écrit à la main : sa pénalité est fixe, et importer `jobs.ts` créerait un cycle.
 - **S8 · Des helpers existants sont contournés** (moyenne)
   - **Constat** :
     - `buildingById` est réécrit 6 fois dans la simulation, 7 fois dans l'interface et le rendu ;
@@ -103,20 +103,26 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - `targeted` (privé) est recopié ;
     - `openCell` est identique à `isWalkable` ;
     - `inBounds` est réécrit.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lot 3 dans la simulation :
+    - `buildingById` partout (commandes, statistiques, blocs) ;
+    - `isRackActive` là où il était réécrit ;
+    - `isTaskAssigned` exporté et partagé avec les alertes et l'inspecteur ;
+    - `inBounds` dans les blocs.
+
+    Les copies de `buildingById` dans l'interface sont prévues au lot 9.
 - **S9 · Une vingtaine de filtres type + statut répétés** (moyenne)
   - **Où** : `power.ts`, `incidents.ts`, `stats.ts`…
   - **Remède** : quelques prédicats nommés.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ⏸ Les filtres restants se lisent bien en ligne. Sans quatre prédicats de plus, il manquerait trois occurrences identiques pour justifier chacun.
 - **S10 · Activation des mécaniques testée en ligne** (moyenne)
   - **Constat** : seule l'usure a son `wearActive` ; météo, coupures et offres spéciales sont testées en ligne, jusque dans l'interface.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lot 3. `weatherActive` (climat), `outagesActive` (incidents) et `specialOffersActive` (offres) s'ajoutent à `wearActive`. Le calque énergie et les conseils de carrière les utilisent.
 - **S11 · La prévision de retard réimplémente l'allocation** (moyenne)
   - **Où** : `systems/alerts.ts:118-153` contre `systems/jobs.ts:34-46`.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lot 3. `inferencePool()` partagé par l'allocation et la prévision ; la part de recherche est désormais bornée au même endroit. Seule la prévision voit l'ordre d'une soustraction changer ; l'empreinte reste identique.
 - **S12 · Fonctions trop longues** (moyenne)
   - **Où** : `processCommands` (119 lignes), `updateJobs` (60 lignes, qui fait aussi avancer la recherche).
-  - **Statut** : table de gestionnaires au lot 3 si le temps le permet ; découpage d'`updateJobs` ⏸ (l'ordre des étapes d'un tick changerait).
+  - **Statut** : ⏸ La table de gestionnaires de `processCommands` n'a pas été faite cette nuit. Le découpage d'`updateJobs` changerait l'ordre des étapes d'un tick.
 - **S13 · Noms trompeurs** (moyenne)
   - **Constat** :
     - `WEAR.failureMult: 2` signifie ×3 ;
@@ -141,7 +147,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : 🐞
 - **S17 · Une catégorie d'équipement imprévue serait alimentée gratuitement** (moyenne)
   - **Où** : `systems/power.ts:33-38`.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lot 3. `switch` exhaustif sur le type d'équipement, avec `unknownKind()` (`entities.ts`) : un type oublié ne compile plus.
 - **S18 · Petits helpers dupliqués** (basse)
   - **Constat** :
     - `lerp` (2 fois) ;
@@ -149,10 +155,14 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - distance de Manhattan (5 fois) ;
     - 4 directions (2 fois) ;
     - le générateur aléatoire recopié dans `names.ts`.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lot 3. `src/sim/math.ts` regroupe `lerp`, `chance`, `manhattan`, `DIRS4` (même ordre d'exploration) et `roundTo10`. `names.ts` réutilise `rng.ts` sur un état à part ; l'ordre des prénoms a été vérifié identique sur 30 graines.
 - **S19 · Indirections inutiles, commentaires périmés, lignes de plus de 160 caractères** (basse)
   - **Constat** : `EXHAUST_SHARE`, `liquidCapture`, `tempOf`, imports en double.
-  - **Statut** : prévu au lot 3.
+  - **Statut** : ✅ lots 1 et 3.
+    - Supprimés : `EXHAUST_SHARE`, `tempOf`, les imports en double.
+    - Corrigés : les commentaires périmés (« v0.1 », « v0.1c »), les lignes de plus de 160 caractères dans la simulation.
+    - Un commentaire explique pourquoi la première coupure tire un nombre au hasard.
+    - `liquidCapture` est gardé : c'est un nom utile, utilisé par la chaleur et les tests.
 - **S20 · Cache de `modifiers()`** (basse)
   - **Constat** : la clé `done.join(',')` est recalculée par rack et par tick.
   - **Statut** : ⏸ performance, hors propreté.

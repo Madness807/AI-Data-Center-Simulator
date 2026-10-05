@@ -7,6 +7,7 @@ import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad, redundancy } from '../../sim/stats';
 import { upsAutonomy } from '../../sim/systems/power';
+import { isTaskAssigned } from '../../sim/systems/technicians';
 import { tempToRgb } from '../../render/overlay-colors';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { celsius, clock, decimal, money, percent, percentFine, plural, seconds, signedMoney } from '../format';
@@ -329,7 +330,7 @@ export class Inspector {
       const w = b.wear ?? 0;
       this.wearGauge.set(w / 100, `${Math.round(w)} %`, w >= 70 ? 'danger' : w >= MAINTENANCE.autoAbove ? 'warn' : 'ok');
     }
-    const servicing = s.techs.some((t) => t.tasks.some((k) => k.type === 'maintain' && k.target === b.id));
+    const servicing = isTaskAssigned(s, 'maintain', b.id);
     setHidden(this.maintainButton, !(worn && b.status === 'ok' && (b.wear ?? 0) >= 10 && !servicing));
     if (s.rules.aisles) {
       const own = idx(s, b.x, b.y);

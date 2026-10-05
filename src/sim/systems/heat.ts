@@ -1,5 +1,5 @@
 import { AISLE, CRAC, DT, HEAT, rackSpec, UPS } from '../balance';
-import { cracWeatherFactor, EXHAUST_SHARE, exhaustIndex, hotAisleCells, liquidCapture, outsideTemp } from '../climate';
+import { cracWeatherFactor, exhaustIndex, hotAisleCells, liquidCapture, outsideTemp } from '../climate';
 import type { Building } from '../entities';
 import { modifiers } from '../progression';
 import { idx, type GameState } from '../state';
@@ -35,8 +35,8 @@ export function updateHeat(s: GameState, dt: number): void {
       const ex = exhaustIndex(s, b);
       if (ex === null) temp[own] += air;
       else {
-        temp[ex] += air * EXHAUST_SHARE;
-        temp[own] += air * (1 - EXHAUST_SHARE);
+        temp[ex] += air * AISLE.exhaustShare;
+        temp[own] += air * (1 - AISLE.exhaustShare);
       }
     } else if (b.kind === 'ups') temp[idx(s, b.x, b.y)] += (UPS.heatKW * dt) / C;
     else if (b.kind === 'crac') {

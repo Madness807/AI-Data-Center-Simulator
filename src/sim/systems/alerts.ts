@@ -1,8 +1,10 @@
 import { ALERTS, FAILURE, PREDICTIVE } from '../balance';
 import { isRackActive, type Building } from '../entities';
-import { modifiers, researchReserve } from '../progression';
+import { modifiers } from '../progression';
 import { rackRiskPerMinute } from './failures';
+import { inferencePool } from './jobs';
 import { upsAutonomy } from './power';
+import { isTaskAssigned } from './technicians';
 import { rackTemp } from '../climate';
 import { notify, type GameState } from '../state';
 
@@ -28,7 +30,8 @@ function predictive(s: GameState): void {
     if (known.has(b.id) ? risk >= PREDICTIVE.resetPerMin : risk >= PREDICTIVE.warnPerMin) {
       next.push(b.id);
       if (!known.has(b.id)) {
-        notify(s, 'warning', `Rack ${b.x},${b.y} : panne probable (${Math.round(risk * 100)} %/min, usure ${Math.round(b.wear ?? 0)} %) — entretien conseillé`, { cell: b, code: 'wearRisk' });
+        const message = `Rack ${b.x},${b.y} : panne probable (${Math.round(risk * 100)} %/min, usure ${Math.round(b.wear ?? 0)} %) — entretien conseillé`;
+        notify(s, 'warning', message, { cell: b, code: 'wearRisk' });
       }
     }
   }
@@ -48,7 +51,6 @@ function upsLow(s: GameState): void {
   notify(s, 'warning', `Batteries des onduleurs : environ ${Math.max(1, Math.round(left))} s d’autonomie`, { code: 'upsLow' });
 }
 
-const tempOf = (s: GameState, b: Building) => rackTemp(s, b);
 const where = (b: Building) => `${b.x},${b.y}`;
 
 function hotRacks(s: GameState): void {
@@ -57,7 +59,7 @@ function hotRacks(s: GameState): void {
   const fresh: Building[] = [];
   for (const b of s.buildings) {
     if (!isRackActive(b)) continue;
-    const t = tempOf(s, b);
+    const t = rackTemp(s, b);
     if (known.has(b.id) ? t >= ALERTS.hotResetC : t >= ALERTS.hotC) {
       still.push(b.id);
       if (!known.has(b.id)) fresh.push(b);
@@ -66,8 +68,8 @@ function hotRacks(s: GameState): void {
   s.alerts.hotRacks = still;
   if (!fresh.length) return;
   // Plusieurs racks qui chauffent ensemble : une seule alerte, centrée sur le plus chaud.
-  const hottest = fresh.reduce((m, b) => (tempOf(s, b) > tempOf(s, m) ? b : m));
-  const t = Math.round(tempOf(s, hottest));
+  const hottest = fresh.reduce((m, b) => (rackTemp(s, b) > rackTemp(s, m) ? b : m));
+  const t = Math.round(rackTemp(s, hottest));
   const message =
     fresh.length === 1
       ? `Rack ${where(hottest)} à ${t} °C : pannes en hausse au-delà de ${FAILURE.thresholdC} °C`
@@ -104,9 +106,11 @@ export function predictCompletion(s: GameState): Map<number, number> {
     .sort((a, b) => a.deadline - b.deadline)
     .map((j) => ({ id: j.id, rate: j.rateCU, work: j.work - j.progress }));
   let t = s.time;
+  const training = s.jobs.reduce((sum, j) => sum + (j.status === 'active' && j.kind === 'training' ? j.allocated : 0), 0);
+  const free = inferencePool(s, s.compute.total, training);
   // Chaque tour termine au moins un contrat ; la garde couvre les arrondis.
   for (let guard = 0; left.length && guard <= s.jobs.length; guard++) {
-    let pool = s.compute.total - researchReserve(s) - s.jobs.reduce((sum, j) => sum + (j.status === 'active' && j.kind === 'training' ? j.allocated : 0), 0);
+    let pool = free;
     const alloc = left.map((j) => {
       const a = Math.min(pool, j.rate);
       pool -= a;
@@ -167,7 +171,7 @@ function unattended(s: GameState): void {
   const fresh: Building[] = [];
   for (const b of s.buildings) {
     if (b.kind !== 'rack' || b.status !== 'failed') continue;
-    if (s.techs.some((t) => t.tasks.some((k) => k.type === 'repair' && k.target === b.id))) continue;
+    if (isTaskAssigned(s, 'repair', b.id)) continue;
     const u = prev.get(b.id) ?? { id: b.id, since: s.time, notified: false };
     if (!u.notified && s.time - u.since >= ALERTS.unattendedS) {
       u.notified = true;

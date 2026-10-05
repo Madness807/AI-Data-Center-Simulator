@@ -3,7 +3,8 @@ import type { BuildingKind, Facing, Gen, Specialty, TechTask } from './entities'
 import { keepsAccess } from './pathfinding';
 import { isUnlocked, modifiers, researchBlocker, unlockedBy } from './progression';
 import { refund, spend } from './ledger';
-import { addBuilding, addTech, buildingAt, inBounds, isEntrance, notify, removeBuilding, type GameState, type Speed } from './state';
+import { addBuilding, addTech, buildingAt, buildingById, inBounds, isEntrance, notify, removeBuilding, type GameState, type Speed } from './state';
+import { failRack } from './systems/failures';
 import { updatePower } from './systems/power';
 
 export type Command =
@@ -94,12 +95,9 @@ export function processCommands(s: GameState): void {
         }
         break;
       case 'forceFailure': {
-        const b = s.buildings.find((o) => o.id === c.id);
+        const b = buildingById(s, c.id);
         if (!b || b.kind !== 'rack' || b.status !== 'ok') break;
-        b.status = 'failed';
-        b.failures++;
-        s.economy.failures++;
-        notify(s, 'warning', `Panne du rack ${b.x},${b.y} (exercice)`, { cell: b, code: 'failure' });
+        failRack(s, b, ' (exercice)');
         break;
       }
       case 'acceptJob': {
@@ -129,7 +127,7 @@ export function processCommands(s: GameState): void {
         break;
       }
       case 'upgrade': {
-        const b = s.buildings.find((o) => o.id === c.id);
+        const b = buildingById(s, c.id);
         const reason = upgradeBlocker(s, b);
         if (reason || !b) {
           notify(s, 'error', reason ?? 'Équipement introuvable', { code: 'refused' });
@@ -147,7 +145,7 @@ export function processCommands(s: GameState): void {
         break;
       }
       case 'rotate': {
-        const b = s.buildings.find((o) => o.id === c.id);
+        const b = buildingById(s, c.id);
         if (b?.kind === 'rack' && s.rules.aisles) b.facing = (((b.facing ?? 0) + 1) % 4) as Facing;
         break;
       }

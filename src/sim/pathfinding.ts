@@ -1,20 +1,14 @@
 import { ENTRANCE } from './balance';
 import type { Building, Cell } from './entities';
+import { DIRS4, manhattan } from './math';
 import { idx, inBounds, type GameState } from './state';
-
-const DIRS = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-] as const;
 
 export function isWalkable(s: GameState, x: number, y: number): boolean {
   return inBounds(s, x, y) && s.occupant[idx(s, x, y)] < 0;
 }
 
 export function isAdjacent(a: Cell, b: Cell): boolean {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+  return manhattan(a, b) === 1;
 }
 
 /**
@@ -54,7 +48,7 @@ export function findPath(
       for (let p = cur; p !== si; p = parent[p]) path.push({ x: p % s.w, y: Math.floor(p / s.w) });
       return path.reverse();
     }
-    for (const [dx, dy] of DIRS) {
+    for (const [dx, dy] of DIRS4) {
       const nx = cx + dx;
       const ny = cy + dy;
       if (!isWalkable(s, nx, ny)) continue;
@@ -78,7 +72,7 @@ export function pathNextTo(s: GameState, start: Cell, b: Building): Cell[] | nul
     s,
     start,
     (c) => isAdjacent(c, b) && isWalkable(s, c.x, c.y),
-    (c) => Math.max(0, Math.abs(c.x - b.x) + Math.abs(c.y - b.y) - 1),
+    (c) => Math.max(0, manhattan(c, b) - 1),
   );
 }
 
@@ -97,7 +91,7 @@ export function reachableFromEntrance(s: GameState, extraBlocked = -1): Uint8Arr
     const cur = queue.pop()!;
     const cx = cur % s.w;
     const cy = (cur - cx) / s.w;
-    for (const [dx, dy] of DIRS) {
+    for (const [dx, dy] of DIRS4) {
       const nx = cx + dx;
       const ny = cy + dy;
       if (!isWalkable(s, nx, ny)) continue;
@@ -118,7 +112,7 @@ export function keepsAccess(s: GameState, x: number, y: number): boolean {
   const blocked = idx(s, x, y);
   const reach = reachableFromEntrance(s, blocked);
   const reachable = (c: Cell) =>
-    DIRS.some(([dx, dy]) => inBounds(s, c.x + dx, c.y + dy) && reach[idx(s, c.x + dx, c.y + dy)] === 1);
+    DIRS4.some(([dx, dy]) => inBounds(s, c.x + dx, c.y + dy) && reach[idx(s, c.x + dx, c.y + dy)] === 1);
   if (!reachable({ x, y })) return false;
   for (const b of s.buildings) if (!reachable(b)) return false;
   for (const t of s.techs) {

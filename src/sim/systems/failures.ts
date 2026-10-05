@@ -2,8 +2,9 @@ import { FAILURE, PREDICTIVE, WEAR } from '../balance';
 import { rackTemp } from '../climate';
 import { isRackActive, type Building } from '../entities';
 import { modifiers } from '../progression';
-import { notify, type GameState } from '../state';
+import { chance } from '../math';
 import { nextRandom } from '../rng';
+import { notify, type GameState } from '../state';
 
 /** Pannes par seconde d'un rack actif à la température donnée. */
 export function failureRate(tempC: number): number {
@@ -11,9 +12,9 @@ export function failureRate(tempC: number): number {
   return FAILURE.baseRate + FAILURE.quadRate * over * over;
 }
 
-/** Forme exponentielle : dix ticks de 0,1 s donnent exactement la même probabilité qu'un tick de 1 s. */
+/** Probabilité de panne pendant dt (forme exponentielle, indépendante du pas). */
 export function failureProbability(tempC: number, dt: number): number {
-  return 1 - Math.exp(-failureRate(tempC) * dt);
+  return chance(failureRate(tempC), dt);
 }
 
 /** Probabilité qu'un rack actif tombe en panne dans la minute, à cette température. */
@@ -44,7 +45,15 @@ export function rackFailureRate(s: GameState, b: Building): number {
 
 /** Probabilité qu'un rack tombe en panne dans la minute qui vient. */
 export function rackRiskPerMinute(s: GameState, b: Building): number {
-  return 1 - Math.exp(-rackFailureRate(s, b) * 60);
+  return chance(rackFailureRate(s, b), 60);
+}
+
+/** Un rack tombe en panne : statut, compteurs, alerte ; `detail` complète le message. */
+export function failRack(s: GameState, b: Building, detail: string): void {
+  b.status = 'failed';
+  b.failures++;
+  s.economy.failures++;
+  notify(s, 'warning', `Panne du rack ${b.x},${b.y}${detail}`, { cell: b, code: 'failure' });
 }
 
 /** Usure : chaque rack en service s'use, deux fois plus vite quand il aspire de l'air chaud. */
@@ -59,17 +68,9 @@ export function updateWear(s: GameState, dt: number): void {
 
 export function updateFailures(s: GameState, dt: number): void {
   updateWear(s, dt);
+  // Seuls les racks en service tombent en panne ; les réparations avancent avec les techniciens.
   for (const b of s.buildings) {
-    // Les réparations avancent avec les techniciens (systems/technicians.ts).
-    if (b.kind !== 'rack') continue;
-    if (b.status === 'ok' && b.powered) {
-      const t = rackTemp(s, b);
-      if (nextRandom(s) < 1 - Math.exp(-failureRate(t) * wearMultiplier(s, b) * dt)) {
-        b.status = 'failed';
-        b.failures++;
-        s.economy.failures++;
-        notify(s, 'warning', `Panne du rack ${b.x},${b.y} (${t.toFixed(0)} °C)`, { cell: b, code: 'failure' });
-      }
-    }
+    if (!isRackActive(b)) continue;
+    if (nextRandom(s) < chance(rackFailureRate(s, b), dt)) failRack(s, b, ` (${rackTemp(s, b).toFixed(0)} °C)`);
   }
 }

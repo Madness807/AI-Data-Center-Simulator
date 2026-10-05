@@ -1,11 +1,16 @@
-import { AISLE, CDU, CRAC, HEATWAVE, rackSpec, WEATHER } from './balance';
+import { CDU, CRAC, HEATWAVE, rackSpec, WEATHER } from './balance';
 import { FACING_STEP, isRackActive, type Building, type Cell } from './entities';
 import { modifiers } from './progression';
 import { idx, inBounds, type GameState } from './state';
 
+/** La météo compte-t-elle (carrière, à partir du palier WEATHER.minTier) ? */
+export function weatherActive(s: GameState): boolean {
+  return s.rules.weather && s.career.tier >= WEATHER.minTier;
+}
+
 /** Température extérieure (°C), ou null quand la météo ne joue pas (partie rapide, palier trop bas). */
 export function outsideTemp(s: GameState): number | null {
-  if (!s.rules.weather || s.career.tier < WEATHER.minTier) return null;
+  if (!weatherActive(s)) return null;
   const wave = s.incidents.heatwaveEndsAt !== null ? HEATWAVE.boostC : 0;
   return WEATHER.meanC + WEATHER.swingC * Math.sin((2 * Math.PI * s.time) / WEATHER.periodS) + wave;
 }
@@ -111,6 +116,3 @@ export function liquidLoads(s: GameState): { byRack: Map<number, number>; byCdu:
   }
   return { byRack: out, byCdu };
 }
-
-/** Part de la chaleur d'un rack soufflée vers l'arrière. */
-export const EXHAUST_SHARE = AISLE.exhaustShare;

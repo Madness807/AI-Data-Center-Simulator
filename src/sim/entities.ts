@@ -19,7 +19,7 @@ export interface Building {
   y: number;
   /** Mis à jour par le système d'énergie. Un PDU est toujours alimenté. */
   powered: boolean;
-  /** Seuls les racks tombent en panne en v0.1. Un chantier ne fonctionne pas encore. */
+  /** Seuls les racks tombent en panne. Un chantier ne fonctionne pas encore. */
   status: BuildingStatus;
   /** Secondes de travail restantes, en chantier ou en réparation. */
   workLeft: number;
@@ -100,6 +100,11 @@ export interface Job {
   /** Inférence avec SLA : secondes où le débit servi est resté sous le débit promis. */
   sla?: boolean;
   shortS?: number;
+}
+
+/** Contrôle exhaustif : le compilateur refuse un switch qui oublierait un type d'équipement. */
+export function unknownKind(kind: never): never {
+  throw new Error(`Équipement inconnu : ${String(kind)}`);
 }
 
 export function isRackActive(b: Building): boolean {

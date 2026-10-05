@@ -1,6 +1,7 @@
 import { JOBS, RACK, rackSpec, REPUTATION, SLA, TRAINING } from '../balance';
 import { clusterIntact, clusterRate, findCluster } from '../clusters';
 import { isRackActive, type Job } from '../entities';
+import { lerp, roundTo10 } from '../math';
 import { nextRandom } from '../rng';
 import { earn, spend } from '../ledger';
 import { advanceResearch, deliveryReputation, gainReputation, modifiers, promote, researchReserve, TIERS } from '../progression';
@@ -33,7 +34,7 @@ export function updateJobs(s: GameState, dt: number): void {
   s.compute.total = total;
   const active = s.jobs.filter((j) => j.status === 'active').sort((a, b) => a.deadline - b.deadline);
   const trainingCU = allocateTraining(s, active, dt);
-  let research = Math.min(researchReserve(s), total - trainingCU);
+  let research = researchCut(s, total, trainingCU);
   let pool = total - trainingCU - research;
   for (const j of active) {
     if (j.kind === 'training') continue;
@@ -119,6 +120,21 @@ function allocateTraining(s: GameState, active: Job[], dt: number): number {
   return used;
 }
 
+/** Part de la R&D, prélevée avant l'inférence, sans dépasser ce que l'entraînement laisse. */
+function researchCut(s: GameState, total: number, trainingCU: number): number {
+  return Math.min(researchReserve(s), total - trainingCU);
+}
+
+/** Calcul que se partagent les contrats d'inférence : le total, moins l'entraînement et la R&D. */
+export function inferencePool(s: GameState, total: number, trainingCU: number): number {
+  return total - trainingCU - researchCut(s, total, trainingCU);
+}
+
+/** Des offres d'entraînement ou avec SLA peuvent-elles arriver (carrière, dès le palier de l'une d'elles) ? */
+export function specialOffersActive(s: GameState): boolean {
+  return s.rules.progression && s.career.tier >= Math.min(TRAINING.minTier, SLA.minTier);
+}
+
 /** Taille calée sur le parc de racks, pour que l'offre reste à portée du joueur. */
 export function generateOffer(s: GameState): Job {
   const r = () => nextRandom(s);
@@ -126,7 +142,7 @@ export function generateOffer(s: GameState): Job {
   // (Ce tirage n'a lieu qu'en carrière : la partie rapide garde exactement sa suite de hasard.)
   // Un seul tirage dès que l'une des deux est ouverte ; chacune suit ensuite son propre palier.
   let special: 'training' | 'sla' | null = null;
-  if (s.rules.progression && s.career.tier >= Math.min(TRAINING.minTier, SLA.minTier)) {
+  if (specialOffersActive(s)) {
     const roll = r();
     if (roll < TRAINING.share) special = s.career.tier >= TRAINING.minTier ? 'training' : null;
     else if (roll < TRAINING.share + SLA.share) special = s.career.tier >= SLA.minTier ? 'sla' : null;
@@ -137,52 +153,43 @@ export function generateOffer(s: GameState): Job {
   const tier = s.rules.progression ? TIERS[s.career.tier] : null;
   const maxUnits = Math.min(tier?.maxUnits ?? JOBS.maxUnits, Math.max(JOBS.minUnits, Math.ceil(racks * JOBS.unitsPerRack)));
   const rateCU = (1 + Math.floor(r() * maxUnits)) * RACK.computeCU;
-  const durationS = Math.round(lerp(JOBS.duration, r()) / 10) * 10;
+  const durationS = roundTo10(lerp(JOBS.duration, r()));
   const slack = lerp(JOBS.slack, r());
   const tightBonus = 1 + (JOBS.slack[1] - slack) * JOBS.tightBonus;
-  const payment = Math.round((rateCU * durationS * JOBS.pricePerCU * (JOBS.priceJitter.min + JOBS.priceJitter.spread * r()) * tightBonus * (tier?.priceMult ?? 1)) / 10) * 10;
+  const jitter = JOBS.priceJitter.min + JOBS.priceJitter.spread * r();
+  const payment = roundTo10(rateCU * durationS * JOBS.pricePerCU * jitter * tightBonus * (tier?.priceMult ?? 1));
   const name = `${pick(KINDS, r())} — ${pick(clientsFor(s), r())}`;
   if (special === 'sla') {
-    const paid = Math.round((payment * SLA.priceMult) / 10) * 10;
-    return {
-      id: s.nextJobId++,
-      name: `${name} (SLA ${Math.round((1 - SLA.tolerance) * 100)} %)`,
-      status: 'offer',
-      rateCU,
-      durationS,
-      work: rateCU * durationS,
-      progress: 0,
-      deadlineInS: Math.round(durationS * slack),
-      payment: paid,
-      penalty: Math.round((paid * JOBS.penaltyRatio) / 10) * 10,
-      offeredAt: s.time,
-      expiresAt: s.time + JOBS.offerExpiry,
-      deadline: 0,
-      allocated: 0,
-      sla: true,
-      shortS: 0,
-    };
+    const paid = roundTo10(payment * SLA.priceMult);
+    const slaName = `${name} (SLA ${Math.round((1 - SLA.tolerance) * 100)} %)`;
+    return makeOffer(s, { name: slaName, rateCU, durationS, slack, payment: paid }, { sla: true, shortS: 0 });
   }
+  return makeOffer(s, { name, rateCU, durationS, slack, payment });
+}
+
+/** Une offre : le travail, l'échéance, la pénalité et l'expiration se déduisent du débit, de la durée et du prix. */
+function makeOffer(
+  s: GameState,
+  o: { name: string; rateCU: number; durationS: number; slack: number; payment: number },
+  extra: Partial<Pick<Job, 'kind' | 'cluster' | 'minGen' | 'sla' | 'shortS'>> = {},
+): Job {
   return {
     id: s.nextJobId++,
-    name,
+    name: o.name,
     status: 'offer',
-    rateCU,
-    durationS,
-    work: rateCU * durationS,
+    rateCU: o.rateCU,
+    durationS: o.durationS,
+    work: o.rateCU * o.durationS,
     progress: 0,
-    deadlineInS: Math.round(durationS * slack),
-    payment,
-    penalty: Math.round((payment * JOBS.penaltyRatio) / 10) * 10,
+    deadlineInS: Math.round(o.durationS * o.slack),
+    payment: o.payment,
+    penalty: roundTo10(o.payment * JOBS.penaltyRatio),
     offeredAt: s.time,
     expiresAt: s.time + JOBS.offerExpiry,
     deadline: 0,
     allocated: 0,
+    ...extra,
   };
-}
-
-function lerp([a, b]: readonly [number, number], t: number): number {
-  return a + (b - a) * t;
 }
 
 function pick<T>(list: readonly T[], t: number): T {
@@ -197,26 +204,10 @@ function trainingOffer(s: GameState, r: () => number): Job {
   const [lo, hi] = TRAINING.cluster[Math.min(s.career.tier, TIERS.length - 1)] ?? TRAINING.cluster[TRAINING.minTier];
   const size = lo + Math.floor(r() * (hi - lo + 1));
   const rateCU = size * RACK.computeCU;
-  const durationS = Math.round(lerp(TRAINING.duration, r()) / 10) * 10;
+  const durationS = roundTo10(lerp(TRAINING.duration, r()));
   const slack = lerp(TRAINING.slack, r());
-  const payment = Math.round((rateCU * durationS * JOBS.pricePerCU * TRAINING.priceMult * tier.priceMult * (TRAINING.priceJitter.min + TRAINING.priceJitter.spread * r())) / 10) * 10;
-  return {
-    id: s.nextJobId++,
-    name: `Entraînement LLM — ${pick(clientsFor(s), r())}`,
-    status: 'offer',
-    rateCU,
-    durationS,
-    work: rateCU * durationS,
-    progress: 0,
-    deadlineInS: Math.round(durationS * slack),
-    payment,
-    penalty: Math.round((payment * JOBS.penaltyRatio) / 10) * 10,
-    offeredAt: s.time,
-    expiresAt: s.time + JOBS.offerExpiry,
-    deadline: 0,
-    allocated: 0,
-    kind: 'training',
-    cluster: size,
-    minGen: TRAINING.minGen,
-  };
+  const jitter = TRAINING.priceJitter.min + TRAINING.priceJitter.spread * r();
+  const payment = roundTo10(rateCU * durationS * JOBS.pricePerCU * TRAINING.priceMult * tier.priceMult * jitter);
+  const name = `Entraînement LLM — ${pick(clientsFor(s), r())}`;
+  return makeOffer(s, { name, rateCU, durationS, slack, payment }, { kind: 'training', cluster: size, minGen: TRAINING.minGen });
 }

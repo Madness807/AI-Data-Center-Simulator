@@ -1,4 +1,5 @@
 import type { Technician } from './entities';
+import { nextRandom } from './rng';
 import type { GameState } from './state';
 
 const FIRST_NAMES = [
@@ -12,16 +13,11 @@ const orders = new Map<number, string[]>();
 function orderFor(seed: number): string[] {
   let order = orders.get(seed);
   if (order) return order;
-  let r = seed | 0;
-  const random = () => {
-    r = (r + 0x6d2b79f5) | 0;
-    let t = Math.imul(r ^ (r >>> 15), r | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+  // Même algorithme que le hasard de la partie, sur un état à part : celui de la partie n'est pas touché.
+  const gen = { rng: seed | 0 };
   order = [...FIRST_NAMES];
   for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
+    const j = Math.floor(nextRandom(gen) * (i + 1));
     [order[i], order[j]] = [order[j], order[i]];
   }
   orders.set(seed, order);

@@ -1,6 +1,6 @@
 import { CDU, DT, GENERATOR, rackSpec, UPS } from '../balance';
 import { cracPowerKW } from '../climate';
-import type { Building } from '../entities';
+import { unknownKind, type Building } from '../entities';
 import { modifiers } from '../progression';
 import type { GameState } from '../state';
 
@@ -24,17 +24,33 @@ export function updatePower(s: GameState): void {
   let generatorKW = 0;
   let upsKW = 0;
   for (const b of s.buildings) {
-    if (b.status !== 'ok') b.powered = false; // chantier, panne, réparation : ne consomme rien
-    else if (b.kind === 'pdu') {
-      capacity += pduKW;
-      b.powered = true;
-    } else if (b.kind === 'crac' || b.kind === 'cdu') cracs.push(b);
-    else if (b.kind === 'rack') racks.push(b);
-    else {
+    if (b.status !== 'ok') {
+      b.powered = false; // chantier, panne, réparation : ne consomme rien
+      continue;
+    }
+    switch (b.kind) {
+      case 'pdu':
+        capacity += pduKW;
+        b.powered = true;
+        break;
+      case 'crac':
+      case 'cdu':
+        cracs.push(b);
+        break;
+      case 'rack':
+        racks.push(b);
+        break;
       // Onduleurs et groupes : sources de secours, toujours « en service » quand ils sont construits.
-      b.powered = true;
-      if (b.kind === 'generator' && b.warmup !== undefined && b.warmup <= 0) generatorKW += GENERATOR.powerKW;
-      if (b.kind === 'ups') upsKW += upsAvailableKW(b);
+      case 'generator':
+        b.powered = true;
+        if (b.warmup !== undefined && b.warmup <= 0) generatorKW += GENERATOR.powerKW;
+        break;
+      case 'ups':
+        b.powered = true;
+        upsKW += upsAvailableKW(b);
+        break;
+      default:
+        unknownKind(b.kind);
     }
   }
 

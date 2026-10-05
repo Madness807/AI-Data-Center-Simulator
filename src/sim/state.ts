@@ -2,7 +2,17 @@ import { BUILD_TIME, ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_LAYOUT, S
 import type { Command } from './commands';
 import type { Building, BuildingKind, Cell, Job, Technician } from './entities';
 import { emptyAlerts, type AlertMemory } from './alert-memory';
-import { defaultPolicies, emptyCareer, emptyResearch, rulesFor, type CareerState, type GameMode, type Policies, type ResearchState, type Rules } from './career';
+import {
+  defaultPolicies,
+  emptyCareer,
+  emptyResearch,
+  rulesFor,
+  type CareerState,
+  type GameMode,
+  type Policies,
+  type ResearchState,
+  type Rules,
+} from './career';
 import { emptyLedger, type Ledger } from './ledger';
 
 export type Speed = 0 | 1 | 2 | 4;

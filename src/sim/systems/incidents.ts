@@ -1,9 +1,10 @@
-import { CDU, CRAC, HEATWAVE, OUTAGE, rackSpec, UPS, WEATHER } from '../balance';
-import { outsideTemp } from '../climate';
+import { CDU, CRAC, HEATWAVE, OUTAGE, rackSpec, UPS } from '../balance';
+import { outsideTemp, weatherActive } from '../climate';
+import { isRackActive } from '../entities';
+import { lerp } from '../math';
 import { nextRandom } from '../rng';
 import { notify, type GameState } from '../state';
-
-const lerp = ([a, b]: readonly [number, number], t: number) => a + (b - a) * t;
+import { failRack } from './failures';
 
 /**
  * Incidents de la carrière, tirés par le générateur aléatoire de la partie (rejouables avec la
@@ -16,6 +17,11 @@ export function updateIncidents(s: GameState): void {
   heatwaves(s);
 }
 
+/** Le réseau peut-il être coupé (carrière, à partir du palier OUTAGE.minTier) ? */
+export function outagesActive(s: GameState): boolean {
+  return s.rules.incidents && s.career.tier >= OUTAGE.minTier;
+}
+
 /** Canicules à partir du palier où la météo compte : les CRAC perdent en efficacité. */
 function heatwaves(s: GameState): void {
   const inc = s.incidents;
@@ -26,7 +32,7 @@ function heatwaves(s: GameState): void {
     notify(s, 'success', 'Fin de la canicule : les CRAC retrouvent leur efficacité', { code: 'heatwaveEnd' });
     return;
   }
-  if (!s.rules.weather || s.career.tier < WEATHER.minTier) return;
+  if (!weatherActive(s)) return;
   if (inc.nextHeatwaveAt === null) {
     inc.nextHeatwaveAt = s.time + HEATWAVE.firstDelayS;
     return;
@@ -48,12 +54,13 @@ function outages(s: GameState): void {
     notify(s, 'success', 'Réseau électrique rétabli', { code: 'gridBack' });
     return;
   }
-  if (s.career.tier < OUTAGE.minTier) return;
+  if (!outagesActive(s)) return;
   if (inc.nextOutageAt === null) {
     inc.nextOutageAt = s.time + OUTAGE.firstDelayS;
     return;
   }
   if (s.time < inc.nextOutageAt) return;
+  // Tirée même pour la première coupure (durée fixe) : la suite de hasard de la carrière en dépend.
   const roll = nextRandom(s);
   const duration = inc.outages === 0 ? OUTAGE.firstDurationS : Math.round(lerp(OUTAGE.duration, roll));
   inc.outageEndsAt = s.time + duration;
@@ -61,12 +68,10 @@ function outages(s: GameState): void {
   inc.outages++;
   const backup = s.buildings.some((b) => (b.kind === 'ups' || b.kind === 'generator') && b.status === 'ok');
   crashUnprotected(s);
-  notify(
-    s,
-    'error',
-    backup ? `Coupure du réseau électrique : les secours prennent le relais (environ ${duration} s)` : `Coupure du réseau électrique, sans secours : la salle s'arrête (environ ${duration} s)`,
-    { code: 'outage' },
-  );
+  const message = backup
+    ? `Coupure du réseau électrique : les secours prennent le relais (environ ${duration} s)`
+    : `Coupure du réseau électrique, sans secours : la salle s'arrête (environ ${duration} s)`;
+  notify(s, 'error', message, { code: 'outage' });
 }
 
 /**
@@ -79,16 +84,11 @@ function crashUnprotected(s: GameState): void {
     if ((b.kind === 'crac' || b.kind === 'cdu') && b.status === 'ok') left -= b.kind === 'crac' ? CRAC.powerKW : CDU.powerKW;
   }
   for (const b of s.buildings) {
-    if (b.kind !== 'rack' || b.status !== 'ok' || !b.powered) continue;
+    if (!isRackActive(b)) continue;
     if (left >= rackSpec(b).powerKW) {
       left -= rackSpec(b).powerKW;
       continue;
     }
-    if (nextRandom(s) < OUTAGE.crashChance) {
-      b.status = 'failed';
-      b.failures++;
-      s.economy.failures++;
-      notify(s, 'warning', `Panne du rack ${b.x},${b.y} : arrêt brutal pendant la coupure`, { cell: b, code: 'failure' });
-    }
+    if (nextRandom(s) < OUTAGE.crashChance) failRack(s, b, ' : arrêt brutal pendant la coupure');
   }
 }

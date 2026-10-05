@@ -1,5 +1,6 @@
 import { MAINTENANCE, SPECIALTY } from '../balance';
 import type { Building, BuildingKind, Cell, Specialty, Technician, TechTask } from '../entities';
+import { manhattan } from '../math';
 import { findPath, isAdjacent, isWalkable, pathNextTo } from '../pathfinding';
 import { spend } from '../ledger';
 import { techName } from '../names';
@@ -42,7 +43,7 @@ function planPath(s: GameState, task: TechTask, from: Cell): Cell[] | null {
   if (task.type === 'move') {
     const g = moveGoal(s, task);
     if ('id' in g) return pathNextTo(s, from, g);
-    return findPath(s, from, (c) => c.x === g.x && c.y === g.y, (c) => Math.abs(c.x - g.x) + Math.abs(c.y - g.y));
+    return findPath(s, from, (c) => c.x === g.x && c.y === g.y, (c) => manhattan(c, g));
   }
   const b = target(s, task);
   return b ? pathNextTo(s, from, b) : null;
@@ -54,13 +55,16 @@ function nearestIdle(s: GameState, b: Building): Technician | undefined {
   let bestDist = Infinity;
   for (const t of s.techs) {
     if (t.tasks.length) continue;
-    const d = Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
+    const d = manhattan(t, b);
     if (d < bestDist) [best, bestDist] = [t, d];
   }
   return best;
 }
 
-const targeted = (s: GameState, type: TechTask['type'], id: number) => s.techs.some((t) => t.tasks.some((k) => k.type === type && 'target' in k && k.target === id));
+/** Un technicien a-t-il déjà cette tâche sur cet équipement (en cours ou en file) ? */
+export function isTaskAssigned(s: GameState, type: TechTask['type'], id: number): boolean {
+  return s.techs.some((t) => t.tasks.some((k) => k.type === type && 'target' in k && k.target === id));
+}
 
 /**
  * Automatismes (recherche) : chaque panne sans technicien prend le plus proche des libres ;
@@ -70,7 +74,7 @@ function dispatch(s: GameState): void {
   const m = modifiers(s);
   if (m.autoRepair && s.policies.autoRepair) {
     for (const b of s.buildings) {
-      if (b.kind !== 'rack' || b.status !== 'failed' || targeted(s, 'repair', b.id)) continue;
+      if (b.kind !== 'rack' || b.status !== 'failed' || isTaskAssigned(s, 'repair', b.id)) continue;
       const t = nearestIdle(s, b);
       if (!t) return;
       t.tasks.push({ type: 'repair', target: b.id });
@@ -78,7 +82,7 @@ function dispatch(s: GameState): void {
   }
   if (m.autoMaintain && s.policies.autoMaintain) {
     const worn = s.buildings
-      .filter((b) => b.kind === 'rack' && b.status === 'ok' && (b.wear ?? 0) >= MAINTENANCE.autoAbove && !targeted(s, 'maintain', b.id))
+      .filter((b) => b.kind === 'rack' && b.status === 'ok' && (b.wear ?? 0) >= MAINTENANCE.autoAbove && !isTaskAssigned(s, 'maintain', b.id))
       .sort((a, b) => (b.wear ?? 0) - (a.wear ?? 0));
     for (const b of worn) {
       const t = nearestIdle(s, b);
@@ -107,7 +111,7 @@ export function updateTechnicians(s: GameState, dt: number): void {
         continue;
       }
       const here = { x: Math.round(t.x), y: Math.round(t.y) };
-      const centered = Math.abs(t.x - here.x) + Math.abs(t.y - here.y) < 1e-6;
+      const centered = manhattan(t, here) < 1e-6;
       if (centered && isGoal(s, task, here)) {
         if (work(s, t, task, dt * m.workRate)) nextTask(t);
         break;

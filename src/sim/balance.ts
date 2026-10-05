@@ -7,7 +7,7 @@ export const MAX_TICKS_PER_FRAME = 40;
 
 export const GRID_W = 24;
 export const GRID_H = 16;
-/** Cases réservées à l'entrée de la salle (accès des techniciens en v0.1c). */
+/** Cases réservées à l'entrée de la salle : les techniciens y arrivent et doivent pouvoir en partir. */
 export const ENTRANCE: ReadonlyArray<readonly [number, number]> = [
   [0, 7],
   [0, 8],

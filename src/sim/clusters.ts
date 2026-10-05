@@ -1,18 +1,13 @@
 import { OPTICAL, rackSpec } from './balance';
 import { isRackActive, type Building, type Gen } from './entities';
 import { modifiers } from './progression';
-import { idx, type GameState } from './state';
+import { DIRS4 } from './math';
+import { buildingById, idx, inBounds, type GameState } from './state';
 
 /** Pas entre deux racks voisins d'un bloc : côte à côte, ou plus loin avec l'interconnexion optique. */
 function steps(s: GameState): readonly (readonly [number, number])[] {
-  const near = [
-    [1, 0],
-    [-1, 0],
-    [0, 1],
-    [0, -1],
-  ] as const;
   const r = OPTICAL.reach;
-  return modifiers(s).optical ? [...near, [r, 0], [-r, 0], [0, r], [0, -r]] : near;
+  return modifiers(s).optical ? [...DIRS4, [r, 0], [-r, 0], [0, r], [0, -r]] : DIRS4;
 }
 
 const eligible = (b: Building, minGen: Gen) => isRackActive(b) && (b.gen ?? 1) >= minGen;
@@ -36,7 +31,7 @@ export function largestFreeCluster(s: GameState, minGen: Gen, taken: ReadonlySet
 function components(s: GameState, minGen: Gen, taken: ReadonlySet<number>): Building[][] {
   const out: Building[][] = [];
   const byCell = new Map<number, Building>();
-  for (const b of s.buildings) if (b.kind === 'rack' && !taken.has(b.id) && eligible(b, minGen)) byCell.set(idx(s, b.x, b.y), b);
+  for (const b of s.buildings) if (!taken.has(b.id) && eligible(b, minGen)) byCell.set(idx(s, b.x, b.y), b);
   const seen = new Set<number>();
   const moves = steps(s);
   for (const start of byCell.values()) {
@@ -50,7 +45,7 @@ function components(s: GameState, minGen: Gen, taken: ReadonlySet<number>): Buil
       for (const [dx, dy] of moves) {
         const x = b.x + dx;
         const y = b.y + dy;
-        if (x < 0 || y < 0 || x >= s.w || y >= s.h) continue;
+        if (!inBounds(s, x, y)) continue;
         const n = byCell.get(idx(s, x, y));
         if (!n || seen.has(n.id)) continue;
         seen.add(n.id);
@@ -64,7 +59,7 @@ function components(s: GameState, minGen: Gen, taken: ReadonlySet<number>): Buil
 
 /** Le bloc attribué tient-il encore (racks en service, génération suffisante, contigus, libres) ? */
 export function clusterIntact(s: GameState, ids: readonly number[], minGen: Gen, taken: ReadonlySet<number>): boolean {
-  const racks = ids.map((id) => s.buildings.find((b) => b.id === id));
+  const racks = ids.map((id) => buildingById(s, id));
   if (racks.some((b) => !b || !eligible(b, minGen) || taken.has(b.id))) return false;
   // Toujours d'un seul tenant : chaque rack rejoint les autres par des voisins du bloc.
   const set = new Set(ids);
@@ -87,7 +82,7 @@ export function clusterIntact(s: GameState, ids: readonly number[], minGen: Gen,
 /** Débit d'un bloc : la somme du calcul de ses racks (une génération récente va plus vite). */
 export function clusterRate(s: GameState, ids: readonly number[]): number {
   return ids.reduce((sum, id) => {
-    const b = s.buildings.find((o) => o.id === id);
+    const b = buildingById(s, id);
     return sum + (b ? rackSpec(b).computeCU : 0);
   }, 0);
 }

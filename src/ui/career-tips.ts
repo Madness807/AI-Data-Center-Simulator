@@ -1,5 +1,6 @@
-import { CDU, GPU, TRAINING, WEAR, WEATHER } from '../sim/balance';
+import { CDU, GPU, TRAINING, WEATHER } from '../sim/balance';
 import { modifiers } from '../sim/progression';
+import { wearActive } from '../sim/systems/failures';
 import type { GameState } from '../sim/state';
 import type { IconName } from './icons';
 
@@ -45,7 +46,7 @@ export const CAREER_TIPS: readonly CareerTip[] = [
     icon: 'repair',
     title: 'Un rack s’use',
     text: 'Un rack usé tombe plus souvent en panne, surtout s’il a chaud. Clic droit dessus avec un technicien sélectionné, ou bouton Entretien de l’inspecteur : son usure repart à zéro.',
-    when: (s) => s.career.tier >= WEAR.minTier && s.buildings.some((b) => b.kind === 'rack' && (b.wear ?? 0) >= WORN),
+    when: (s) => wearActive(s) && s.buildings.some((b) => b.kind === 'rack' && (b.wear ?? 0) >= WORN),
   },
   {
     id: 'training',

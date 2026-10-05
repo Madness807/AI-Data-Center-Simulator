@@ -1,8 +1,9 @@
-import { CRAC, OUTAGE, rackSpec } from '../sim/balance';
+import { CRAC, rackSpec } from '../sim/balance';
 import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
 import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
 import { rackRiskPerMinute } from '../sim/systems/failures';
+import { outagesActive } from '../sim/systems/incidents';
 import { inCoolingRange } from '../sim/systems/heat';
 import { hotAisleCells, liquidCapture } from '../sim/climate';
 import { plannedGeneratorKW, plannedUpsKW } from '../sim/systems/power';
@@ -222,7 +223,7 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
  * pas la partie (partie rapide, palier trop bas) : le calque n'affiche alors pas ce critère.
  */
 export function backupCoverage(s: GameState): Set<number> | null {
-  if (!s.rules.incidents || s.career.tier < OUTAGE.minTier) return null;
+  if (!outagesActive(s)) return null;
   let left = plannedGeneratorKW(s) + plannedUpsKW(s);
   const out = new Set<number>();
   const loads = s.buildings
@@ -241,6 +242,6 @@ export function backupCoverage(s: GameState): Set<number> | null {
 export function powerLoadLabel(s: GameState): string {
   const pdus = s.buildings.filter((b) => b.kind === 'pdu' && b.status === 'ok').length;
   const base = `${Math.round(s.power.demandKW)} / ${Math.round(s.power.capacityKW)} kW demandés · ${pdus} PDU`;
-  if (!s.rules.incidents || s.career.tier < OUTAGE.minTier) return base;
+  if (!outagesActive(s)) return base;
   return `${base} · secours ${plannedGeneratorKW(s) + plannedUpsKW(s)} kW`;
 }

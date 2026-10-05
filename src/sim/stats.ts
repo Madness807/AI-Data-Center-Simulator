@@ -1,6 +1,6 @@
 import { GENERATOR, rackSpec } from './balance';
 import { isRackActive, type Building } from './entities';
-import type { GameState } from './state';
+import { buildingById, type GameState } from './state';
 import { cracWeatherFactor } from './climate';
 import { modifiers, researchReserve } from './progression';
 import { inCoolingRange } from './systems/heat';
@@ -77,7 +77,7 @@ export function busyRackIds(s: GameState): Set<number> {
   for (const j of s.jobs) {
     if (j.status !== 'active' || !j.assigned) continue;
     for (const id of j.assigned) {
-      const b = s.buildings.find((o) => o.id === id);
+      const b = buildingById(s, id);
       if (!b || busy.has(id)) continue;
       busy.add(id);
       left -= rackSpec(b).computeCU;
