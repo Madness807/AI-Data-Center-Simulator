@@ -113,7 +113,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 - **S9 · Une vingtaine de filtres type + statut répétés** (moyenne)
   - **Où** : `power.ts`, `incidents.ts`, `stats.ts`…
   - **Remède** : quelques prédicats nommés.
-  - **Statut** : ⏸ Les filtres restants se lisent bien en ligne. Sans quatre prédicats de plus, il manquerait trois occurrences identiques pour justifier chacun.
+  - **Statut** : ⏸ Les filtres restants combinent type, statut et alimentation de façons différentes. Aucun ne revient trois fois à l'identique, le seuil retenu pour factoriser ; ils restent lisibles en ligne.
 - **S10 · Activation des mécaniques testée en ligne** (moyenne)
   - **Constat** : seule l'usure a son `wearActive` ; météo, coupures et offres spéciales sont testées en ligne, jusque dans l'interface.
   - **Statut** : ✅ lot 3. `weatherActive` (climat), `outagesActive` (incidents) et `specialOffersActive` (offres) s'ajoutent à `wearActive`. Le calque énergie et les conseils de carrière les utilisent.
