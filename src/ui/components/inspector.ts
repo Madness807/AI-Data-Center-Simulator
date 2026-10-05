@@ -1,4 +1,4 @@
-import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, REPAIR, UPS } from '../../sim/balance';
+import { ALERTS, BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, UPS, WEAR } from '../../sim/balance';
 import { upgradeBlocker, upgradeCost } from '../../sim/commands';
 import { failureRiskPerMinute, rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
@@ -267,7 +267,7 @@ export class Inspector {
     const needsWork = site || b.status === 'failed' || b.status === 'repairing';
     setHidden(this.sendButton, !needsWork);
     if (needsWork) {
-      const label = site ? 'Envoyer construire' : `Envoyer réparer${b.status === 'failed' ? ` (${money(REPAIR.cost)})` : ''}`;
+      const label = site ? 'Envoyer construire' : `Envoyer réparer${b.status === 'failed' ? ` (${money(modifiers(s).repairCost)})` : ''}`;
       if (this.sendButton.dataset.label !== label) {
         this.sendButton.dataset.label = label;
         this.sendButton.replaceChildren(icon(site ? 'build' : 'repair', 14), label);
@@ -334,7 +334,7 @@ export class Inspector {
     setHidden(this.maintainButton, !(worn && b.status === 'ok' && (b.wear ?? 0) >= 10 && !servicing));
     if (s.rules.aisles) {
       const own = idx(s, b.x, b.y);
-      this.intake.set(`${celsius(intakeTemp)} · ${intakeIndex(s, b) === own ? 'sur sa case (avant bouché)' : 'devant'}`, intakeTemp >= FAILURE.thresholdC ? 'danger' : intakeTemp >= FAILURE.thresholdC - 3 ? 'warn' : '');
+      this.intake.set(`${celsius(intakeTemp)} · ${intakeIndex(s, b) === own ? 'sur sa case (avant bouché)' : 'devant'}`, intakeTemp >= FAILURE.thresholdC ? 'danger' : intakeTemp >= ALERTS.hotC ? 'warn' : '');
       const ex = exhaustIndex(s, b);
       this.exhaust.set(ex === null ? 'gardée (mur ou équipement derrière)' : 'vers l’arrière', ex === null ? 'warn' : '');
     }
@@ -364,7 +364,7 @@ export class Inspector {
     // Une astuce quand la situation appelle une décision.
     const cduNear = s.buildings.some((c) => c.kind === 'cdu' && c.status === 'ok' && (c.x - b.x) ** 2 + (c.y - b.y) ** 2 <= CDU.radius ** 2);
     if ((b.gen ?? 1) === 3 && !cduNear) return `Un rack G3 dégage ${GPU[3].heatKW} kW : sans CDU à ${CDU.radius} cases, il surchauffe.`;
-    if (worn && (b.wear ?? 0) >= 70 && b.status === 'ok') return `Usure ${Math.round(b.wear ?? 0)} % : le risque de panne est ${(1 + ((b.wear ?? 0) / 100) * 2).toFixed(1).replace('.', ',')} fois plus élevé. Un entretien le remet à neuf.`;
+    if (worn && (b.wear ?? 0) >= 70 && b.status === 'ok') return `Usure ${Math.round(b.wear ?? 0)} % : le risque de panne est ${(1 + ((b.wear ?? 0) / 100) * WEAR.failureMult).toFixed(1).replace('.', ',')} fois plus élevé. Un entretien le remet à neuf.`;
     if (breathesExhaust(s, b)) return 'Ce rack aspire l’air chaud qu’un autre souffle : pivotez-le (F) pour former des allées chaude et froide, dos à dos.';
     if (!coolers.length && temp >= FAILURE.thresholdC) return `Au-delà de ${FAILURE.thresholdC} °C les pannes se multiplient : posez un CRAC à portée.`;
     if (b.status === 'ok' && !b.powered) return 'Capacité électrique insuffisante : ajoutez un PDU.';

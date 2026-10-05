@@ -1,4 +1,4 @@
-import { TECH } from '../../sim/balance';
+import { MAINTENANCE, SPECIALTY, TECH } from '../../sim/balance';
 import { techName } from '../../sim/names';
 import { modifiers } from '../../sim/progression';
 import type { GameState } from '../../sim/state';
@@ -18,9 +18,9 @@ export interface TeamActions {
 
 const SPECIALTIES: Specialty[] = ['electrician', 'hvac', 'it'];
 const SPECIALTY_HINT: Record<Specialty, string> = {
-  electrician: 'PDU, onduleurs, groupes ×2',
-  hvac: 'CRAC et CDU ×2',
-  it: 'racks : réparation, entretien, chantier ×2',
+  electrician: `PDU, onduleurs, groupes ×${SPECIALTY.speed}`,
+  hvac: `CRAC et CDU ×${SPECIALTY.speed}`,
+  it: `racks : réparation, entretien, chantier ×${SPECIALTY.speed}`,
 };
 
 interface Row {
@@ -68,7 +68,7 @@ export class TeamPanel {
     this.autoMaintain = el('input');
     this.autoMaintain.type = 'checkbox';
     this.autoMaintain.onchange = () => this.actions.setAutoMaintain(this.autoMaintain.checked);
-    this.autoMaintainRow = el('label', 'team-policy', this.autoMaintain, el('span', undefined, 'Maintenance planifiée : les techniciens libres entretiennent les racks usés à plus de 50 %'));
+    this.autoMaintainRow = el('label', 'team-policy', this.autoMaintain, el('span', undefined, `Maintenance planifiée : les techniciens libres entretiennent les racks usés à plus de ${MAINTENANCE.autoAbove} %`));
     this.autoMaintainRow.hidden = true;
     for (const sp of SPECIALTIES) {
       const b = el('button', 'btn', icon('hire', 13), el('span', undefined, SPECIALTY_LABEL[sp]));

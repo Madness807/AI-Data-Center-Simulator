@@ -1,4 +1,4 @@
-import { CRAC, GENERATOR, PDU, REPAIR, REPUTATION, RESEARCH_RATE, SPARE_PARTS, TECH, TIER_LEVELS, UPS } from './balance';
+import { CRAC, GENERATOR, OUTAGE, PDU, REPAIR, REPUTATION, RESEARCH_RATE, SLA, SPARE_PARTS, TECH, TIER_LEVELS, TRAINING, UPS, WEAR, WEATHER } from './balance';
 import type { BuildingKind, Gen, Job } from './entities';
 import { RESEARCH, researchById } from './research';
 import { notify, type GameState } from './state';
@@ -18,33 +18,36 @@ export interface Tier {
   perks: string[];
 }
 
+const pct = (x: number) => `${Math.round(x * 100)} %`;
+/** Nom d'un nœud en milieu de phrase : « onduleurs », mais « GPU génération 2 ». */
+const inline = (name: string) => (/^[A-Z]{2}/.test(name) ? name : name[0].toLowerCase() + name.slice(1));
+
+/**
+ * Ce que le palier apporte, déduit des réglages : taille et prix des offres, offres spéciales,
+ * nœuds du niveau de recherche qu'il ouvre, mécaniques qui s'allument à ce palier.
+ */
+function perksFor(tier: number): string[] {
+  if (tier === 0) return [];
+  const level = TIER_LEVELS[tier];
+  const out = [`Contrats jusqu’à ${level.maxUnits} racks, payés ${pct(level.priceMult - 1)} de plus`];
+  const special = [
+    tier === TRAINING.minTier ? 'contrats d’entraînement (blocs de racks contigus)' : null,
+    tier === SLA.minTier ? 'contrats avec SLA' : null,
+  ].filter((p): p is string => p !== null);
+  if (special.length) out.push(special.join(' et ').replace(/^./, (c) => c.toUpperCase()));
+  const nodes = RESEARCH.filter((n) => n.level === tier + 1).map((n) => inline(n.name));
+  if (nodes.length) out.push(`Recherche de niveau ${tier + 1} : ${nodes.join(', ')}`);
+  if (tier === OUTAGE.minTier) out.push('Attention : le réseau électrique peut désormais être coupé');
+  if (tier === WEATHER.minTier) out.push('Attention : la météo compte désormais, et les canicules affaiblissent les CRAC');
+  if (tier === WEAR.minTier) out.push('Les racks s’usent : un entretien (clic droit sur un rack) évite bien des pannes');
+  return out;
+}
+
 export const TIERS: readonly Tier[] = [
-  { name: 'Start-up', ...TIER_LEVELS[0], perks: [] },
-  {
-    name: 'Scale-up',
-    ...TIER_LEVELS[1],
-    perks: [
-      'Contrats jusqu’à 8 racks, payés 10 % de plus',
-      'Recherche de niveau 2 : GPU G2, onduleurs, groupes électrogènes, confinement d’allée',
-      'Attention : le réseau électrique peut désormais être coupé',
-      'Les racks s’usent : un entretien (clic droit sur un rack) évite bien des pannes',
-    ],
-  },
-  {
-    name: 'Labo d’IA',
-    ...TIER_LEVELS[2],
-    perks: [
-      'Contrats jusqu’à 12 racks, payés 20 % de plus',
-      'Contrats d’entraînement (blocs de racks contigus) et contrats avec SLA',
-      'Recherche de niveau 3 : GPU G3, points de contrôle, refroidissement liquide, free cooling, énergie verte',
-      'Attention : la météo compte désormais, et les canicules affaiblissent les CRAC',
-    ],
-  },
-  {
-    name: 'Hyperscaler',
-    ...TIER_LEVELS[3],
-    perks: ['Contrats jusqu’à 20 racks, payés 30 % de plus', 'Recherche de niveau 4'],
-  },
+  { name: 'Start-up', ...TIER_LEVELS[0], perks: perksFor(0) },
+  { name: 'Scale-up', ...TIER_LEVELS[1], perks: perksFor(1) },
+  { name: 'Labo d’IA', ...TIER_LEVELS[2], perks: perksFor(2) },
+  { name: 'Hyperscaler', ...TIER_LEVELS[3], perks: perksFor(3) },
 ];
 
 /** Réputation d'une livraison à l'heure : un gros contrat compte davantage. */

@@ -78,7 +78,9 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Où** : `research.ts` (19 descriptions), `progression.ts:29-54` (nouveautés des paliers).
   - **Constat** : Scale-up oublie Modernisation, Maintenance planifiée et Stock de pièces ; Labo d'IA oublie Spécialités.
   - **Remède** : générer ces textes depuis les constantes.
-  - **Statut** : prévu au lot 5.
+  - **Statut** : ✅ lot 5.
+    - Les 22 descriptions de recherche lisent leurs nombres dans `balance.ts`, ou dans l'effet du nœud lui-même : une description peut être une fonction de l'effet, évaluée au chargement.
+    - Les nouveautés des paliers sont générées par `perksFor()` : taille et prix des offres, offres spéciales, liste réelle des nœuds du niveau ouvert, mécaniques qui s'allument selon leur `minTier`.
 - **S4 · La survie à une coupure est calculée de 3 façons** (haute)
   - **Où** : `systems/incidents.ts:76-94`, `systems/power.ts:19-70`, `render/overlay-colors.ts:224-238`.
   - **Constat** :
@@ -193,7 +195,11 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - formule d'usure de l'inspecteur ;
     - `thresholdC - 3` ;
     - prix de réparation affiché sans la recherche « Stock de pièces ».
-  - **Statut** : prévu au lot 5.
+  - **Statut** : ✅ lot 5.
+    - Panneau Équipe : `SPECIALTY.speed`, `MAINTENANCE.autoAbove`.
+    - Tutoriel et infobulles : `FAILURE.thresholdC`, `CRAC.radius` et le nouveau `RACKS_PER_CRAC`.
+    - Inspecteur : `ALERTS.hotC`, `WEAR.failureMult`.
+    - Prix et durée de réparation lus dans `modifiers(s)`, dans l'infobulle de la salle comme dans le bouton de l'inspecteur.
 - **U4 · Les noms des équipements, outils, calques et panneaux sont écrits à 5 endroits ou plus** (haute)
   - **Constat** : « CDU », « CDU (liquide) » et « CDU (refroidissement liquide) » ; « Groupe » et « Groupe électrogène ».
   - **Statut** : prévu au lot 8.
@@ -342,7 +348,18 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 
 ## Changements visibles
 
-(liste complétée lot par lot)
+Tous corrigent une incohérence ou un texte faux ; aucun ne change une règle du jeu.
+
+- **Nouveautés des paliers (lot 5)** : la liste de recherche est désormais complète.
+  - Scale-up ajoute modernisation, maintenance planifiée et stock de pièces.
+  - Labo d'IA ajoute spécialités.
+  - Hyperscaler liste ses 4 nœuds au lieu d'un simple « Recherche de niveau 4 ».
+- **Descriptions de recherche (lot 5)** : 4 tournures changent parce qu'elles sont maintenant calculées.
+  - « moins de deux fois la chaleur » → « ×1,8 de chaleur » (G2) ;
+  - « moitié moins » → « 50 % de moins » (free cooling) ;
+  - « environ une minute » → « environ 60 s à pleine puissance » (onduleurs) ;
+  - « deux fois » → « 2 fois » (spécialités).
+- **Prix de réparation (lot 5)** : après la recherche « Stock de pièces », l'infobulle et l'inspecteur affichent 250 $ et 5 s, comme ce qui est facturé ; avant, ils affichaient 400 $ et 8 s.
 
 ## Ce qui est sain et n'a pas été touché
 

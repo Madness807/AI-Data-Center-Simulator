@@ -1,4 +1,4 @@
-import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, PDU, REPAIR, TECH, UPS } from '../sim/balance';
+import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, PDU, RACKS_PER_CRAC, TECH, UPS } from '../sim/balance';
 import type { Cell, Gen, Specialty } from '../sim/entities';
 import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
@@ -450,7 +450,7 @@ export class Hud {
         hint = 'Technicien sélectionné + clic droit pour construire';
       } else if (b.status === 'failed') {
         chip = el('span', 'chip danger', 'en panne');
-        hint = `Technicien sélectionné + clic droit pour réparer (${money(REPAIR.cost)}, ${REPAIR.seconds} s)`;
+        hint = `Technicien sélectionné + clic droit pour réparer (${money(modifiers(s).repairCost)}, ${modifiers(s).repairSeconds} s)`;
       } else if (b.status === 'repairing') {
         chip = el('span', 'chip warn', `réparation ${seconds(b.workLeft)}`);
       } else if (b.kind === 'pdu' || b.powered) {
@@ -511,7 +511,7 @@ export class Hud {
           ['Portée', `${CRAC.radius} cases`],
           ['Consommation', `${CRAC.powerKW} kW`],
           ['Chantier', `${BUILD_TIME.crac} s`],
-        ], 'Un CRAC suffit pour environ 3 racks.'),
+        ], `Un CRAC suffit pour environ ${RACKS_PER_CRAC} racks.`),
       pdu: () =>
         tip(`PDU · ${money(BUILD_COST.pdu)}`, [
           ['Capacité', `+${Math.round(this.state ? modifiers(this.state).pduCapacityKW : PDU.capacityKW)} kW`],

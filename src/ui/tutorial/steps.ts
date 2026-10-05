@@ -1,4 +1,4 @@
-import { ECONOMY } from '../../sim/balance';
+import { CRAC, ECONOMY, FAILURE, RACKS_PER_CRAC } from '../../sim/balance';
 import type { Command } from '../../sim/commands';
 import type { Cell } from '../../sim/entities';
 import type { GameState } from '../../sim/state';
@@ -87,14 +87,14 @@ export const STEPS: TutorialStep[] = [
   {
     id: 'heatmap',
     title: 'Surveiller la chaleur',
-    text: 'Les racks chauffent. Ouvrez le calque de chaleur (touche H) : au-delà de 35 °C, les pannes se multiplient.',
+    text: `Les racks chauffent. Ouvrez le calque de chaleur (touche H) : au-delà de ${FAILURE.thresholdC} °C, les pannes se multiplient.`,
     highlight: '[data-toggle="overlay"]',
     done: ({ heatmap }) => heatmap,
   },
   {
     id: 'crac',
     title: 'Refroidir',
-    text: 'Posez un CRAC (touche C) à moins de 3 cases des racks : le cercle montre sa portée. Un CRAC refroidit environ 3 racks.',
+    text: `Posez un CRAC (touche C) à moins de ${CRAC.radius} cases des racks : le cercle montre sa portée. Un CRAC refroidit environ ${RACKS_PER_CRAC} racks.`,
     highlight: '[data-tool="crac"]',
     target: ({ s }) => (builtRacks(s)[0] ? freeCellNear(s, builtRacks(s)[0]) : null),
     done: ({ s }, memo) =>

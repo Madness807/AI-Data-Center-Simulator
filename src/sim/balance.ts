@@ -81,6 +81,8 @@ export const TRAINING = {
 /** Inférence avec engagement de disponibilité (SLA) : payée plus, pénalisée si le débit manque. */
 export const SLA = { minTier: 2, share: 0.3, priceMult: 1.3, tolerance: 0.01 };
 export const CRAC = { cost: 4000, powerKW: 4, coolingKW: 30, radius: 3 };
+/** Racks G1 qu'un CRAC refroidit à lui seul (pour les conseils affichés). */
+export const RACKS_PER_CRAC = Math.round(CRAC.coolingKW / RACK.heatKW);
 export const PDU = { cost: 2500, capacityKW: 40 };
 /** Onduleur : batterie qui prend le relais dès la première seconde d'une coupure. */
 export const UPS = { cost: 3500, storeKJ: 2400, powerKW: 40, rechargeKW: 8, heatKW: 1 };

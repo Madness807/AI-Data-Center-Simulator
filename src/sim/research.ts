@@ -1,3 +1,4 @@
+import { AISLE, CDU, GENERATOR, GPU, MAINTENANCE, OPTICAL, PREDICTIVE, REPAIR, RETROFIT, SPARE_PARTS, SPECIALTY, TRAINING, UPS, WEATHER } from './balance';
 import type { BuildingKind, Gen } from './entities';
 
 /** Branches de l'arbre, une colonne chacune dans le panneau Recherche. */
@@ -55,11 +56,18 @@ export interface ResearchNode {
   effect: ResearchEffect;
 }
 
+/** Textes des descriptions : les nombres viennent des réglages, jamais recopiés à la main. */
+const pct = (x: number) => `${Math.round(x * 100)} %`;
+const num = (x: number) => String(Math.round(x * 10) / 10).replace('.', ',');
+
+/** Un nœud dont la description peut dépendre de son propre effet (évaluée une fois, au chargement). */
+type NodeSpec = Omit<ResearchNode, 'description'> & { description: string | ((effect: ResearchEffect) => string) };
+
 /**
  * L'arbre. Les nœuds de niveau 1 modifient les systèmes existants ; les niveaux suivants
  * arrivent avec les lots qui créent leurs systèmes (énergie de secours, refroidissement…).
  */
-export const RESEARCH: readonly ResearchNode[] = [
+const NODES: readonly NodeSpec[] = [
   {
     id: 'opportunistic',
     branch: 'compute',
@@ -75,7 +83,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'compute',
     level: 2,
     name: 'GPU génération 2',
-    description: 'Rack G2 : 25 CU/s pour 18 kW (×2,5 de calcul pour moins de deux fois la chaleur).',
+    description: `Rack G2 : ${GPU[2].computeCU} CU/s pour ${GPU[2].powerKW} kW (×${num(GPU[2].computeCU / GPU[1].computeCU)} de calcul pour ×${num(GPU[2].heatKW / GPU[1].heatKW)} de chaleur).`,
     cost: 900,
     requires: [],
     effect: { gen: 2 },
@@ -85,7 +93,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'compute',
     level: 2,
     name: 'Modernisation',
-    description: 'Un technicien remplace les GPU d’un rack sur place, pour la différence de prix plus 20 %.',
+    description: `Un technicien remplace les GPU d’un rack sur place, pour la différence de prix plus ${pct(RETROFIT.surcharge - 1)}.`,
     cost: 600,
     requires: ['gpu-g2'],
     effect: { retrofit: true },
@@ -95,7 +103,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'compute',
     level: 3,
     name: 'Points de contrôle',
-    description: 'Un entraînement interrompu par une panne ne perd que 5 % de sa progression, au lieu de 25 %.',
+    description: `Un entraînement interrompu par une panne ne perd que ${pct(TRAINING.rollbackCheckpoints)} de sa progression, au lieu de ${pct(TRAINING.rollback)}.`,
     cost: 1000,
     requires: [],
     effect: { checkpoints: true },
@@ -105,7 +113,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'compute',
     level: 3,
     name: 'GPU génération 3',
-    description: 'Rack G3 : 60 CU/s pour 36 kW. Trop dense pour l’air seul : prévoyez un CDU.',
+    description: `Rack G3 : ${GPU[3].computeCU} CU/s pour ${GPU[3].powerKW} kW. Trop dense pour l’air seul : prévoyez un CDU.`,
     cost: 2200,
     requires: ['gpu-g2', 'liquid-cooling'],
     effect: { gen: 3 },
@@ -115,7 +123,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'compute',
     level: 4,
     name: 'Interconnexion optique',
-    description: 'Les blocs d’entraînement peuvent enjamber une allée : des racks à 2 cases comptent comme voisins.',
+    description: `Les blocs d’entraînement peuvent enjamber une allée : des racks à ${OPTICAL.reach} cases comptent comme voisins.`,
     cost: 2500,
     requires: ['checkpoints'],
     effect: { optical: true },
@@ -125,7 +133,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'cooling',
     level: 1,
     name: 'CRAC haute efficacité',
-    description: 'Chaque CRAC retire 20 % de chaleur en plus.',
+    description: (e) => `Chaque CRAC retire ${pct((e.cracCooling ?? 1) - 1)} de chaleur en plus.`,
     cost: 400,
     requires: [],
     effect: { cracCooling: 1.2 },
@@ -135,7 +143,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'cooling',
     level: 2,
     name: 'Confinement d’allée chaude',
-    description: 'Des panneaux enferment l’air soufflé : un CRAC près d’une allée chaude refroidit 25 % de plus.',
+    description: `Des panneaux enferment l’air soufflé : un CRAC près d’une allée chaude refroidit ${pct(AISLE.containmentBoost - 1)} de plus.`,
     cost: 700,
     requires: ['crac-he'],
     effect: { containment: true },
@@ -145,7 +153,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'cooling',
     level: 3,
     name: 'Refroidissement liquide',
-    description: 'Le CDU capte 75 % de la chaleur des racks à 2 cases, et la rejette dehors.',
+    description: `Le CDU capte ${pct(CDU.captured)} de la chaleur des racks à ${CDU.radius} cases, et la rejette dehors.`,
     cost: 1200,
     requires: [],
     effect: { unlocks: ['cdu'] },
@@ -155,7 +163,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'cooling',
     level: 3,
     name: 'Free cooling',
-    description: 'Quand il fait moins de 18 °C dehors, les CRAC consomment moitié moins.',
+    description: `Quand il fait moins de ${WEATHER.freeCoolingBelowC} °C dehors, les CRAC consomment ${pct(1 - WEATHER.freeCoolingPowerMult)} de moins.`,
     cost: 1000,
     requires: [],
     effect: { freeCooling: true },
@@ -175,7 +183,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'power',
     level: 1,
     name: 'PDU haute capacité',
-    description: 'Chaque PDU alimente 50 % de puissance en plus.',
+    description: (e) => `Chaque PDU alimente ${pct((e.pduCapacity ?? 1) - 1)} de puissance en plus.`,
     cost: 400,
     requires: [],
     effect: { pduCapacity: 1.5 },
@@ -185,7 +193,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'power',
     level: 2,
     name: 'Onduleurs',
-    description: 'Batteries qui prennent le relais dès la première seconde d’une coupure (environ une minute).',
+    description: `Batteries qui prennent le relais dès la première seconde d’une coupure (environ ${Math.round(UPS.storeKJ / UPS.powerKW)} s à pleine puissance).`,
     cost: 600,
     requires: [],
     effect: { unlocks: ['ups'] },
@@ -195,7 +203,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'power',
     level: 2,
     name: 'Groupes électrogènes',
-    description: 'Démarrent en 15 s et tiennent toute la coupure, au prix d’un carburant cher.',
+    description: `Démarrent en ${GENERATOR.startS} s et tiennent toute la coupure, au prix d’un carburant cher.`,
     cost: 800,
     requires: ['ups'],
     effect: { unlocks: ['generator'] },
@@ -205,7 +213,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'power',
     level: 3,
     name: 'Énergie verte',
-    description: 'Contrat d’électricité renouvelable : facture −15 %, et les clients apprécient (réputation +10 %).',
+    description: (e) => `Contrat d’électricité renouvelable : facture −${pct(1 - (e.electricity ?? 1))}, et les clients apprécient (réputation +${pct((e.reputation ?? 1) - 1)}).`,
     cost: 1500,
     requires: [],
     effect: { electricity: 0.85, reputation: 1.1 },
@@ -215,7 +223,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'power',
     level: 4,
     name: 'Bascule 2N',
-    description: 'Chaîne de secours doublée : les groupes démarrent en 3 s, les onduleurs stockent 50 % de plus.',
+    description: (e) => `Chaîne de secours doublée : les groupes démarrent en ${e.generatorStartS} s, les onduleurs stockent ${pct((e.upsStore ?? 1) - 1)} de plus.`,
     cost: 2500,
     requires: ['generators'],
     effect: { generatorStartS: 3, upsStore: 1.5 },
@@ -235,7 +243,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'ops',
     level: 2,
     name: 'Maintenance planifiée',
-    description: 'Les techniciens libres entretiennent d’eux-mêmes les racks usés à plus de 50 %.',
+    description: `Les techniciens libres entretiennent d’eux-mêmes les racks usés à plus de ${MAINTENANCE.autoAbove} %.`,
     cost: 900,
     requires: ['auto-repair'],
     effect: { autoMaintain: true },
@@ -245,7 +253,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'ops',
     level: 2,
     name: 'Stock de pièces',
-    description: 'Des pièces d’avance : une réparation coûte 250 $ au lieu de 400 et dure 5 s au lieu de 8.',
+    description: `Des pièces d’avance : une réparation coûte ${SPARE_PARTS.cost} $ au lieu de ${REPAIR.cost} et dure ${SPARE_PARTS.seconds} s au lieu de ${REPAIR.seconds}.`,
     cost: 600,
     requires: [],
     effect: { spareParts: true },
@@ -255,7 +263,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'ops',
     level: 3,
     name: 'Spécialités',
-    description: 'Embauchez des électriciens, frigoristes et informaticiens : deux fois plus rapides dans leur domaine.',
+    description: `Embauchez des électriciens, frigoristes et informaticiens : ${SPECIALTY.speed} fois plus rapides dans leur domaine.`,
     cost: 1200,
     requires: [],
     effect: { specialties: true },
@@ -265,7 +273,7 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'ops',
     level: 4,
     name: 'Maintenance prédictive',
-    description: 'Les capteurs annoncent les pannes : alerte avant la casse, et 30 % de pannes en moins.',
+    description: `Les capteurs annoncent les pannes : alerte avant la casse, et ${pct(1 - PREDICTIVE.failureMult)} de pannes en moins.`,
     cost: 2000,
     requires: ['planned-maintenance'],
     effect: { predictive: true },
@@ -275,12 +283,17 @@ export const RESEARCH: readonly ResearchNode[] = [
     branch: 'ops',
     level: 1,
     name: 'Techniciens aguerris',
-    description: 'Les techniciens se déplacent et travaillent 30 % plus vite.',
+    description: (e) => `Les techniciens se déplacent et travaillent ${pct((e.techSpeed ?? 1) - 1)} plus vite.`,
     cost: 500,
     requires: ['auto-repair'],
     effect: { techSpeed: 1.3, workRate: 1.3 },
   },
 ];
+
+export const RESEARCH: readonly ResearchNode[] = NODES.map((n) => ({
+  ...n,
+  description: typeof n.description === 'function' ? n.description(n.effect) : n.description,
+}));
 
 export function researchById(id: string): ResearchNode | undefined {
   return RESEARCH.find((n) => n.id === id);
