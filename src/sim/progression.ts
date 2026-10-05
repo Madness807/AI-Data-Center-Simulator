@@ -1,6 +1,6 @@
-import { CRAC, GENERATOR, PDU, REPAIR, SPARE_PARTS, TECH, UPS } from './balance';
+import { CRAC, GENERATOR, PDU, REPAIR, REPUTATION, RESEARCH_RATE, SPARE_PARTS, TECH, TIER_LEVELS, UPS } from './balance';
 import type { BuildingKind, Gen, Job } from './entities';
-import { RESEARCH, RESEARCH_POINTS_PER_CU, researchById } from './research';
+import { RESEARCH, researchById } from './research';
 import { notify, type GameState } from './state';
 
 /** Paliers de la carrière : la réputation les fait passer, chacun ouvre de plus gros clients. */
@@ -19,12 +19,10 @@ export interface Tier {
 }
 
 export const TIERS: readonly Tier[] = [
-  { name: 'Start-up', reputation: 0, maxUnits: 4, priceMult: 1, perks: [] },
+  { name: 'Start-up', ...TIER_LEVELS[0], perks: [] },
   {
     name: 'Scale-up',
-    reputation: 150,
-    maxUnits: 8,
-    priceMult: 1.1,
+    ...TIER_LEVELS[1],
     perks: [
       'Contrats jusqu’à 8 racks, payés 10 % de plus',
       'Recherche de niveau 2 : GPU G2, onduleurs, groupes électrogènes, confinement d’allée',
@@ -34,10 +32,7 @@ export const TIERS: readonly Tier[] = [
   },
   {
     name: 'Labo d’IA',
-    reputation: 500,
-    computeCU: 150,
-    maxUnits: 12,
-    priceMult: 1.2,
+    ...TIER_LEVELS[2],
     perks: [
       'Contrats jusqu’à 12 racks, payés 20 % de plus',
       'Contrats d’entraînement (blocs de racks contigus) et contrats avec SLA',
@@ -47,19 +42,14 @@ export const TIERS: readonly Tier[] = [
   },
   {
     name: 'Hyperscaler',
-    reputation: 2000,
-    computeCU: 400,
-    maxUnits: 20,
-    priceMult: 1.3,
+    ...TIER_LEVELS[3],
     perks: ['Contrats jusqu’à 20 racks, payés 30 % de plus', 'Recherche de niveau 4'],
   },
 ];
 
-export const LATE_REPUTATION = -25;
-
 /** Réputation d'une livraison à l'heure : un gros contrat compte davantage. */
 export function deliveryReputation(job: Job, s?: GameState): number {
-  const base = 10 + Math.round(job.rateCU / 10);
+  const base = REPUTATION.delivery + Math.round(job.rateCU / REPUTATION.cuPerPoint);
   return s ? Math.round(base * modifiers(s).reputationMult) : base;
 }
 
@@ -206,14 +196,14 @@ export function researchReserve(s: GameState): number {
 /** Avance le nœud en cours avec le calcul qui lui a été consacré pendant dt. */
 export function advanceResearch(s: GameState, cu: number, dt: number): void {
   const r = s.research;
-  r.ratePerS = r.current ? cu * RESEARCH_POINTS_PER_CU : 0;
+  r.ratePerS = r.current ? cu * RESEARCH_RATE.pointsPerCU : 0;
   if (!r.current) return;
   const node = researchById(r.current);
   if (!node) {
     r.current = null;
     return;
   }
-  r.progress[node.id] = (r.progress[node.id] ?? 0) + cu * RESEARCH_POINTS_PER_CU * dt;
+  r.progress[node.id] = (r.progress[node.id] ?? 0) + cu * RESEARCH_RATE.pointsPerCU * dt;
   if (r.progress[node.id] + 1e-9 < node.cost) return;
   r.done.push(node.id);
   delete r.progress[node.id];

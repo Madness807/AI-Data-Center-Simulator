@@ -59,12 +59,21 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - `systems/alerts.ts:11-29` : seuils d'alerte.
   - **Constat** : environ 83 valeurs, dont une cinquantaine dans les tables des paliers et des nœuds.
   - **Remède** : les ranger dans `balance.ts` en gardant la même arithmétique ; les noms et textes restent dans leur module.
-  - **Statut** : prévu au lot 2.
+  - **Statut** : ✅ lot 2. Désormais dans `balance.ts` :
+    - offres : taille minimale et part par rack, bonus d'échéance, variation de prix ;
+    - entraînements : délais, variation de prix, génération minimale ;
+    - `START_LAYOUT`, et premier contrat dans `JOBS.firstJob` ;
+    - `TIER_LEVELS` (les nombres des paliers ; noms et nouveautés restent dans `progression.ts`) ;
+    - `REPUTATION`, `RESEARCH_RATE` (rythme, part par défaut et maximale) ;
+    - `ALERTS`, avec la cadence tirée de `TICK_HZ` et le réarmement prédictif `PREDICTIVE.resetPerMin` ;
+    - `MAX_GEN`, `OPTICAL.reach`, `WEATHER.freeCoolingPowerMult`.
+
+    Les coûts et effets des 22 nœuds restent dans la table de `research.ts`, qui est un contenu à part entière.
 - **S2 · `SLA.minTier` n'est jamais lu** (haute)
   - **Où** : `balance.ts:67`, `systems/jobs.ts:128`.
   - **Constat** : les offres SLA dépendent de `TRAINING.minTier`.
   - **Remède** : lire les deux en gardant un seul tirage.
-  - **Statut** : prévu au lot 2.
+  - **Statut** : ✅ lot 2. Un seul tirage dès que l'une des deux est ouverte, puis chacune suit son propre palier (même suite de hasard).
 - **S3 · Des textes recopient des nombres, et ont déjà dérivé** (haute)
   - **Où** : `research.ts` (19 descriptions), `progression.ts:29-54` (nouveautés des paliers).
   - **Constat** : Scale-up oublie Modernisation, Maintenance planifiée et Stock de pièces ; Labo d'IA oublie Spécialités.

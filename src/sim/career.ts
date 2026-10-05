@@ -1,3 +1,5 @@
+import { RESEARCH_RATE } from './balance';
+
 /** Partie rapide : les règles de la bêta, objectif d'argent. Carrière : paliers et recherche. */
 export type GameMode = 'quick' | 'career';
 
@@ -23,7 +25,7 @@ export interface CareerState {
 }
 
 export interface ResearchState {
-  /** Part du calcul réservée à la R&D, de 0 à MAX_RESEARCH_SHARE. */
+  /** Part du calcul réservée à la R&D, de 0 à RESEARCH_RATE.maxShare. */
   share: number;
   /** Nœud en cours, ou null (la part réservée retourne alors aux contrats). */
   current: string | null;
@@ -43,8 +45,6 @@ export interface Policies {
   autoMaintain: boolean;
 }
 
-export const MAX_RESEARCH_SHARE = 0.5;
-
 export function rulesFor(mode: GameMode): Rules {
   const career = mode === 'career';
   return { progression: career, incidents: career, aisles: career, weather: career, wear: career };
@@ -55,7 +55,7 @@ export function emptyCareer(): CareerState {
 }
 
 export function emptyResearch(): ResearchState {
-  return { share: 0.2, current: null, progress: {}, done: [], ratePerS: 0 };
+  return { share: RESEARCH_RATE.defaultShare, current: null, progress: {}, done: [], ratePerS: 0 };
 }
 
 export function defaultPolicies(): Policies {

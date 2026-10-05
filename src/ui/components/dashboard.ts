@@ -1,9 +1,8 @@
-import { FAILURE } from '../../sim/balance';
+import { ALERTS, FAILURE } from '../../sim/balance';
 import { isRackActive } from '../../sim/entities';
 import { OPERATING, type ExpenseKind } from '../../sim/ledger';
 import type { GameState } from '../../sim/state';
 import { availability, pue, tempStats } from '../../sim/stats';
-import { ALERTS } from '../../sim/systems/alerts';
 import { rackRiskPerMinute } from '../../sim/systems/failures';
 import { rackTemp } from '../../sim/climate';
 import { el, icon, setText } from '../dom';

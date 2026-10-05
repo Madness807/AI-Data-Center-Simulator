@@ -55,9 +55,6 @@ export interface ResearchNode {
   effect: ResearchEffect;
 }
 
-/** Points de recherche produits par CU·s consacré à la R&D. */
-export const RESEARCH_POINTS_PER_CU = 0.1;
-
 /**
  * L'arbre. Les nœuds de niveau 1 modifient les systèmes existants ; les niveaux suivants
  * arrivent avec les lots qui créent leurs systèmes (énergie de secours, refroidissement…).

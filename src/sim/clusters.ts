@@ -1,9 +1,9 @@
-import { rackSpec } from './balance';
+import { OPTICAL, rackSpec } from './balance';
 import { isRackActive, type Building, type Gen } from './entities';
 import { modifiers } from './progression';
 import { idx, type GameState } from './state';
 
-/** Pas entre deux racks voisins d'un bloc : côte à côte, ou à 2 cases avec l'interconnexion optique. */
+/** Pas entre deux racks voisins d'un bloc : côte à côte, ou plus loin avec l'interconnexion optique. */
 function steps(s: GameState): readonly (readonly [number, number])[] {
   const near = [
     [1, 0],
@@ -11,7 +11,8 @@ function steps(s: GameState): readonly (readonly [number, number])[] {
     [0, 1],
     [0, -1],
   ] as const;
-  return modifiers(s).optical ? [...near, [2, 0], [-2, 0], [0, 2], [0, -2]] : near;
+  const r = OPTICAL.reach;
+  return modifiers(s).optical ? [...near, [r, 0], [-r, 0], [0, r], [0, -r]] : near;
 }
 
 const eligible = (b: Building, minGen: Gen) => isRackActive(b) && (b.gen ?? 1) >= minGen;

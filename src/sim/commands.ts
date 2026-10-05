@@ -1,6 +1,5 @@
-import { BUILD_TIME, buildCost, DEMOLISH_REFUND, GPU, RETROFIT, TECH } from './balance';
+import { BUILD_TIME, buildCost, DEMOLISH_REFUND, GPU, MAX_GEN, RESEARCH_RATE, RETROFIT, TECH } from './balance';
 import type { BuildingKind, Facing, Gen, Specialty, TechTask } from './entities';
-import { MAX_RESEARCH_SHARE } from './career';
 import { keepsAccess } from './pathfinding';
 import { isUnlocked, modifiers, researchBlocker, unlockedBy } from './progression';
 import { refund, spend } from './ledger';
@@ -117,7 +116,7 @@ export function processCommands(s: GameState): void {
         s.speed = c.speed;
         break;
       case 'setResearchShare':
-        if (Number.isFinite(c.share)) s.research.share = Math.min(MAX_RESEARCH_SHARE, Math.max(0, c.share));
+        if (Number.isFinite(c.share)) s.research.share = Math.min(RESEARCH_RATE.maxShare, Math.max(0, c.share));
         break;
       case 'startResearch': {
         if (c.id === null) {
@@ -165,7 +164,7 @@ export function processCommands(s: GameState): void {
 /** Prix de la modernisation d'un rack vers la génération suivante. */
 export function upgradeCost(b: { gen?: Gen }): number {
   const gen = b.gen ?? 1;
-  if (gen >= 3) return Infinity;
+  if (gen >= MAX_GEN) return Infinity;
   return Math.round((GPU[(gen + 1) as Gen].cost - GPU[gen].cost) * RETROFIT.surcharge);
 }
 
@@ -175,7 +174,7 @@ export function upgradeBlocker(s: GameState, b: { kind: BuildingKind; status: st
   if (!modifiers(s).retrofit) return 'Recherche requise : Modernisation';
   if (b.status !== 'ok') return 'Le rack doit être en service';
   const gen = b.gen ?? 1;
-  if (gen >= 3) return 'Déjà de dernière génération';
+  if (gen >= MAX_GEN) return 'Déjà de dernière génération';
   if (gen + 1 > modifiers(s).maxGen) return `Recherche requise : GPU génération ${gen + 1}`;
   if (s.money < upgradeCost(b)) return 'Fonds insuffisants';
   return null;

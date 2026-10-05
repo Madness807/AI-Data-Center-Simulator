@@ -17,10 +17,10 @@ export function cracWeatherFactor(s: GameState): number {
   return Math.min(WEATHER.cracMax, Math.max(WEATHER.cracMin, 1 + (WEATHER.meanC - t) * WEATHER.cracPerC));
 }
 
-/** Consommation d'un CRAC : le free cooling (recherche) la divise par deux quand il fait frais dehors. */
+/** Consommation d'un CRAC : le free cooling (recherche) la réduit quand il fait frais dehors. */
 export function cracPowerKW(s: GameState): number {
   const t = outsideTemp(s);
-  return modifiers(s).freeCooling && t !== null && t < WEATHER.freeCoolingBelowC ? CRAC.powerKW / 2 : CRAC.powerKW;
+  return modifiers(s).freeCooling && t !== null && t < WEATHER.freeCoolingBelowC ? CRAC.powerKW * WEATHER.freeCoolingPowerMult : CRAC.powerKW;
 }
 
 const step = (b: Building) => FACING_STEP[b.facing ?? 0];

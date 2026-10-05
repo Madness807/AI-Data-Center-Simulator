@@ -1,31 +1,10 @@
-import { FAILURE, PREDICTIVE } from '../balance';
+import { ALERTS, FAILURE, PREDICTIVE } from '../balance';
 import { isRackActive, type Building } from '../entities';
 import { modifiers, researchReserve } from '../progression';
 import { rackRiskPerMinute } from './failures';
 import { upsAutonomy } from './power';
 import { rackTemp } from '../climate';
 import { notify, type GameState } from '../state';
-
-/** Seuils des alertes préventives : prévenir avant la casse, une fois par épisode. */
-export const ALERTS = {
-  /** °C : un rack approche du seuil de panne ; l'alerte se réarme quand il a refroidi. */
-  hotC: FAILURE.thresholdC - 3,
-  hotResetC: FAILURE.thresholdC - 5,
-  /** Part de la capacité électrique demandée. */
-  power: 0.9,
-  powerReset: 0.85,
-  /** Secondes de dépenses courantes (électricité, salaires) couvertes par la trésorerie. */
-  cashS: 60,
-  cashResetS: 120,
-  /** Secondes d'une panne sans technicien affecté avant l'alerte. */
-  unattendedS: 20,
-  /** Un contrat tout juste accepté n'est pas jugé avant que le calcul lui soit attribué. */
-  lateGraceS: 5,
-  /** Secondes d'autonomie des onduleurs en coupure. */
-  upsLowS: 20,
-  /** Les alertes se calculent une fois par seconde de jeu. */
-  everyTicks: 10,
-};
 
 export function updateAlerts(s: GameState): void {
   if (s.tick % ALERTS.everyTicks !== 0) return;
@@ -46,8 +25,7 @@ function predictive(s: GameState): void {
   for (const b of s.buildings) {
     if (!isRackActive(b)) continue;
     const risk = rackRiskPerMinute(s, b);
-    // Réarmement sous la moitié du seuil (après un entretien, typiquement).
-    if (known.has(b.id) ? risk >= PREDICTIVE.warnPerMin / 2 : risk >= PREDICTIVE.warnPerMin) {
+    if (known.has(b.id) ? risk >= PREDICTIVE.resetPerMin : risk >= PREDICTIVE.warnPerMin) {
       next.push(b.id);
       if (!known.has(b.id)) {
         notify(s, 'warning', `Rack ${b.x},${b.y} : panne probable (${Math.round(risk * 100)} %/min, usure ${Math.round(b.wear ?? 0)} %) — entretien conseillé`, { cell: b, code: 'wearRisk' });

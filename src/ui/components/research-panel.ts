@@ -1,4 +1,4 @@
-import { MAX_RESEARCH_SHARE } from '../../sim/career';
+import { RESEARCH_RATE } from '../../sim/balance';
 import { researchBlocker, TIERS } from '../../sim/progression';
 import { BRANCHES, RESEARCH, researchById, type ResearchNode } from '../../sim/research';
 import type { GameState } from '../../sim/state';
@@ -38,7 +38,7 @@ export class ResearchPanel {
     close.onclick = () => this.close();
 
     this.slider = el('input', 'research-slider');
-    Object.assign(this.slider, { type: 'range', min: '0', max: String(MAX_RESEARCH_SHARE * 100), step: '5' });
+    Object.assign(this.slider, { type: 'range', min: '0', max: String(RESEARCH_RATE.maxShare * 100), step: '5' });
     this.slider.oninput = () => actions.setShare(Number(this.slider.value) / 100);
     this.stopButton = el('button', 'btn', icon('pause', 13), 'Arrêter');
     this.stopButton.onclick = () => actions.start(null);

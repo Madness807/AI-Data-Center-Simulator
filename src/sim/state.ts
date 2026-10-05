@@ -1,4 +1,4 @@
-import { BUILD_TIME, ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_MONEY, TECH } from './balance';
+import { BUILD_TIME, ENTRANCE, GRID_H, GRID_W, HEAT, JOBS, RACK, START_LAYOUT, START_MONEY, TECH } from './balance';
 import type { Command } from './commands';
 import type { Building, BuildingKind, Cell, Job, Technician } from './entities';
 import { emptyAlerts, type AlertMemory } from './alert-memory';
@@ -225,11 +225,12 @@ export function createEmptyState(seed = 1, w = GRID_W, h = GRID_H, mode: GameMod
 /** Partie standard : un PDU, un CRAC, deux techniciens et un premier contrat facile. */
 export function createInitialState(seed = 1, mode: GameMode = 'quick'): GameState {
   const s = createEmptyState(seed, GRID_W, GRID_H, mode);
-  addBuilding(s, 'pdu', 1, 1);
-  addBuilding(s, 'crac', 8, 8);
+  addBuilding(s, 'pdu', START_LAYOUT.pdu.x, START_LAYOUT.pdu.y);
+  addBuilding(s, 'crac', START_LAYOUT.crac.x, START_LAYOUT.crac.y);
   for (let i = 0; i < TECH.start; i++) addTech(s);
-  const rate = 2 * RACK.computeCU;
-  const duration = 60;
+  const first = JOBS.firstJob;
+  const rate = first.units * RACK.computeCU;
+  const duration = first.durationS;
   s.jobs.push({
     id: s.nextJobId++,
     name: 'Inférence batch — Lumen Labs',
@@ -238,15 +239,15 @@ export function createInitialState(seed = 1, mode: GameMode = 'quick'): GameStat
     durationS: duration,
     work: rate * duration,
     progress: 0,
-    deadlineInS: 150,
-    payment: 6000,
-    penalty: 1500,
+    deadlineInS: first.deadlineInS,
+    payment: first.payment,
+    penalty: first.penalty,
     offeredAt: 0,
     expiresAt: JOBS.firstOfferExpiry,
     deadline: 0,
     allocated: 0,
   });
-  s.nextOfferAt = 60;
+  s.nextOfferAt = JOBS.firstOfferAt;
   return s;
 }
 
