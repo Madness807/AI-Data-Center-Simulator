@@ -1,4 +1,4 @@
-import { ALERTS, BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, UPS, WEAR } from '../../sim/balance';
+import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, UPS, WEAR } from '../../sim/balance';
 import { upgradeBlocker, upgradeCost } from '../../sim/commands';
 import { failureRiskPerMinute, rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
@@ -8,7 +8,9 @@ import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad, redundancy } from '../../sim/stats';
 import { upsAutonomy } from '../../sim/systems/power';
 import { isTaskAssigned } from '../../sim/systems/technicians';
-import { tempToRgb } from '../../render/overlay-colors';
+import { tempCss } from '../color';
+import { ConfirmGate } from '../confirm';
+import { batteryTone, intakeTone, loadTone, riskTone, WEAR_DANGER, wearTone, type Tone } from '../tones';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { celsius, clock, decimal, money, percent, percentFine, plural, seconds, signedMoney } from '../format';
 import type { IconName } from '../icons';
@@ -30,10 +32,7 @@ export interface InspectorActions {
   maintain: (buildingId: number) => void;
 }
 
-type Tone = '' | 'ok' | 'warn' | 'danger';
-
 const KIND_ICON: Record<BuildingKind, IconName> = { rack: 'rack', crac: 'crac', pdu: 'pdu', ups: 'ups', generator: 'generator', cdu: 'cdu' };
-const CONFIRM_MS = 3000;
 
 /** Ligne « libellé / valeur », mise à jour en place. */
 class Row {
@@ -143,7 +142,7 @@ export class Inspector {
   private readonly thumbnails: Partial<Record<string, string>> = {};
   private current: Building | null = null;
   private headerKey = '';
-  private confirmUntil = 0;
+  private readonly demolishConfirm = new ConfirmGate();
 
   constructor(actions: InspectorActions) {
     const close = el('button', 'btn btn-ghost btn-icon', icon('close', 15));
@@ -169,10 +168,10 @@ export class Inspector {
     this.maintainButton.onclick = () => this.current && actions.maintain(this.current.id);
     this.demolishButton.onclick = () => {
       if (!this.current) return;
-      if (performance.now() < this.confirmUntil) {
-        this.confirmUntil = 0;
+      if (this.demolishConfirm.armed) {
+        this.demolishConfirm.disarm();
         actions.demolish(this.current);
-      } else this.confirmUntil = performance.now() + CONFIRM_MS;
+      } else this.demolishConfirm.arm();
     };
 
     this.root = el(
@@ -232,9 +231,8 @@ export class Inspector {
     const cell = idx(s, b.x, b.y);
     const temp = s.temp[cell];
     const series = history.series(cell);
-    const [r, g, bl] = tempToRgb(temp);
     setText(this.tempValue, celsius(temp));
-    this.tempValue.style.color = `rgb(${r},${g},${bl})`;
+    this.tempValue.style.color = tempCss(temp);
     const before = series[Math.max(0, series.length - 11)] ?? temp;
     const trend = temp - before > 0.3 ? 'up' : before - temp > 0.3 ? 'down' : 'flat';
     if (this.tempTrend.dataset.trend !== trend) {
@@ -276,7 +274,7 @@ export class Inspector {
     }
     const untouched = site && b.workLeft >= BUILD_TIME[b.kind];
     const refund = Math.round(buildCost(b.kind, b.gen) * (untouched ? 1 : DEMOLISH_REFUND));
-    const confirming = performance.now() < this.confirmUntil;
+    const confirming = this.demolishConfirm.armed;
     const demolishLabel = confirming ? 'Confirmer ?' : `Démolir (${signedMoney(refund)})`;
     if (this.demolishButton.dataset.label !== demolishLabel) {
       this.demolishButton.dataset.label = demolishLabel;
@@ -289,7 +287,7 @@ export class Inspector {
     const key = `${b.id}|${b.kind}|${b.status === 'construction'}|${b.gen ?? 1}`;
     if (key === this.headerKey) return;
     this.headerKey = key;
-    this.confirmUntil = 0;
+    this.demolishConfirm.disarm();
     const url = this.thumbnails[b.kind === 'rack' && (b.gen ?? 1) > 1 ? `rack${b.gen}` : b.kind];
     this.thumb.replaceChildren(url ? Object.assign(document.createElement('img'), { src: url, alt: '' }) : icon(KIND_ICON[b.kind], 22));
     const label = `${BUILDING_LABEL[b.kind]}${b.kind === 'rack' && (b.gen ?? 1) > 1 ? ` G${b.gen}` : ''}`;
@@ -328,18 +326,18 @@ export class Inspector {
     this.wearGauge.show(worn);
     if (worn) {
       const w = b.wear ?? 0;
-      this.wearGauge.set(w / 100, `${Math.round(w)} %`, w >= 70 ? 'danger' : w >= MAINTENANCE.autoAbove ? 'warn' : 'ok');
+      this.wearGauge.set(w / 100, `${Math.round(w)} %`, wearTone(w));
     }
     const servicing = isTaskAssigned(s, 'maintain', b.id);
     setHidden(this.maintainButton, !(worn && b.status === 'ok' && (b.wear ?? 0) >= 10 && !servicing));
     if (s.rules.aisles) {
       const own = idx(s, b.x, b.y);
-      this.intake.set(`${celsius(intakeTemp)} · ${intakeIndex(s, b) === own ? 'sur sa case (avant bouché)' : 'devant'}`, intakeTemp >= FAILURE.thresholdC ? 'danger' : intakeTemp >= ALERTS.hotC ? 'warn' : '');
+      this.intake.set(`${celsius(intakeTemp)} · ${intakeIndex(s, b) === own ? 'sur sa case (avant bouché)' : 'devant'}`, intakeTone(intakeTemp));
       const ex = exhaustIndex(s, b);
       this.exhaust.set(ex === null ? 'gardée (mur ou équipement derrière)' : 'vers l’arrière', ex === null ? 'warn' : '');
     }
     this.risk.show(b.status === 'ok');
-    this.risk.set(risk < 0.001 ? '< 0,1 % / min' : `${percentFine(risk)} / min`, risk < 0.02 ? '' : risk < 0.15 ? 'warn' : 'danger');
+    this.risk.set(risk < 0.001 ? '< 0,1 % / min' : `${percentFine(risk)} / min`, riskTone(risk));
 
     const coolers = coolersCovering(s, b.x, b.y);
     this.cooling.set(
@@ -364,7 +362,7 @@ export class Inspector {
     // Une astuce quand la situation appelle une décision.
     const cduNear = s.buildings.some((c) => c.kind === 'cdu' && c.status === 'ok' && (c.x - b.x) ** 2 + (c.y - b.y) ** 2 <= CDU.radius ** 2);
     if ((b.gen ?? 1) === 3 && !cduNear) return `Un rack G3 dégage ${GPU[3].heatKW} kW : sans CDU à ${CDU.radius} cases, il surchauffe.`;
-    if (worn && (b.wear ?? 0) >= 70 && b.status === 'ok') return `Usure ${Math.round(b.wear ?? 0)} % : le risque de panne est ${(1 + ((b.wear ?? 0) / 100) * WEAR.failureMult).toFixed(1).replace('.', ',')} fois plus élevé. Un entretien le remet à neuf.`;
+    if (worn && (b.wear ?? 0) >= WEAR_DANGER && b.status === 'ok') return `Usure ${Math.round(b.wear ?? 0)} % : le risque de panne est ${(1 + ((b.wear ?? 0) / 100) * WEAR.failureMult).toFixed(1).replace('.', ',')} fois plus élevé. Un entretien le remet à neuf.`;
     if (breathesExhaust(s, b)) return 'Ce rack aspire l’air chaud qu’un autre souffle : pivotez-le (F) pour former des allées chaude et froide, dos à dos.';
     if (!coolers.length && temp >= FAILURE.thresholdC) return `Au-delà de ${FAILURE.thresholdC} °C les pannes se multiplient : posez un CRAC à portée.`;
     if (b.status === 'ok' && !b.powered) return 'Capacité électrique insuffisante : ajoutez un PDU.';
@@ -404,7 +402,7 @@ export class Inspector {
     this.battery.set(ratio, `${percent(ratio)} · ${Math.round(charge)} / ${Math.round(store)} kJ`, ratio > 0.5 ? 'ok' : ratio > 0.2 ? 'warn' : 'danger');
     const left = upsAutonomy(s);
     const draw = s.power.grid ? 'à la demande actuelle' : 'au débit actuel';
-    this.autonomy.set(left === null ? '—' : left === Infinity ? 'illimitée' : `${seconds(left)} ${draw}`, left !== null && left < 30 ? 'warn' : '');
+    this.autonomy.set(left === null ? '—' : left === Infinity ? 'illimitée' : `${seconds(left)} ${draw}`, left === null ? '' : batteryTone(left));
     if (s.power.grid && ratio < 1) return `Recharge sur le réseau (${UPS.rechargeKW} kW) : pleine dans ${seconds(((store - charge) / UPS.rechargeKW))}.`;
     if (!s.power.grid && ratio < 0.2) return 'Batterie presque vide : un groupe électrogène prendrait le relais pour toute la coupure.';
     return '';
@@ -469,7 +467,7 @@ export class Inspector {
     this.n1.set(r.pdu ? 'oui' : 'non', r.pdu ? 'ok' : 'warn');
     const p = s.power;
     const pdus = s.buildings.filter((o) => o.kind === 'pdu' && o.status === 'ok').length;
-    this.gridLoad.set(p.capacityKW ? p.loadKW / p.capacityKW : 1, `${p.loadKW} / ${p.capacityKW} kW`, p.shedCount ? 'danger' : p.loadKW / p.capacityKW > 0.85 ? 'warn' : 'ok');
+    this.gridLoad.set(p.capacityKW ? p.loadKW / p.capacityKW : 1, `${p.loadKW} / ${p.capacityKW} kW`, loadTone(p.loadKW / p.capacityKW, p.shedCount > 0));
     this.network.set(`${pdus} PDU · +${Math.round(modifiers(s).pduCapacityKW)} kW chacun${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'délesté')}` : ''}`, p.shedCount ? 'danger' : '');
     return p.shedCount ? 'Des racks sont délestés : un PDU de plus les réalimenterait.' : '';
   }

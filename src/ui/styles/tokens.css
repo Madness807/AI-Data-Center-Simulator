@@ -1,7 +1,8 @@
 /*
- * Jetons de design du HUD « console d'opérateur ». Les couleurs d'état (--status-*,
- * --ping-*) sont écrites au démarrage depuis la palette 3D (ui/theme.ts) : mêmes
- * couleurs pour les LEDs des racks, la mini-carte et les pastilles de l'interface.
+ * Jetons de design du HUD « console d'opérateur ». ui/theme.ts réécrit au démarrage (et au
+ * passage en mode daltonien) les couleurs sémantiques depuis la palette 3D : mêmes teintes
+ * pour les LEDs des racks, la mini-carte et l'interface. Chaque couleur a son triplet *-rgb,
+ * pour les teintes transparentes : rgba(var(--ok-rgb), 0.14).
  */
 :root {
   --font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -11,7 +12,7 @@
   --glass: rgba(13, 18, 26, 0.8);
   --glass-strong: rgba(9, 13, 19, 0.94);
   --glass-border: rgba(126, 206, 255, 0.14);
-  --glass-edge: rgba(79, 209, 255, 0.55);
+  --glass-edge: rgba(var(--accent-rgb), 0.55);
   --surface: rgba(255, 255, 255, 0.035);
   --surface-hover: rgba(255, 255, 255, 0.07);
   --line: rgba(255, 255, 255, 0.07);
@@ -21,18 +22,29 @@
   --text-faint: #5f6b7c;
 
   --accent: #4fd1ff;
-  --accent-soft: rgba(79, 209, 255, 0.14);
+  --accent-rgb: 79, 209, 255;
+  --accent-soft: rgba(var(--accent-rgb), 0.14);
   --ok: #3dffa0;
+  --ok-rgb: 61, 255, 160;
   --warn: #f2c14e;
+  --warn-rgb: 242, 193, 78;
   --danger: #ff5a4f;
+  --danger-rgb: 255, 90, 79;
   --info: #5aa8ff;
-
-  /* Valeurs de repli ; theme.ts les remplace par celles de la palette 3D. */
-  --status-busy: #3dffa0;
-  --status-idle: #2a8fd0;
-  --status-shed: #ff3b3b;
-  --status-failed: #ff3b3b;
+  /* Textes clairs sur un fond teinté de la même couleur (boutons, bandeaux, conseils). */
+  --ok-text: #c8ffe3;
+  --warn-text: #ffe2a8;
+  --danger-text: #ffd9d6;
+  /* Valeur de repli ; theme.ts la remplace par celle de la palette 3D. */
   --status-repairing: #ffa23b;
+  /* Voile derrière les fenêtres et les écrans de fin. */
+  --backdrop-rgb: 5, 8, 12;
+
+  /* Plans d'empilement : élément mis en avant, menus, infobulle, messages près du curseur. */
+  --z-raised: 2;
+  --z-menu: 5;
+  --z-tooltip: 20;
+  --z-flash: 30;
 
   --radius-s: 6px;
   --radius-m: 10px;

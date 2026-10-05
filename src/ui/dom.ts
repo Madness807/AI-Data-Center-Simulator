@@ -28,3 +28,10 @@ export function setStyle(node: HTMLElement, prop: 'width' | 'left' | 'top' | 'ba
 export function setHidden(node: HTMLElement, hidden: boolean): void {
   if (node.hidden !== hidden) node.hidden = hidden;
 }
+
+/** Relance une animation CSS portée par une classe (retirée, recalcul, remise). */
+export function restartAnimation(node: HTMLElement, cls: string): void {
+  node.classList.remove(cls);
+  void node.offsetWidth;
+  node.classList.add(cls);
+}

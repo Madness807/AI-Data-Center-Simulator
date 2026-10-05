@@ -9,6 +9,7 @@ import { el, icon, setText } from '../dom';
 import { celsius, clock, decimal, money, moneyRate, percent, percentFine, plural, signedMoney } from '../format';
 import type { IconName } from '../icons';
 import type { Balance, GameHistory, Sample } from '../metrics';
+import { riskTone, roomTone } from '../tones';
 import { LineChart } from './line-chart';
 
 export type DashboardTab = 'finances' | 'operations' | 'thermal';
@@ -218,13 +219,13 @@ export class Dashboard {
 
   private updateThermal(s: GameState, samples: readonly Sample[]): void {
     const t = tempStats(s);
-    setKpi(this.thermal.max, celsius(t.max), `seuil de panne ${FAILURE.thresholdC} °C`, t.max >= FAILURE.thresholdC ? 'danger' : t.max >= ALERTS.hotC ? 'warn' : 'ok');
+    setKpi(this.thermal.max, celsius(t.max), `seuil de panne ${FAILURE.thresholdC} °C`, roomTone(t.max, 'ok'));
     setKpi(this.thermal.avg, celsius(t.avg), 'sur toute la salle');
     const racks = s.buildings.filter(isRackActive);
     const hot = racks.filter((b) => rackTemp(s, b) >= ALERTS.hotC).length;
     setKpi(this.thermal.hot, String(hot), `sur ${racks.length} ${plural(racks.length, 'rack')} en service`, hot ? 'warn' : '');
     const risk = racks.reduce((m, b) => Math.max(m, rackRiskPerMinute(s, b)), 0);
-    setKpi(this.thermal.risk, `${percentFine(risk)} / min`, 'rack le plus exposé', risk >= 0.05 ? 'danger' : risk >= 0.02 ? 'warn' : '');
+    setKpi(this.thermal.risk, `${percentFine(risk)} / min`, 'rack le plus exposé', riskTone(risk));
 
     this.tempChart.update(
       samples.map((x) => x.time),

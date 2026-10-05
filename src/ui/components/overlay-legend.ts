@@ -1,7 +1,8 @@
 import { FAILURE } from '../../sim/balance';
 import type { GameState } from '../../sim/state';
 import { statusVersion } from '../../render/assets/status-colors';
-import { HEAT_STOPS, overlayLegend, powerLoadLabel, type OverlayMode, type Rgb } from '../../render/overlay-colors';
+import { HEAT_STOPS, overlayLegend, powerLoadLabel, type OverlayMode } from '../../render/overlay-colors';
+import { rgbCss } from '../color';
 import { el, icon, setText } from '../dom';
 import type { IconName } from '../icons';
 
@@ -14,14 +15,12 @@ export const OVERLAY_INFO: Record<OverlayMode, { label: string; short: string; i
   risk: { label: 'Risque de panne', short: 'Risque', icon: 'alert' },
 };
 
-const css = ([r, g, b]: Rgb) => `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
-
 /** Rampe des températures, avec le seuil au-delà duquel les pannes se multiplient. */
 function heatScale(): HTMLElement {
   const [t0, tN] = [HEAT_STOPS[0][0], HEAT_STOPS[HEAT_STOPS.length - 1][0]];
   const pct = (t: number) => `${((t - t0) / (tN - t0)) * 100}%`;
   const ramp = el('div', 'legend-ramp');
-  ramp.style.background = `linear-gradient(to right, ${HEAT_STOPS.map(([t, r, g, b]) => `rgb(${r},${g},${b}) ${pct(t)}`).join(', ')})`;
+  ramp.style.background = `linear-gradient(to right, ${HEAT_STOPS.map(([t, r, g, b]) => `${rgbCss([r, g, b])} ${pct(t)}`).join(', ')})`;
   const threshold = el('div', 'legend-threshold');
   threshold.style.left = pct(FAILURE.thresholdC);
   ramp.append(threshold);
@@ -69,7 +68,7 @@ export class OverlayLegend {
         this.swatches.replaceChildren(
           ...legend.items.map((item) => {
             const dot = el('span', 'swatch');
-            dot.style.background = css(item.rgb);
+            dot.style.background = rgbCss(item.rgb);
             return el('span', 'legend-item', dot, item.label);
           }),
         );

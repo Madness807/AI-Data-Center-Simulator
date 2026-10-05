@@ -2,7 +2,8 @@ import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, PDU
 import type { Cell, Gen, Specialty } from '../sim/entities';
 import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
-import { tempToRgb, type OverlayMode } from '../render/overlay-colors';
+import type { OverlayMode } from '../render/overlay-colors';
+import { tempCss } from './color';
 import { AlertFeed } from './components/alert-feed';
 import { BUILD_FAMILIES, BuildBar, TOOL_INFO, toolAvailable, toolCost, type FamilyId } from './components/build-bar';
 import { toolBuild, type Tool } from '../input/build';
@@ -106,9 +107,8 @@ function tip(title: Node | string, rows: [string, Node | string][], hint?: strin
 }
 
 function tempValue(t: number): HTMLElement {
-  const [r, g, b] = tempToRgb(t);
   const dot = el('span', 'temp-dot');
-  dot.style.background = `rgb(${r},${g},${b})`;
+  dot.style.background = tempCss(t);
   return el('span', undefined, dot, ` ${celsius(t)}`);
 }
 

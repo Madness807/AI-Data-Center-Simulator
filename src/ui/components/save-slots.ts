@@ -1,4 +1,5 @@
 import { SAVE_SLOTS, type SaveSlot, type SlotInfo } from '../../save';
+import { ConfirmGate } from '../confirm';
 import { el, icon, setText } from '../dom';
 import { clock, money, plural } from '../format';
 
@@ -11,7 +12,6 @@ export interface SaveSlotsActions {
   exportGame: () => void;
 }
 
-const CONFIRM_MS = 3000;
 const slotName = (slot: SaveSlot) => (slot === 'auto' ? 'Sauvegarde automatique' : `Emplacement ${slot}`);
 
 function describe(info: SlotInfo | undefined): string {
@@ -30,7 +30,9 @@ export class SaveSlots {
   private readonly status = el('div', 'slots-status');
   private readonly exportButton: HTMLButtonElement;
   private mode: 'save' | 'load' = 'load';
-  private armed: { slot: SaveSlot; until: number } | null = null;
+  /** Emplacement plein dont l'écrasement attend un second clic. */
+  private armedSlot: SaveSlot | null = null;
+  private readonly overwrite = new ConfirmGate();
 
   constructor(private readonly actions: SaveSlotsActions) {
     const close = el('button', 'btn btn-ghost btn-icon', icon('close', 15));
@@ -69,7 +71,7 @@ export class SaveSlots {
 
   open(mode: 'save' | 'load'): void {
     this.mode = mode;
-    this.armed = null;
+    this.armedSlot = null;
     this.title.replaceChildren(icon(mode === 'save' ? 'save' : 'load', 14), mode === 'save' ? 'Sauvegarder' : 'Charger une partie');
     this.exportButton.hidden = mode !== 'save';
     setText(this.status, '');
@@ -103,15 +105,16 @@ export class SaveSlots {
           button.append(icon('save', 14), info ? 'Écraser' : 'Sauvegarder ici');
           button.onclick = () => {
             // Écraser une sauvegarde existante demande un second clic.
-            if (info && !(this.armed?.slot === slot && performance.now() < this.armed.until)) {
-              this.armed = { slot, until: performance.now() + CONFIRM_MS };
+            if (info && !(this.armedSlot === slot && this.overwrite.armed)) {
+              this.armedSlot = slot;
+              this.overwrite.arm();
               button.replaceChildren(icon('save', 14), 'Confirmer ?');
               button.classList.add('confirm');
               return;
             }
             const error = this.actions.save(slot);
             this.report(error ?? `Partie sauvegardée dans « ${slotName(slot)} ».`, !!error);
-            this.armed = null;
+            this.armedSlot = null;
             this.render();
           };
         }

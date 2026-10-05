@@ -1,7 +1,7 @@
 import type { Command } from '../../sim/commands';
 import type { Cell } from '../../sim/entities';
 import type { GameState } from '../../sim/state';
-import { el, icon, setText } from '../dom';
+import { el, icon, restartAnimation, setText } from '../dom';
 import { STEPS, advance, createMemo, type TutorialContext, type TutorialMemo } from './steps';
 
 export interface TutorialHost {
@@ -81,9 +81,7 @@ export class Tutorial {
       this.finish.hidden = this.index !== STEPS.length - 1;
       this.lastPing = -Infinity;
       // Petit signal visuel à chaque nouvelle étape.
-      this.root.classList.remove('advanced');
-      void this.root.offsetWidth;
-      this.root.classList.add('advanced');
+      restartAnimation(this.root, 'advanced');
     }
     // L'élément à mettre en avant peut n'apparaître qu'en cours d'étape (bouton de l'inspecteur…).
     this.setHighlight(step.highlight ? document.querySelector(step.highlight) : null);

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ENTRANCE } from '../../sim/balance';
 import { once, onceBy } from './cache';
-import { PALETTE } from './palette';
+import { PALETTE, toRgb as rgb, type Rgb } from './palette';
 
 /**
  * Textures générées en pur JS (DataTexture) : rien à charger, et testables sans navigateur.
@@ -17,9 +17,6 @@ export interface Pixels {
   height: number;
 }
 
-type Rgb = readonly [number, number, number];
-
-const rgb = (hex: number): Rgb => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
 const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 const shade = (c: Rgb, k: number): Rgb => [clamp(c[0] * k), clamp(c[1] * k), clamp(c[2] * k)];
 

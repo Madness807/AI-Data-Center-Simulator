@@ -1,10 +1,4 @@
-const SVG = 'http://www.w3.org/2000/svg';
-
-function svg<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number>): SVGElementTagNameMap[K] {
-  const node = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
-  return node;
-}
+import { svg } from '../svg';
 
 /**
  * Petite courbe (SVG) : aire, tracé et ligne de seuil pointillée. L'échelle s'élargit

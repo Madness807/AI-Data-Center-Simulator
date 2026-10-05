@@ -1,7 +1,7 @@
 import type { SettingsStore } from '../../settings';
 import type { GameState } from '../../sim/state';
 import { dueTip, type CareerTip } from '../career-tips';
-import { el, icon, setText } from '../dom';
+import { el, icon, restartAnimation, setText } from '../dom';
 
 /** Un conseil se range de lui-même au bout de ce délai (temps réel, ms). */
 const AUTO_HIDE_MS = 45_000;
@@ -49,9 +49,7 @@ export class TipCard {
     setText(this.title, tip.title);
     setText(this.text, tip.text);
     this.root.hidden = false;
-    this.root.classList.remove('advanced');
-    void this.root.offsetWidth;
-    this.root.classList.add('advanced');
+    restartAnimation(this.root, 'advanced');
     this.settings.update({ tipsSeen: [...this.settings.value.tipsSeen, tip.id] });
   }
 

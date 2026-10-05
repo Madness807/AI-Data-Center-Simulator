@@ -7,13 +7,14 @@ import { outagesActive } from '../sim/systems/incidents';
 import { inCoolingRange } from '../sim/systems/heat';
 import { hotAisleCells, liquidCapture } from '../sim/climate';
 import { plannedGeneratorKW, plannedUpsKW } from '../sim/systems/power';
+import { PALETTE, toRgb, type Rgb } from './assets/palette';
 import { statusColor, type StatusName } from './assets/status-colors';
 
 /** Calques posés sur le sol de la salle ; H les fait défiler. */
 export type OverlayMode = 'heat' | 'power' | 'cooling' | 'occupancy' | 'risk';
 export const OVERLAY_MODES: readonly OverlayMode[] = ['heat', 'power', 'cooling', 'occupancy', 'risk'];
 
-export type Rgb = readonly [number, number, number];
+export type { Rgb };
 
 /** Paliers de la rampe de couleurs de la chaleur (°C → RGB). */
 export const HEAT_STOPS: ReadonlyArray<readonly [number, number, number, number]> = [
@@ -39,25 +40,28 @@ export function tempToRgb(t: number): [number, number, number] {
   return [last[1], last[2], last[3]];
 }
 
-const hex = (c: number): Rgb => [(c >> 16) & 255, (c >> 8) & 255, c & 255];
-const status = (name: StatusName): Rgb => hex(statusColor(name));
+const status = (name: StatusName): Rgb => toRgb(statusColor(name));
 const mix = (a: Rgb, b: Rgb, f: number): Rgb => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 
 /** Froid disponible : la couleur d'accent du HUD, distincte des états des racks. */
-const COOL: Rgb = [79, 209, 255];
+const COOL = toRgb(PALETTE.blueprint);
 /** Allée chaude (air soufflé par les racks) et refroidissement liquide. */
-const HOT_AISLE: Rgb = [255, 138, 61];
-const LIQUID: Rgb = [150, 120, 255];
+const HOT_AISLE = toRgb(PALETTE.aisleHot);
+const LIQUID = toRgb(PALETTE.overlay.liquid);
 /** Racks pris par un entraînement (bloc dédié). */
-const TRAINING_RGB: Rgb = [255, 110, 200];
+const TRAINING_RGB = toRgb(PALETTE.overlay.training);
 /** Sol assombri sous les calques par équipement : les cases colorées ressortent. */
-const DIM = [8, 12, 18, 130] as const;
+const DIM = toRgb(PALETTE.overlay.dim);
+const DIM_ALPHA = 130;
 
 /**
  * Risque de panne par minute : vert (ou bleu en mode daltonien) au frais, orange vers
  * 3 %/min, rouge à partir de 15 %/min. Mêmes couleurs que les états des racks.
  */
 export const RISK_TICKS = [0, 0.03, 0.15] as const;
+
+/** Part de la capacité au-delà de laquelle une charge électrique est signalée (calque énergie et HUD). */
+export const LOAD_WARN = 0.85;
 
 export function riskToRgb(risk: number): Rgb {
   const [, mid, high] = RISK_TICKS;
@@ -149,7 +153,7 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
     }
     return;
   }
-  for (let i = 0; i < s.temp.length; i++) put(i, [DIM[0], DIM[1], DIM[2]], DIM[3]);
+  for (let i = 0; i < s.temp.length; i++) put(i, DIM, DIM_ALPHA);
   const cell = (b: Building) => b.y * s.w + b.x;
 
   if (mode === 'power') {
@@ -159,7 +163,7 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
       const i = cell(b);
       if (b.status === 'construction') put(i, status('idle'), 140);
       else if (b.status === 'failed' || b.status === 'repairing') put(i, status('failed'), 235);
-      else if (b.kind === 'pdu') put(i, load >= 1 ? status('shed') : load >= 0.85 ? status('repairing') : status('busy'), 235);
+      else if (b.kind === 'pdu') put(i, load >= 1 ? status('shed') : load >= LOAD_WARN ? status('repairing') : status('busy'), 235);
       else if (b.kind === 'ups' || b.kind === 'generator') put(i, COOL, 235);
       else if (!b.powered) put(i, status('shed'), 235);
       // Alimenté mais qui tomberait si le réseau coupait : orange.

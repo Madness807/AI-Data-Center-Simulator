@@ -12,7 +12,6 @@ body { font-family: var(--font-ui); color: var(--text); font-size: 13px; -webkit
 .warn { color: var(--warn); }
 .danger { color: var(--danger); }
 .dim { color: var(--text-dim); }
-.faint { color: var(--text-faint); }
 
 /* Panneau de verre fumé avec liseré cyan en haut. */
 .glass {
@@ -45,11 +44,11 @@ body { font-family: var(--font-ui); color: var(--text); font-size: 13px; -webkit
 }
 .btn:hover:not(:disabled) { background: var(--surface-hover); border-color: rgba(255, 255, 255, 0.16); }
 .btn:disabled { opacity: 0.38; cursor: not-allowed; }
-.btn-primary { background: rgba(61, 255, 160, 0.14); border-color: rgba(61, 255, 160, 0.45); color: #c8ffe3; }
-.btn-primary:hover:not(:disabled) { background: rgba(61, 255, 160, 0.24); border-color: rgba(61, 255, 160, 0.7); }
+.btn-primary { background: rgba(var(--ok-rgb), 0.14); border-color: rgba(var(--ok-rgb), 0.45); color: var(--ok-text); }
+.btn-primary:hover:not(:disabled) { background: rgba(var(--ok-rgb), 0.24); border-color: rgba(var(--ok-rgb), 0.7); }
 .btn-ghost { background: transparent; color: var(--text-dim); }
 .btn-icon { padding: 6px; }
-.btn.active, .btn[aria-pressed='true'] { color: var(--accent); border-color: rgba(79, 209, 255, 0.55); background: var(--accent-soft); }
+.btn.active, .btn[aria-pressed='true'] { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.55); background: var(--accent-soft); }
 
 /* Touche de raccourci */
 .kbd {
@@ -65,9 +64,9 @@ body { font-family: var(--font-ui); color: var(--text); font-size: 13px; -webkit
   padding: 2px 7px; border-radius: 999px; font: 600 11px var(--font-mono);
   background: var(--surface); border: 1px solid var(--line); color: var(--text-dim);
 }
-.chip.warn { color: var(--warn); border-color: rgba(242, 193, 78, 0.4); background: rgba(242, 193, 78, 0.08); }
-.chip.danger { color: var(--danger); border-color: rgba(255, 90, 79, 0.45); background: rgba(255, 90, 79, 0.1); }
-.chip.ok { color: var(--ok); border-color: rgba(61, 255, 160, 0.35); background: rgba(61, 255, 160, 0.08); }
+.chip.warn { color: var(--warn); border-color: rgba(var(--warn-rgb), 0.4); background: rgba(var(--warn-rgb), 0.08); }
+.chip.danger { color: var(--danger); border-color: rgba(var(--danger-rgb), 0.45); background: rgba(var(--danger-rgb), 0.1); }
+.chip.ok { color: var(--ok); border-color: rgba(var(--ok-rgb), 0.35); background: rgba(var(--ok-rgb), 0.08); }
 
 /* Voyant façon LED */
 .led { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px currentColor; flex: none; }

@@ -1,4 +1,5 @@
 import type { SettingsStore } from '../../settings';
+import { CONFIRM_MS, ConfirmGate } from '../confirm';
 import { el, icon } from '../dom';
 import type { IconName } from '../icons';
 import { OptionsPanel } from './options-panel';
@@ -11,8 +12,6 @@ export interface PauseActions {
   mainMenu: () => void;
 }
 
-const CONFIRM_MS = 3000;
-
 /** Menu pause (Échap) : la partie est figée tant qu'il est ouvert. */
 export class PauseMenu {
   readonly root: HTMLElement;
@@ -20,7 +19,7 @@ export class PauseMenu {
   private readonly options: OptionsPanel;
   private readonly extra = el('div', 'menu-extra');
   private readonly note = el('p', 'menu-note');
-  private quitArmedUntil = 0;
+  private readonly quitConfirm = new ConfirmGate();
 
   constructor(settings: SettingsStore, actions: PauseActions) {
     this.options = new OptionsPanel(settings, () => this.show('menu'));
@@ -39,12 +38,12 @@ export class PauseMenu {
       });
     });
     const quit = item('quit', 'Menu principal', (b) => {
-      if (performance.now() < this.quitArmedUntil) {
-        this.quitArmedUntil = 0;
+      if (this.quitConfirm.armed) {
+        this.quitConfirm.disarm();
         actions.mainMenu();
         return;
       }
-      this.quitArmedUntil = performance.now() + CONFIRM_MS;
+      this.quitConfirm.arm();
       this.flash(b, 'Quitter la partie ? Cliquez encore', CONFIRM_MS);
     });
     this.menu = el(

@@ -119,4 +119,14 @@ export const PALETTE = {
   },
 
   ping: { move: 0x3dffa0, build: 0xffc83d, repair: 0xffa23b, maintain: 0x5ef2c6, focus: 0x4fd1ff },
+
+  /** Calques au sol (render/overlay-colors.ts) : liquide, entraînement, sol assombri sous les équipements. */
+  overlay: { liquid: 0x9678ff, training: 0xff6ec8, dim: 0x080c12 },
 } as const;
+
+export type Rgb = readonly [number, number, number];
+
+/** Composantes d'une couleur de la palette (0xRRGGBB → [r, g, b]). */
+export function toRgb(hex: number): Rgb {
+  return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+}

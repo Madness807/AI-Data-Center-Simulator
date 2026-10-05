@@ -1,4 +1,4 @@
-import { ECONOMY, FAILURE } from '../../sim/balance';
+import { ECONOMY } from '../../sim/balance';
 import type { GameState, Speed } from '../../sim/state';
 import { tempStats } from '../../sim/stats';
 import { TIERS } from '../../sim/progression';
@@ -7,6 +7,7 @@ import type { DashboardTab } from './dashboard';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { celsius, clock, money, moneyRate, percent, plural, seconds } from '../format';
 import type { IconName } from '../icons';
+import { loadTone, roomTone } from '../tones';
 
 const SPEEDS: { speed: Speed; label: string; key: string }[] = [
   { speed: 0, label: '', key: 'Espace' },
@@ -149,7 +150,7 @@ export class ResourceBar {
     this.power.root.classList.toggle('outage', !p.grid);
     const load = cap ? p.loadKW / cap : 1;
     setStyle(this.powerMeter.fill, 'width', `${Math.min(1, load) * 100}%`);
-    this.powerMeter.fill.className = `meter-fill ${p.shedCount ? 'danger' : load > 0.85 ? 'warn' : 'ok'}`;
+    this.powerMeter.fill.className = `meter-fill ${loadTone(load, p.shedCount > 0)}`;
     setHidden(this.shed, p.shedCount === 0);
     setHidden(this.powerMeter.root, p.shedCount > 0);
     setText(this.shed, `${p.shedCount} ${plural(p.shedCount, 'délesté')}`);
@@ -159,7 +160,7 @@ export class ResourceBar {
 
     const t = tempStats(s);
     setText(this.temp.value, celsius(t.max));
-    this.temp.value.className = `res-value ${t.max >= FAILURE.thresholdC + 15 ? 'danger' : t.max >= FAILURE.thresholdC ? 'warn' : ''}`;
+    this.temp.value.className = `res-value ${roomTone(t.max)}`;
     // Carrière, palier de la météo : la température extérieure remplace la moyenne de la salle.
     const outside = s.cooling.outsideC;
     setText(this.temp.sub, outside === null ? `moy. ${celsius(t.avg)}` : `ext. ${celsius(outside)}`);

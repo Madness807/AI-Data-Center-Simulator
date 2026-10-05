@@ -1,23 +1,36 @@
-import { isColorblind, PALETTE, statusColor, type StatusName } from '../render/assets';
+import { isColorblind, PALETTE, statusColor } from '../render/assets';
+import { hexCss as hex } from './color';
 
-const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
-const kebab = (s: string) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+const rgb = (n: number) => `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+/** Teinte claire d'une couleur, pour un texte posé sur un fond de la même couleur. */
+const light = (n: number) => {
+  const mix = (c: number) => Math.round(c + (255 - c) * 0.72);
+  return hex((mix((n >> 16) & 255) << 16) | (mix((n >> 8) & 255) << 8) | mix(n & 255));
+};
 
 /**
- * Écrit les couleurs d'état de la palette 3D dans des variables CSS : les LEDs des racks,
- * la mini-carte et les pastilles du HUD partagent ainsi une seule source de vérité.
+ * Écrit les couleurs sémantiques de la palette 3D dans des variables CSS (et leur triplet
+ * *-rgb) : les LEDs des racks, la mini-carte et le HUD partagent une seule source de vérité.
  */
 export function applyTheme(root: HTMLElement = document.documentElement): void {
-  for (const name of Object.keys(PALETTE.status) as StatusName[]) root.style.setProperty(`--status-${kebab(name)}`, hex(statusColor(name)));
-  for (const [name, value] of Object.entries(PALETTE.ping)) root.style.setProperty(`--ping-${name}`, hex(value));
-  root.style.setProperty('--ok', hex(statusColor('busy')));
-  root.style.setProperty('--accent', hex(PALETTE.blueprint));
-  // En mode daltonien, les teintes « alerte » et « danger » du HUD suivent la palette adaptée.
+  const set = (name: string, color: number) => {
+    root.style.setProperty(`--${name}`, hex(color));
+    root.style.setProperty(`--${name}-rgb`, rgb(color));
+  };
+  set('ok', statusColor('busy'));
+  set('accent', PALETTE.blueprint);
+  root.style.setProperty('--status-repairing', hex(statusColor('repairing')));
+  // En mode daltonien, les teintes « alerte » et « danger » et leurs textes suivent la palette adaptée.
+  const adapted = ['warn', 'danger', 'ok-text', 'warn-text', 'danger-text'];
   if (isColorblind()) {
-    root.style.setProperty('--warn', hex(statusColor('shed')));
-    root.style.setProperty('--danger', hex(statusColor('failed')));
+    set('warn', statusColor('shed'));
+    set('danger', statusColor('failed'));
+    root.style.setProperty('--ok-text', light(statusColor('busy')));
+    root.style.setProperty('--warn-text', light(statusColor('shed')));
+    root.style.setProperty('--danger-text', light(statusColor('failed')));
   } else {
-    root.style.removeProperty('--warn');
-    root.style.removeProperty('--danger');
+    for (const name of adapted) root.style.removeProperty(`--${name}`);
+    root.style.removeProperty('--warn-rgb');
+    root.style.removeProperty('--danger-rgb');
   }
 }

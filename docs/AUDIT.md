@@ -187,7 +187,10 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - charge électrique : 0,85 contre l'alerte à 0,9 ;
     - batterie : 30 s contre 20 s ;
     - usure : 70 codé deux fois.
-  - **Statut** : prévu au lot 6.
+  - **Statut** : ✅ lot 6. `src/ui/tones.ts` donne une teinte par grandeur :
+    - `intakeTone`, `roomTone` (point le plus chaud de la salle, allées chaudes comprises), `riskTone`, `loadTone`, `wearTone`, `batteryTone` ;
+    - les seuils viennent de `FAILURE`, `ALERTS` et `MAINTENANCE`, ou de `LOAD_WARN`, partagé avec le calque énergie ;
+    - bandeau, tableau de bord et inspecteur l'utilisent. Les couleurs qui changent sont listées plus bas.
 - **U3 · Des textes et formules de l'interface recopient des constantes** (haute)
   - **Constat** :
     - « 50 % » et « ×2 » du panneau Équipe ;
@@ -205,7 +208,11 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : prévu au lot 8.
 - **U5 · Teintes de couleur littérales dans le CSS** (haute)
   - **Constat** : 49 teintes, que le mode daltonien ne suit pas (`.chip.ok`, `.btn-primary`…).
-  - **Statut** : prévu au lot 6.
+  - **Statut** : ✅ lot 6.
+    - Les 38 teintes sémantiques s'écrivent `rgba(var(--ok-rgb), a)`, et `theme.ts` écrit ces triplets.
+    - Nouveaux jetons : `--ok-text`, `--warn-text`, `--danger-text`, `--backdrop-rgb` et `--z-*`.
+    - Vérifié par les styles calculés du navigateur : en mode normal, valeurs identiques aux anciens littéraux ; en mode daltonien, puces, boutons et bandeaux suivent la palette adaptée.
+    - `color-mix` a été écarté, car absent de Safari 15.
 - **U6 · Le code de fenêtre est copié 6 fois** (haute)
   - **Où** : tableau de bord, Équipe, Recherche, Aide, Sauvegardes, Pause.
   - **Constat** : les copies divergent déjà (icône de fermeture, titre, clic sur le fond).
@@ -225,7 +232,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - `HudActions.setTool`, `Dashboard.toggle`, `onToolChange`, `ChartSeries.dashed`, des métriques jamais lues, l'icône `copy` ;
     - 13 règles `[hidden]` redondantes, `.faint` ;
     - des variables `--status-*` et `--ping-*` inutilisées.
-  - **Statut** : prévu aux lots 6 et 9.
+  - **Statut** : ✅ lot 6 pour le CSS : 13 règles `[hidden]` redondantes, `.faint`, une déclaration en double, les variables `--status-*` et `--ping-*` que personne ne lisait. Le code TypeScript mort est prévu au lot 9.
 - **U10 · La règle « n'écrire dans le DOM que si la valeur change » est inégalement appliquée** (moyenne)
   - **Où** : une vingtaine d'écritures à chaque image.
   - **Statut** : prévu au lot 9.
@@ -245,13 +252,13 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 - **U14 · `scene.ts` mêle caméra, clavier et rendu ; `components.css` est rangé par lot de livraison** (moyenne)
   - **Statut** : ⏸ découpage de fichiers.
 - **U15 · Couleurs des calques hors de la palette, textes et statistiques dans `overlay-colors.ts`** (moyenne)
-  - **Statut** : couleurs au lot 6 ; textes et statistiques ⏸ (déplacement de code entre couches).
+  - **Statut** : ✅ lot 6 pour les couleurs : groupe `PALETTE.overlay`, `toRgb()` dans la palette (une seule conversion pour le rendu), froid et allée chaude tirés de `blueprint` et `aisleHot`. Textes et statistiques ⏸ (déplacement de code entre couches). La rampe `HEAT_STOPS` reste dans le calque : c'est une table indexée par température.
 - **U16 · Minuteries dupliquées** (moyenne)
   - **Constat** :
     - `CONFIRM_MS` défini 3 fois, avec 3 implémentations ;
     - durée du flash recopiée entre le JS et le CSS ;
     - « relancer une animation » copié 2 fois.
-  - **Statut** : prévu au lot 6.
+  - **Statut** : ✅ lot 6. `src/ui/confirm.ts` (`CONFIRM_MS`, `ConfirmGate`) sert à l'inspecteur, au menu pause et aux sauvegardes. `restartAnimation()` est dans `dom.ts`. Le flash près du curseur disparaît à la fin de son animation CSS : une seule durée, et `REPEAT_MS` est nommé.
 - **U17 · Le HUD vide la liste d'événements de la simulation** (moyenne)
   - **Constat** : sons et rapport de bug ne marchent que parce qu'ils passent avant.
   - **Statut** : prévu au lot 9.
@@ -259,7 +266,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Constat** : constructeurs, signatures d'`update`, source de l'heure, deux systèmes d'infobulles.
   - **Statut** : ⏸ alignement général ; petites corrections au lot 9.
 - **U19 · Utilitaires de couleur et de SVG dupliqués** (basse)
-  - **Statut** : prévu au lot 6.
+  - **Statut** : ✅ lot 6. `src/ui/color.ts` (`hexCss`, `rgbCss`, `tempCss`) et `src/ui/svg.ts` remplacent les copies : thème, mini-carte, légende, HUD, inspecteur, mini-courbe, graphiques.
 - **U20 · Rendu : petits manquements aux conventions** (basse)
   - **Constat** :
     - `CylinderGeometry` répété 9 fois ;
@@ -268,7 +275,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : ⏸ gain faible, risque visuel.
 - **U21 · Échelle typographique** (basse)
   - **Constat** : 16 tailles de police, la recette « micro-libellé » 8 fois, aucune échelle de `z-index`.
-  - **Statut** : `z-index` au lot 6 ; typographie ⏸.
+  - **Statut** : ✅ lot 6 pour les `z-index` : jetons `--z-raised`, `--z-menu`, `--z-tooltip` et `--z-flash`. Typographie ⏸.
 - **U22 · Son** (basse)
   - **Constat** :
     - les volumes par défaut sont recopiés d'une source à l'autre ;
@@ -360,6 +367,21 @@ Tous corrigent une incohérence ou un texte faux ; aucun ne change une règle du
   - « environ une minute » → « environ 60 s à pleine puissance » (onduleurs) ;
   - « deux fois » → « 2 fois » (spécialités).
 - **Prix de réparation (lot 5)** : après la recherche « Stock de pièces », l'infobulle et l'inspecteur affichent 250 $ et 5 s, comme ce qui est facturé ; avant, ils affichaient 400 $ et 8 s.
+- **Mode daltonien (lot 6)** : les fonds et contours teintés (puces, boutons principaux, bandeaux, conseils) suivent la palette adaptée ; avant, seul le texte changeait. Le mode normal est identique au pixel près.
+- **Tableau de bord (lot 6)** :
+  - « Température max » prend les seuils du bandeau, alerte à 35 °C et danger à 50 °C, au lieu de 32 et 35 °C. C'est le point le plus chaud de la salle, allées chaudes comprises.
+  - « Risque max » passe au rouge à 15 %/min, comme l'inspecteur, au lieu de 5 %.
+- **Inspecteur d'onduleur (lot 6)** : l'autonomie passe au rouge sous 20 s, le seuil de l'alerte ; elle reste jaune jusqu'à 30 s, comme avant.
+
+## Vérification dans le navigateur
+
+- **Captures de référence** prises au début de la nuit, sur une partie de carrière jouée par le bot (graine 1, 50 min) et chargée par le menu « Charger » :
+  - HUD, inspecteurs de rack, d'onduleur et de PDU ;
+  - les trois onglets du tableau de bord ;
+  - Équipe, Aide ;
+  - mode daltonien.
+- **Pendant la nuit**, l'écran du Mac s'est mis en veille : l'onglet est passé en arrière-plan et le rendu s'est arrêté. Les captures ont échoué. La vérification s'est donc faite par les styles calculés du navigateur et par des sondes JavaScript sur le DOM (voir chaque lot).
+- **À faire au réveil** : un coup d'œil d'une minute (titre, partie chargée, inspecteur, tableau de bord, mode daltonien) suffit pour confirmer.
 
 ## Ce qui est sain et n'a pas été touché
 
