@@ -1,4 +1,4 @@
-import { CDU, CRAC, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, UPS, WEAR } from '../../sim/balance';
+import { CDU, CRAC, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, NETWORK, rackSpec, UPS, WEAR } from '../../sim/balance';
 import { demolishRefund, upgradeBlocker, upgradeCost } from '../../sim/commands';
 import { failureRiskPerMinute, rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
@@ -106,7 +106,7 @@ export class Inspector {
 
   private readonly progress = new Gauge('Avancement', 'build');
   private readonly zoneLoad = new Gauge('Chaleur de la zone', 'temperature');
-  private readonly gridLoad = new Gauge('Charge du réseau', 'power');
+  private readonly gridLoad = new Gauge('Charge électrique', 'power');
   private readonly battery = new Gauge('Charge de la batterie', 'ups');
   private readonly liquidLoad = new Gauge('Chaleur captée', 'cdu');
   private readonly wearGauge = new Gauge('Usure', 'repair');
@@ -119,7 +119,8 @@ export class Inspector {
   private readonly shedOrder = new Row('Ordre de délestage', 'power');
   private readonly compute = new Row('Calcul', 'compute');
   private readonly coverage = new Row('Portée', 'target');
-  private readonly network = new Row('Réseau', 'pdu');
+  private readonly distribution = new Row('Distribution', 'pdu');
+  private readonly ports = new Row('Ports', 'switch');
   private readonly backupState = new Row('État', 'power');
   private readonly autonomy = new Row('Autonomie', 'time');
   private readonly fuel = new Row('Carburant', 'money');
@@ -195,7 +196,8 @@ export class Inspector {
           this.shedOrder,
           this.compute,
           this.coverage,
-          this.network,
+          this.ports,
+          this.distribution,
           this.backupState,
           this.autonomy,
           this.fuel,
@@ -248,6 +250,7 @@ export class Inspector {
       this.renderUps(s, b, b.kind === 'ups' && !site),
       this.renderGenerator(s, b, b.kind === 'generator' && !site),
       this.renderCdu(s, b, b.kind === 'cdu' && !site),
+      this.renderSwitch(s, b, b.kind === 'switch' && !site),
       this.renderSite(s, b, site),
     ];
     const hint = hints.find((h) => h) ?? '';
@@ -303,6 +306,7 @@ export class Inspector {
     else if (b.kind === 'generator') [text, tone] = b.warmup === undefined ? ['en veille', ''] : b.warmup > 0 ? ['démarrage', 'warn'] : ['en marche', 'ok'];
     else if (!b.powered) [text, tone] = [b.kind === 'rack' ? 'délesté' : 'sans courant', 'danger'];
     else if (b.kind === 'crac') [text, tone] = ['en marche', 'ok'];
+    else if (b.kind === 'switch') [text, tone] = ['en service', 'ok'];
     else [text, tone] = busyRackIds(s).has(b.id) ? ['en calcul', 'ok'] : ['inactif', ''];
     setText(this.status, text);
     const cls = `chip ${tone}`;
@@ -400,7 +404,7 @@ export class Inspector {
     const left = upsAutonomy(s);
     const draw = s.power.grid ? 'à la demande actuelle' : 'au débit actuel';
     this.autonomy.set(left === null ? '—' : left === Infinity ? 'illimitée' : `${seconds(left)} ${draw}`, left === null ? '' : batteryTone(left));
-    if (s.power.grid && ratio < 1) return `Recharge sur le réseau (${UPS.rechargeKW} kW) : pleine dans ${seconds(((store - charge) / UPS.rechargeKW))}.`;
+    if (s.power.grid && ratio < 1) return `Recharge sur le secteur (${UPS.rechargeKW} kW) : pleine dans ${seconds(((store - charge) / UPS.rechargeKW))}.`;
     if (!s.power.grid && ratio < 0.2) return 'Batterie presque vide : un groupe électrogène prendrait le relais pour toute la coupure.';
     return '';
   }
@@ -435,6 +439,16 @@ export class Inspector {
     return ratio > 0.95 ? 'Capacité atteinte : un second CDU soulagerait les racks de la zone.' : '';
   }
 
+  private renderSwitch(s: GameState, b: Building, on: boolean): string {
+    this.ports.show(on);
+    if (!on) return '';
+    const linked = s.buildings.filter((r) => r.kind === 'rack' && r.link === b.id).length;
+    this.ports.set(`${linked} / ${NETWORK.ports} ${plural(NETWORK.ports, 'rack')} reliés`, linked >= NETWORK.ports ? 'warn' : '');
+    this.coverage.show(true);
+    this.coverage.set(`${NETWORK.reach} cases de câble, par les allées`);
+    return b.powered ? '' : 'Sans courant, le switch coupe ses racks du réseau.';
+  }
+
   /** Bouton Moderniser (carrière, recherche faite) : génération suivante, prix, raison d'un refus. */
   private renderUpgrade(s: GameState, b: Building): void {
     const gen = b.gen ?? 1;
@@ -455,7 +469,7 @@ export class Inspector {
   private n1Visible = false;
 
   private renderPdu(s: GameState, on: boolean): string {
-    this.network.show(on);
+    this.distribution.show(on);
     this.gridLoad.show(on);
     this.n1Visible = on;
     this.n1.show(on);
@@ -465,7 +479,7 @@ export class Inspector {
     const p = s.power;
     const pdus = s.buildings.filter((o) => o.kind === 'pdu' && o.status === 'ok').length;
     this.gridLoad.set(p.capacityKW ? p.loadKW / p.capacityKW : 1, `${p.loadKW} / ${p.capacityKW} kW`, loadTone(p.loadKW / p.capacityKW, p.shedCount > 0));
-    this.network.set(`${pdus} PDU · +${Math.round(modifiers(s).pduCapacityKW)} kW chacun${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'délesté')}` : ''}`, p.shedCount ? 'danger' : '');
+    this.distribution.set(`${pdus} PDU · +${Math.round(modifiers(s).pduCapacityKW)} kW chacun${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'délesté')}` : ''}`, p.shedCount ? 'danger' : '');
     return p.shedCount ? 'Des racks sont délestés : un PDU de plus les réalimenterait.' : '';
   }
 

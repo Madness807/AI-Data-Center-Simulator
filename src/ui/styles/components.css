@@ -51,6 +51,11 @@
 .tool-card:hover:not(:disabled) { background: var(--surface-hover); border-color: rgba(255, 255, 255, 0.16); transform: translateY(-2px); }
 .tool-card.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.25), 0 0 18px rgba(var(--accent-rgb), 0.18); }
 .tool-card:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Famille verrouillée (recherche à faire) : grisée mais survolable, avec un cadenas. */
+.tool-card.locked { opacity: 0.5; cursor: not-allowed; }
+.tool-card.locked:hover { transform: none; }
+.tool-lock { display: none; position: absolute; top: 5px; right: 6px; color: var(--text-faint); }
+.tool-card.locked .tool-lock { display: block; }
 .tool-card .kbd { position: absolute; top: 5px; left: 5px; }
 .tool-thumb { display: grid; place-items: center; width: 46px; height: 40px; color: var(--accent); }
 .tool-thumb img { width: 52px; height: 52px; object-fit: contain; margin-top: -10px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); }
@@ -412,6 +417,8 @@
 #hud.lt-1320:has(.legend:not([hidden])) .inspector { max-height: calc(var(--vh-ui) - 420px); }
 #hud.lt-1320:has(.inspector:not([hidden])) .alerts, #hud.lt-1320:has(.selection:not([hidden])) .alerts { display: none; }
 #hud.lt-1320:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1320:has(.selection:not([hidden])) .region-bottom { left: calc(50% + var(--inspector-w) / 2 + var(--gap)); }
+/* Barre décalée par l'inspecteur : des cartes plus étroites pour garder la famille Réseau sur la ligne. */
+#hud.lt-1320:has(.inspector:not([hidden])) .tool-card, #hud.lt-1320:has(.selection:not([hidden])) .tool-card { width: 70px; }
 #hud.lt-1100 .res-label, #hud.lt-1100 .res .meter { display: none; }
 #hud.lt-1100 .res { padding: 2px 8px; }
 #hud.lt-1100 .tool-card { width: 70px; }
@@ -419,7 +426,7 @@
 #hud.lt-1100 .tutorial { width: 360px; }
 
 /* ───────────── Recherche ───────────── */
-.research { width: min(980px, calc(100% - 32px)); height: min(640px, calc(var(--vh-ui) - 48px)); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.research { width: min(1180px, calc(100% - 32px)); height: min(640px, calc(var(--vh-ui) - 48px)); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .research .menu-head { gap: 10px; margin-bottom: 0; }
 .research .menu-head .kbd { margin-left: auto; }
 .research-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -430,7 +437,8 @@
 .research-current { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }
 .research-current-head { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
 .research-current-head .btn { margin-left: auto; padding: 4px 9px; font-size: 11.5px; gap: 5px; }
-.research-tree { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: start; }
+/* Une colonne par branche de l'arbre (research.ts › BRANCHES), quel que soit leur nombre. */
+.research-tree { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
 .research-branch { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .research-branch-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
 .research-level { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
@@ -447,7 +455,7 @@
 .research-node.done { opacity: 0.75; cursor: default; }
 .research-node.done .research-status { color: var(--ok); }
 .research-node.locked { opacity: 0.55; cursor: not-allowed; }
-#hud.lt-1100 .research-tree { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#hud.lt-1100 .research-tree { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 /* Bouton R&D de la barre : une part du calcul attend un nœud. */
 .toggle-group .btn.idle { border-color: rgba(var(--warn-rgb), 0.55); color: var(--warn); }

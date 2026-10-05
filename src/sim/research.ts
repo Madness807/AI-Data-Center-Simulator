@@ -1,11 +1,12 @@
-import { AISLE, CDU, GENERATOR, GPU, MAINTENANCE, OPTICAL, PREDICTIVE, REPAIR, RETROFIT, SPARE_PARTS, SPECIALTY, TRAINING, UPS, WEATHER } from './balance';
+import { AISLE, CDU, GENERATOR, GPU, MAINTENANCE, NETWORK, OPTICAL, PREDICTIVE, REPAIR, RETROFIT, SPARE_PARTS, SPECIALTY, TRAINING, UPS, WEATHER } from './balance';
 import type { BuildingKind, Gen } from './entities';
 
 /** Branches de l'arbre, une colonne chacune dans le panneau Recherche. */
-export type Branch = 'compute' | 'cooling' | 'power' | 'ops';
+export type Branch = 'compute' | 'network' | 'cooling' | 'power' | 'ops';
 
 export const BRANCHES: { id: Branch; name: string }[] = [
   { id: 'compute', name: 'Calcul' },
+  { id: 'network', name: 'Réseau' },
   { id: 'cooling', name: 'Refroidissement' },
   { id: 'power', name: 'Énergie' },
   { id: 'ops', name: 'Exploitation' },
@@ -127,6 +128,16 @@ const NODES: readonly NodeSpec[] = [
     cost: 2500,
     requires: ['checkpoints'],
     effect: { optical: true },
+  },
+  {
+    id: 'switches',
+    branch: 'network',
+    level: 2,
+    name: 'Switchs réseau',
+    description: `Débloque le switch : chaque rack s’y câble seul par les allées libres (${NETWORK.reach} cases de câble au plus, ${NETWORK.ports} racks par switch). Un bloc d’entraînement doit être entièrement relié.`,
+    cost: 600,
+    requires: [],
+    effect: { unlocks: ['switch'] },
   },
   {
     id: 'crac-he',

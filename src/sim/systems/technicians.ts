@@ -18,7 +18,7 @@ function target(s: GameState, task: TechTask): Building | undefined {
 }
 
 /** Domaine de chaque équipement, pour les spécialités. */
-const DOMAIN: Record<BuildingKind, Specialty> = { rack: 'it', crac: 'hvac', cdu: 'hvac', pdu: 'electrician', ups: 'electrician', generator: 'electrician' };
+const DOMAIN: Record<BuildingKind, Specialty> = { rack: 'it', switch: 'it', crac: 'hvac', cdu: 'hvac', pdu: 'electrician', ups: 'electrician', generator: 'electrician' };
 
 /** Cadence d'un technicien sur cet équipement : deux fois plus vite dans sa spécialité. */
 export function workSpeed(t: Technician, b: Building): number {
@@ -178,7 +178,7 @@ function work(s: GameState, t: Technician, task: TechTask, dt: number): boolean 
   b.workLeft -= dt * speed;
   if (b.workLeft > 1e-9) return false;
   b.workLeft = 0;
-  const label = { rack: 'Rack', crac: 'CRAC', pdu: 'PDU', ups: 'Onduleur', generator: 'Groupe', cdu: 'CDU' }[b.kind];
+  const label = { rack: 'Rack', crac: 'CRAC', pdu: 'PDU', ups: 'Onduleur', generator: 'Groupe', cdu: 'CDU', switch: 'Switch' }[b.kind];
   const built = b.status === 'construction';
   notify(s, 'info', `${label} ${b.x},${b.y} ${built ? 'construit' : 'réparé'}`, { cell: b, code: built ? 'built' : 'repaired' });
   if (built) {

@@ -183,7 +183,7 @@ export class ResourceBar {
     setHidden(this.outageBanner, ends === null || s.outcome === 'lost');
     if (ends !== null) {
       const backup = p.generatorKW > 0 ? `groupes ${Math.round(p.generatorKW)} kW` : p.upsKW > 0 ? `onduleurs ${Math.round(p.upsKW)} kW` : 'aucun secours';
-      setText(this.outageText, `Coupure du réseau : ${backup}${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'équipement délesté', 'équipements délestés')}` : ''} · retour dans ${seconds(ends - s.time)}`);
+      setText(this.outageText, `Coupure de courant : ${backup}${p.shedCount ? ` · ${p.shedCount} ${plural(p.shedCount, 'équipement délesté', 'équipements délestés')}` : ''} · retour dans ${seconds(ends - s.time)}`);
     }
     const timer = s.economy.bankruptTimer;
     setHidden(this.bankruptBanner, !(timer > 0 && s.outcome !== 'lost'));

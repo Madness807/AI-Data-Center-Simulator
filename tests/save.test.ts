@@ -77,6 +77,48 @@ describe('sauvegarde', () => {
     if (!bad.ok) expect(bad.error).toMatch(/modernisation/);
   });
 
+  it('format 9 : le câble d’un rack se relit ; un câble illisible est refusé, un switch disparu non', () => {
+    const s = createInitialState(4, 'career');
+    const sw = addBuilding(s, 'switch', 3, 3);
+    const rack = addBuilding(s, 'rack', 4, 3);
+    rack.link = sw.id;
+    const loaded = deserialize(serialize(s, 'test'));
+    expect(loaded.ok && loaded.state.buildings.find((b) => b.id === rack.id)?.link).toBe(sw.id);
+    expect(loaded.ok && loaded.state.rules.network).toBe(true);
+    const variant = (patch: Record<string, unknown>, id = rack.id) => {
+      const file = JSON.parse(serialize(s, 'test'));
+      file.state.buildings = file.state.buildings.map((b: { id: number }) => (b.id === id ? { ...b, ...patch } : b));
+      return deserialize(JSON.stringify(file));
+    };
+    for (const bad of [variant({ link: 'switch' }), variant({ link: rack.id }, sw.id)]) {
+      expect(bad.ok).toBe(false);
+      if (!bad.ok) expect(bad.error).toMatch(/câblage/);
+    }
+    // Sauvegardé en pause juste après la démolition du switch : lisible, le réseau fera le ménage.
+    expect(variant({ link: 999 }).ok).toBe(true);
+  });
+
+  it('migre une sauvegarde au format 8 : la carrière passe au réseau, ses entraînements attendent un bloc relié', () => {
+    const s = createInitialState(6, 'career');
+    s.career.tier = 2;
+    const job = { ...s.jobs[0], kind: 'training' as const, status: 'active' as const, cluster: 3, assigned: [1, 2, 3], progress: 120 };
+    s.jobs = [job];
+    const file = JSON.parse(serialize(s, '1.0.1'));
+    file.format = 8;
+    delete file.state.rules.network;
+    const r = deserialize(JSON.stringify(file));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.rules.network).toBe(true);
+    expect(r.state.jobs[0].assigned).toBeUndefined();
+    expect(r.state.jobs[0].progress).toBe(120); // sans recul : la règle est nouvelle
+    const quick = JSON.parse(serialize(createInitialState(6), '1.0.1'));
+    quick.format = 8;
+    delete quick.state.rules.network;
+    const q = deserialize(JSON.stringify(quick));
+    expect(q.ok && q.state.rules.network).toBe(false);
+  });
+
   it('chaque ancien format a sa migration', () => {
     for (let format = 1; format < SAVE_FORMAT; format++) expect(MIGRATIONS[format], `format ${format}`).toBeTypeOf('function');
   });

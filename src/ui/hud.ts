@@ -1,4 +1,4 @@
-import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, PDU, RACKS_PER_CRAC, TECH, UPS } from '../sim/balance';
+import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, NETWORK, PDU, RACKS_PER_CRAC, TECH, UPS } from '../sim/balance';
 import type { Cell, Gen, Specialty } from '../sim/entities';
 import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, buildingById, idx, notify, type GameState, type Speed } from '../sim/state';
@@ -189,7 +189,12 @@ export class Hud {
         actions.showTitle();
       },
     });
-    this.build = new BuildBar({ ...actions, toggleHelp: () => this.help.toggle(), toggleResearch: () => this.togglePanel('research') });
+    this.build = new BuildBar({
+      ...actions,
+      toggleHelp: () => this.help.toggle(),
+      toggleResearch: () => this.togglePanel('research'),
+      locked: (message) => this.flash.show(message),
+    });
     this.contracts = new ContractsPanel(actions);
     this.slots = new SaveSlots(actions.saves);
     this.title = new TitleScreen(actions.newGame, () => this.help.toggle(), actions.continueGame, () => this.slots.open('load'));
@@ -254,7 +259,7 @@ export class Hud {
     this.tutorial.stop();
   }
 
-  /** Touche d'une famille de la barre (R, C, P, X) : variante suivante, puis aucun outil. */
+  /** Touche d'une famille de la barre (R, C, P, N, X) : variante suivante, puis aucun outil. */
   cycleBuild(id: FamilyId): void {
     this.build.cycle(id);
   }
@@ -539,7 +544,7 @@ export class Hud {
         tip(`${buildingName('ups')} · ${money(BUILD_COST.ups)}`, [
           ['Batterie', `${Math.round(this.state ? modifiers(this.state).upsStoreKJ : UPS.storeKJ)} kJ`],
           ['Puissance', `${UPS.powerKW} kW`],
-          ['Recharge', `${UPS.rechargeKW} kW sur le réseau`],
+          ['Recharge', `${UPS.rechargeKW} kW sur le secteur`],
           ['Chantier', `${BUILD_TIME.ups} s`],
         ], 'Prend le relais dès la première seconde d’une coupure, environ une minute.'),
       generator: () =>
@@ -557,6 +562,13 @@ export class Hud {
           ['Consommation', `${CDU.powerKW} kW (pompes)`],
           ['Chantier', `${BUILD_TIME.cdu} s`],
         ], 'La chaleur captée part dehors : indispensable aux racks les plus denses.'),
+      switch: () =>
+        tip(`${buildingName('switch')} · ${money(BUILD_COST.switch)}`, [
+          ['Ports', `${NETWORK.ports} racks`],
+          ['Câbles', `${NETWORK.reach} cases au plus, par les allées`],
+          ['Consommation', `${NETWORK.powerKW} kW`],
+          ['Chantier', `${BUILD_TIME.switch} s`],
+        ], 'Chaque rack se relie seul au switch libre le plus proche. Un bloc d’entraînement doit être entièrement relié.'),
       demolish: () =>
         tip('Démolir', [['Remboursement', `${DEMOLISH_REFUND * 100} %`]], 'Un chantier pas encore commencé est remboursé en entier.'),
     };
@@ -565,7 +577,7 @@ export class Hud {
         const node = tips[this.build.shownTool(id)]() as HTMLElement;
         const family = BUILD_FAMILIES.find((f) => f.id === id)!;
         const s = this.state;
-        if (family.variants.length > 1 && s) {
+        if (s && (family.variants.length > 1 || !toolAvailable(s, family.variants[0]))) {
           // Les variantes de la famille, et ce qu'il faut pour débloquer les autres.
           const rows = family.variants.map((v) => {
             const tool = v as Exclude<typeof v, 'demolish'>;
@@ -580,7 +592,8 @@ export class Hud {
               el('span', 'mono', open ? money(toolCost(tool)) : s.rules.progression ? `recherche : ${need}` : 'carrière'),
             );
           });
-          node.append(el('div', 'tip-variants', el('div', 'tip-hint', `${family.key} : variante suivante`), ...rows));
+          const hint = family.variants.length > 1 ? el('div', 'tip-hint', `${family.key} : variante suivante`) : null;
+          node.append(el('div', 'tip-variants', hint, ...rows));
         }
         return node;
       });

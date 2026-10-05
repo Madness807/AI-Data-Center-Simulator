@@ -78,6 +78,19 @@ export const PALETTE = {
   cduPipeHot: 0xff7a3a,
   cduImpeller: 0xd6dbe2,
 
+  // Réseau : le mauve (Okabe-Ito, lisible en mode daltonien) marque les switchs partout
+  // (modèle, mini-carte, calque) ; le jaune est celui de la fibre et des câbles.
+  switchBody: 0x262d38,
+  switchDark: 0x14181e,
+  switchBay: 0x0e1115,
+  switchUnit: 0x1c222b,
+  switchPort: 0x07090c,
+  switchAccent: 0xcc79a7,
+  switchLedLink: 0x3dffa0,
+  switchLedDim: 0x1f8f5a,
+  patchBlue: 0x3a7bd5,
+  fiber: 0xffd83a,
+
   // Technicien
   techVest: 0xff7a1a,
   techReflective: 0xeef5ff,

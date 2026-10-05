@@ -17,5 +17,7 @@ describe('table des raccourcis', () => {
     expect(['panUp', 'panLeft', 'panDown', 'panRight'].map((a) => actionKey(a as keyof typeof KEYS))).toEqual(['W', 'A', 'S', 'D']);
     expect([actionKey('rotateLeft'), actionKey('rotateRight')]).toEqual(['Q', 'E']);
     expect([keyLabel('Space'), keyLabel('Escape'), keyLabel('Digit3'), actionKey('dashboard'), actionKey('buildCompute')]).toEqual(['Espace', 'Échap', '3', 'Tab', 'R']);
+    // Même touche physique en QWERTY et en AZERTY.
+    expect(actionKey('buildNetwork')).toBe('N');
   });
 });

@@ -17,6 +17,9 @@ export interface ModelState {
   /** Groupe électrogène : en train de démarrer, ou en marche. */
   starting?: boolean;
   running?: boolean;
+  /** Switch : ports occupés, et si un rack relié calcule. */
+  ports?: number;
+  traffic?: boolean;
 }
 
 /**

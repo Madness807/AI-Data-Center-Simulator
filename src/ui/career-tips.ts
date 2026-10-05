@@ -23,7 +23,7 @@ export const CAREER_TIPS: readonly CareerTip[] = [
   {
     id: 'outage',
     icon: 'power',
-    title: 'Coupure du réseau',
+    title: 'Coupure de courant',
     text: 'Sans secours, les racks s’arrêtent net et certains tombent en panne. Les onduleurs prennent le relais dès la première seconde, les groupes électrogènes tiennent toute la coupure : ils s’étudient dans la recherche (U).',
     when: (s) => s.incidents.outageEndsAt !== null,
   },

@@ -1,4 +1,4 @@
-import { BUILD_TIME, GENERATOR, rackSpec, TECH } from './balance';
+import { BUILD_TIME, GENERATOR, NETWORK, rackSpec, TECH } from './balance';
 import { isRackActive, type Building, type Technician } from './entities';
 import { buildingById, type GameState } from './state';
 import { cracWeatherFactor } from './climate';
@@ -16,13 +16,17 @@ export function tempStats(s: GameState): { max: number; avg: number } {
 }
 
 /**
- * PUE (Power Usage Effectiveness) : énergie totale ÷ énergie des racks. 1 serait parfait ;
- * les CRAC l'augmentent. null sans rack en service.
+ * PUE (Power Usage Effectiveness) : énergie totale ÷ énergie informatique (racks et switchs).
+ * 1 serait parfait ; les CRAC l'augmentent. null sans rack en service.
  */
 export function pue(s: GameState): number | null {
-  let itKW = 0;
-  for (const b of s.buildings) if (isRackActive(b)) itKW += rackSpec(b).powerKW;
-  return itKW > 0 ? s.power.loadKW / itKW : null;
+  let racksKW = 0;
+  let networkKW = 0;
+  for (const b of s.buildings) {
+    if (isRackActive(b)) racksKW += rackSpec(b).powerKW;
+    else if (b.kind === 'switch' && b.status === 'ok' && b.powered) networkKW += NETWORK.powerKW;
+  }
+  return racksKW > 0 ? s.power.loadKW / (racksKW + networkKW) : null;
 }
 
 /** Part du temps où les racks installés ont fonctionné, depuis le début de la partie. */

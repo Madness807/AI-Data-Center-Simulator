@@ -16,6 +16,8 @@ export interface Rules {
   weather: boolean;
   /** Usure et vieillissement des racks (selon le palier). */
   wear: boolean;
+  /** Réseau de calcul : switchs et câblage ; les blocs d'entraînement doivent être reliés (selon le palier). */
+  network: boolean;
 }
 
 export interface CareerState {
@@ -48,7 +50,7 @@ export interface Policies {
 
 export function rulesFor(mode: GameMode): Rules {
   const career = mode === 'career';
-  return { progression: career, incidents: career, aisles: career, weather: career, wear: career };
+  return { progression: career, incidents: career, aisles: career, weather: career, wear: career, network: career };
 }
 
 export function emptyCareer(): CareerState {

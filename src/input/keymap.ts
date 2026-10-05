@@ -15,6 +15,7 @@ export const KEYS = {
   buildCompute: ['KeyR'],
   buildCooling: ['KeyC'],
   buildPower: ['KeyP'],
+  buildNetwork: ['KeyN'],
   demolish: ['KeyX'],
   rotateBuilding: ['KeyF'],
   hire: ['KeyT'],

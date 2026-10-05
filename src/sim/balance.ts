@@ -91,8 +91,17 @@ export const GENERATOR = { cost: 6000, powerKW: 60, startS: 15, fuelPerKWs: 0.25
 /** CDU : refroidissement liquide des racks proches, rejeté dehors (pas dans la salle). */
 export const CDU = { cost: 7000, radius: 2, capacityKW: 80, powerKW: 6, captured: 0.75 };
 
-/** Interconnexion optique (recherche) : deux racks d'un même bloc peuvent être à `reach` cases. */
-export const OPTICAL = { reach: 2 };
+/** Interconnexion optique (recherche) : deux racks d'un même bloc peuvent être à `reach` cases, et un câble réseau porte à `cableReach` cases. */
+export const OPTICAL = { reach: 2, cableReach: 16 };
+
+/**
+ * Réseau (carrière) : chaque rack se câble seul au switch le plus proche qui a un port libre, par
+ * les cases libres (au plus `reach` cases de câble). À partir du palier minTier, chaque rack d'un
+ * bloc d'entraînement doit être relié à un switch en service ; un bloc réparti sur plusieurs
+ * switchs entraîne à `crossSwitch` de sa vitesse, sauf avec la recherche Fabric. Un switch ne
+ * tombe jamais en panne et ne s'use pas.
+ */
+export const NETWORK = { minTier: TRAINING.minTier, cost: 2000, powerKW: 1, heatKW: 1, ports: 8, reach: 10, crossSwitch: 0.7 };
 
 /** Allées (carrière) : part de la chaleur d'un rack soufflée sur la case arrière. */
 export const AISLE = { exhaustShare: 0.7, containmentBoost: 1.25 };
@@ -142,6 +151,7 @@ export const BUILD_COST: Record<BuildingKind, number> = {
   ups: UPS.cost,
   generator: GENERATOR.cost,
   cdu: CDU.cost,
+  switch: NETWORK.cost,
 };
 
 export const HEAT = {
@@ -240,7 +250,7 @@ export const REPUTATION = { delivery: 10, cuPerPoint: 10, late: -25 };
 export const RESEARCH_RATE = { pointsPerCU: 0.1, defaultShare: 0.2, maxShare: 0.5 };
 
 /** Secondes de travail d'un technicien pour terminer un chantier. */
-export const BUILD_TIME: Record<BuildingKind, number> = { rack: 6, crac: 8, pdu: 5, ups: 6, generator: 10, cdu: 9 };
+export const BUILD_TIME: Record<BuildingKind, number> = { rack: 6, crac: 8, pdu: 5, ups: 6, generator: 10, cdu: 9, switch: 5 };
 
 export const TECH = {
   /** Cases par seconde. */

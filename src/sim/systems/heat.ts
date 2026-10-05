@@ -1,4 +1,4 @@
-import { AISLE, CRAC, DT, HEAT, rackSpec, UPS } from '../balance';
+import { AISLE, CRAC, DT, HEAT, NETWORK, rackSpec, UPS } from '../balance';
 import { cracWeatherFactor, exhaustIndex, hotAisleCells, liquidCapture, outsideTemp } from '../climate';
 import type { Building } from '../entities';
 import { modifiers } from '../progression';
@@ -39,6 +39,7 @@ export function updateHeat(s: GameState, dt: number): void {
         temp[own] += air * (1 - AISLE.exhaustShare);
       }
     } else if (b.kind === 'ups') temp[idx(s, b.x, b.y)] += (UPS.heatKW * dt) / C;
+    else if (b.kind === 'switch') temp[idx(s, b.x, b.y)] += (NETWORK.heatKW * dt) / C;
     else if (b.kind === 'crac') {
       const boost = hot && nearHotAisle(b, hot, w) ? AISLE.containmentBoost : 1;
       cool(s, b.x, b.y, coolingKW * boost * dt);

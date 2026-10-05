@@ -333,6 +333,7 @@ const FAMILY_KEYS: [KeyAction, FamilyId][] = [
   ['buildCompute', 'compute'],
   ['buildCooling', 'cooling'],
   ['buildPower', 'power'],
+  ['buildNetwork', 'network'],
   ['demolish', 'demolish'],
 ];
 loadKeyboardLayout();

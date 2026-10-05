@@ -18,7 +18,7 @@ interface Card {
   fill: HTMLElement;
 }
 
-/** Panneau Recherche (U, carrière) : part du calcul pour la R&D et arbre en quatre branches. */
+/** Panneau Recherche (U, carrière) : part du calcul pour la R&D et arbre, une colonne par branche. */
 export class ResearchPanel {
   readonly root: HTMLElement;
   private readonly rate = el('span', 'mono');

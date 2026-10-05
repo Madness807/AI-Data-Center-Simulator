@@ -47,6 +47,9 @@ export const MATERIALS = {
   genLampRun: glow(PALETTE.genLampRun),
   genLampStart: glow(PALETTE.genLampStart),
   genLampOff: standard(PALETTE.upsLedOff, { roughness: 0.4 }),
+  switchLedOn: glow(PALETTE.switchLedLink),
+  switchLedDim: glow(PALETTE.switchLedDim),
+  switchLedOff: standard(PALETTE.upsLedOff, { roughness: 0.4 }),
 
   scaffold: standard(PALETTE.scaffold, { roughness: 0.5, metalness: 0.2 }),
   blueprint: standard(PALETTE.blueprint, {

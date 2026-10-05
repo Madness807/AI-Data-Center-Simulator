@@ -12,6 +12,7 @@ export const KIND_INFO: Record<BuildingKind, { name: string; short: string; icon
   ups: { name: 'Onduleur', short: 'Onduleur', icon: 'ups' },
   generator: { name: 'Groupe électrogène', short: 'Groupe', icon: 'generator' },
   cdu: { name: 'CDU (liquide)', short: 'CDU', icon: 'cdu' },
+  switch: { name: 'Switch réseau', short: 'Switch', icon: 'switch' },
 };
 
 /** Nom complet d'un équipement, génération comprise (« Rack GPU G2 »). */

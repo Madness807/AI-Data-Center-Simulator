@@ -31,7 +31,7 @@ export interface BotProfile {
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
 export const RESEARCH_ORDER = [
-  'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'spare-parts', 'containment', 'planned-maintenance', 'gpu-g2',
+  'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'switches', 'spare-parts', 'containment', 'planned-maintenance', 'gpu-g2',
   'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3',
   'specialties', 'switchover-2n', 'predictive', 'heat-reuse', 'optical',
 ];

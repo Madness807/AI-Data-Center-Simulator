@@ -8,6 +8,7 @@ import { cduStaticGeometry } from '../props/cdu';
 import { cracStaticGeometry } from '../props/crac';
 import { generatorStaticGeometry } from '../props/generator';
 import { pduStaticGeometry } from '../props/pdu';
+import { switchStaticGeometry } from '../props/switch';
 import { upsStaticGeometry } from '../props/ups';
 import { rackBodyGeometry } from '../props/rack';
 import { createRangeRing } from './rings';
@@ -42,6 +43,7 @@ export function createBuildGhost(): BuildGhost {
     ups: new THREE.Mesh(upsStaticGeometry(), material),
     generator: new THREE.Mesh(generatorStaticGeometry(), material),
     cdu: new THREE.Mesh(cduStaticGeometry(), material),
+    switch: new THREE.Mesh(switchStaticGeometry(), material),
     demolish: new THREE.Mesh(demolishBox(), material),
   };
   const ring = createRangeRing(CRAC.radius, 'strong');

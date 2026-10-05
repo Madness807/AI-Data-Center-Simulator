@@ -1,5 +1,5 @@
 /** Types d'équipement ; la sauvegarde vérifie ses valeurs sur ces listes. */
-export const BUILDING_KINDS = ['rack', 'crac', 'pdu', 'ups', 'generator', 'cdu'] as const;
+export const BUILDING_KINDS = ['rack', 'crac', 'pdu', 'ups', 'generator', 'cdu', 'switch'] as const;
 export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
 /** Génération de GPU d'un rack (carrière ; 1 par défaut). */
@@ -45,6 +45,8 @@ export interface Building {
   /** Modernisation en cours : génération remplacée et prix payé, pour rembourser une démolition. */
   upgradeFrom?: Gen;
   upgradePaid?: number;
+  /** Rack (carrière) : id du switch auquel il est câblé. Seul updateNetwork l'écrit. */
+  link?: number;
 }
 
 export type TechTask =

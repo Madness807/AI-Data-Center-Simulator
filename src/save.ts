@@ -1,5 +1,6 @@
 import type { KeyValueStore } from './settings';
 import { emptyAlerts } from './sim/alert-memory';
+import { NETWORK } from './sim/balance';
 import { defaultPolicies, emptyCareer, emptyResearch, GAME_MODES, rulesFor } from './sim/career';
 import {
   BUILDING_KINDS,
@@ -17,7 +18,7 @@ import { TIERS } from './sim/progression';
 import { emptyCooling, emptyIncidents, emptyPower, OUTCOMES, SPEEDS, type GameState, type Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 8;
+export const SAVE_FORMAT = 9;
 /** Taille maximale d'une salle relue (garde-fou contre un fichier gonflé). */
 const MAX_CELLS = 10_000;
 
@@ -89,6 +90,9 @@ function checkBuilding(b: unknown, w: number, h: number): asserts b is Building 
   need(b.gen === undefined || oneOf(GENS, b.gen), 'génération de GPU invalide');
   need(b.wear === undefined || isNum(b.wear), 'usure invalide');
   need((b.upgradeFrom === undefined || oneOf(GENS, b.upgradeFrom)) && (b.upgradePaid === undefined || isNum(b.upgradePaid)), 'modernisation illisible');
+  // Un id de switch disparu reste lisible : une sauvegarde faite en pause juste après une
+  // démolition en contient, et le passage suivant du réseau le retire.
+  need(b.link === undefined || (isInt(b.link) && b.kind === 'rack'), 'câblage réseau illisible');
 }
 
 function checkTech(t: unknown): asserts t is Technician {
@@ -160,6 +164,14 @@ export const MIGRATIONS: Record<number, (state: RawState) => void> = {
   },
   // 7 → 8 (1.0.1) : modernisation en cours (champs facultatifs, absents des parties d'avant).
   7: () => {},
+  // 8 → 9 (1.1) : réseau de calcul. Une carrière en cours y passe ; au palier où il compte, ses
+  // entraînements quittent leur bloc, sans recul : ils attendront un bloc relié.
+  8: (state) => {
+    if (isObject(state.rules)) state.rules.network = rulesOf(state).network;
+    const tier = isObject(state.career) && isInt(state.career.tier) ? state.career.tier : 0;
+    if (state.mode !== 'career' || tier < NETWORK.minTier || !Array.isArray(state.jobs)) return;
+    for (const j of state.jobs) if (isObject(j) && j.kind === 'training') delete j.assigned;
+  },
 };
 
 function migrate(file: RawState): void {
@@ -206,7 +218,7 @@ function checkState(s: unknown): asserts s is PersistedState {
   const inc = s.incidents;
   const time = (v: unknown) => v === null || isNum(v);
   need(isObject(inc) && time(inc.outageEndsAt) && time(inc.nextOutageAt) && isInt(inc.outages), 'incidents illisibles');
-  need(['incidents', 'aisles', 'weather', 'wear'].every((k) => typeof rules[k] === 'boolean'), 'règles incomplètes');
+  need(['incidents', 'aisles', 'weather', 'wear', 'network'].every((k) => typeof rules[k] === 'boolean'), 'règles incomplètes');
   need(time(inc.heatwaveEndsAt) && time(inc.nextHeatwaveAt), 'canicules illisibles');
   need(isObject(s.cooling) && isNum(s.cooling.liquidKW) && isNum(s.cooling.cracFactor), 'refroidissement illisible');
 }

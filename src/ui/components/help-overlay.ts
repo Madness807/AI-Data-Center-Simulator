@@ -32,6 +32,7 @@ function sections(): { title: string; lines: [string, string[]][] }[] {
         ['Inspecter un équipement', ['Clic']],
         ['Fermer l’inspecteur', keys('cancel')],
         ['Calcul, froid, énergie (réappuyer : variante)', keys('buildCompute', 'buildCooling', 'buildPower')],
+        ['Switch réseau (carrière)', keys('buildNetwork')],
         ['Pivoter un rack (carrière)', keys('rotateBuilding')],
         ['Démolir', keys('demolish')],
         ['Poser (glisser pour enchaîner)', ['Clic']],

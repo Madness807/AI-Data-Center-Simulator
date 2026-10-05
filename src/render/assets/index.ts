@@ -8,6 +8,7 @@ import { createCdu } from './props/cdu';
 import { createCrac } from './props/crac';
 import { createGenerator } from './props/generator';
 import { createPdu } from './props/pdu';
+import { createSwitch } from './props/switch';
 import { createUps } from './props/ups';
 import type { AssetModel } from './types';
 
@@ -37,6 +38,7 @@ export const PROP_MODELS: Record<Exclude<BuildingKind, 'rack'>, () => AssetModel
   ups: createUps,
   generator: createGenerator,
   cdu: createCdu,
+  switch: createSwitch,
 };
 
 /** Modèle d'un bâtiment non instancié, ou de son chantier tant qu'il est en construction. */

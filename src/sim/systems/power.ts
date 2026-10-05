@@ -1,4 +1,4 @@
-import { CDU, DT, GENERATOR, rackSpec, UPS } from '../balance';
+import { CDU, DT, GENERATOR, NETWORK, rackSpec, UPS } from '../balance';
 import { cracPowerKW } from '../climate';
 import { unknownKind, type Building } from '../entities';
 import { modifiers } from '../progression';
@@ -9,27 +9,31 @@ export function upsAvailableKW(b: Building): number {
   return Math.min(UPS.powerKW, (b.charge ?? 0) / DT);
 }
 
-/** Ce qu'appelle un équipement en service : le froid (free cooling compris), les pompes, les racks. */
+/** Ce qu'appelle un équipement en service : le froid (free cooling compris), les pompes, le réseau, les racks. */
 export function loadKW(s: GameState, b: Building): number {
   if (b.kind === 'crac') return cracPowerKW(s);
   if (b.kind === 'cdu') return CDU.powerKW;
+  if (b.kind === 'switch') return NETWORK.powerKW;
   if (b.kind === 'rack') return rackSpec(b).powerKW;
   return 0;
 }
 
 /**
  * Ordre de service de l'énergie, le même partout (distribution, arrêts brutaux d'une coupure,
- * calque) : le refroidissement d'abord (CRAC, CDU), puis les racks du plus ancien au plus récent.
+ * calque) : le refroidissement d'abord (CRAC, CDU), puis le réseau (un switch ne s'éteint jamais
+ * avant ses racks), puis les racks du plus ancien au plus récent.
  */
 export function serviceOrder(s: GameState): Building[] {
   const coolers: Building[] = [];
+  const switches: Building[] = [];
   const racks: Building[] = [];
   for (const b of s.buildings) {
     if (b.status !== 'ok') continue;
     if (b.kind === 'crac' || b.kind === 'cdu') coolers.push(b);
+    else if (b.kind === 'switch') switches.push(b);
     else if (b.kind === 'rack') racks.push(b);
   }
-  return [...coolers, ...racks.sort(byRackPriority)];
+  return [...coolers, ...switches, ...racks.sort(byRackPriority)];
 }
 
 /** Équipements qu'une puissance donnée peut servir, dans l'ordre de service : ce qui ne rentre pas est délesté. */
@@ -69,6 +73,7 @@ export function updatePower(s: GameState): void {
         break;
       case 'crac':
       case 'cdu':
+      case 'switch':
       case 'rack':
         break; // servis plus bas, dans l'ordre de service
       // Onduleurs et groupes : sources de secours, toujours « en service » quand ils sont construits.

@@ -3,7 +3,7 @@ import { BUILDING_SIZE, createTechnician, PALETTE, PROP_MODELS, rackCrownGeometr
 import { MATERIALS } from './assets/materials';
 import { rackBodyGeometry, rackLedGeometry } from './assets/props/rack';
 
-export type ThumbnailKey = 'rack' | 'rack2' | 'rack3' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu' | 'technician';
+export type ThumbnailKey = 'rack' | 'rack2' | 'rack3' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu' | 'switch' | 'technician';
 
 /**
  * Vignettes des vrais modèles 3D pour la barre de construction, rendues une seule fois
@@ -38,10 +38,13 @@ export function renderThumbnails(size = 128): Record<ThumbnailKey, string> {
   const ups = PROP_MODELS.ups();
   const generator = PROP_MODELS.generator();
   const cdu = PROP_MODELS.cdu();
+  const sw = PROP_MODELS.switch();
   for (const m of [crac, pdu, cdu]) m.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1 });
   // Onduleur chargé, groupe en marche : voyants allumés.
   ups.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1, charge: 1 });
   generator.update({ time: 0, dt: 0, speed: 0, powered: true, progress: 1, running: true });
+  // Switch relié à quelques racks : une partie de ses voyants allumés.
+  sw.update({ time: 0, dt: 0, speed: 1, powered: true, progress: 1, ports: 5 });
   const models: Record<ThumbnailKey, THREE.Object3D> = {
     rack,
     rack2: rackOf(2),
@@ -51,6 +54,7 @@ export function renderThumbnails(size = 128): Record<ThumbnailKey, string> {
     ups: ups.root,
     generator: generator.root,
     cdu: cdu.root,
+    switch: sw.root,
     technician: createTechnician().root,
   };
 

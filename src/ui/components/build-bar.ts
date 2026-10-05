@@ -1,5 +1,5 @@
 import { buildCost, TECH } from '../../sim/balance';
-import { isUnlocked, modifiers } from '../../sim/progression';
+import { isUnlocked, modifiers, unlockedBy } from '../../sim/progression';
 import { canHire } from '../../sim/stats';
 import { toolBuild, type Tool } from '../../input/build';
 import { actionKey, HELP_CHAR } from '../../input/keymap';
@@ -21,6 +21,8 @@ export interface BuildBarActions {
   toggleEdgePan: () => void;
   toggleHelp: () => void;
   toggleResearch: () => void;
+  /** Famille entièrement verrouillée : le message à montrer (« Recherche requise : … »). */
+  locked: (message: string) => void;
 }
 
 export interface BuildBarView {
@@ -33,7 +35,7 @@ export interface BuildBarView {
 }
 
 export type BuildTool = Exclude<Tool, null>;
-export type FamilyId = 'compute' | 'cooling' | 'power' | 'demolish';
+export type FamilyId = 'compute' | 'cooling' | 'power' | 'network' | 'demolish';
 
 /** Nom court et icône de chaque outil. */
 const toolInfo = (tool: Exclude<BuildTool, 'demolish'>) => {
@@ -49,17 +51,20 @@ export const TOOL_INFO: Record<BuildTool, { label: string; icon: IconName }> = {
   ups: toolInfo('ups'),
   generator: toolInfo('generator'),
   cdu: toolInfo('cdu'),
+  switch: toolInfo('switch'),
   demolish: { label: 'Démolir', icon: 'demolish' },
 };
 
 /**
  * Familles de la barre, dans l'ordre d'affichage : une carte par famille ; sa touche (ou un
- * clic) passe d'une variante débloquée à la suivante, puis rend la main.
+ * clic) passe d'une variante débloquée à la suivante, puis rend la main. `visible` : la carte
+ * n'existe que dans les parties qui ont cette mécanique (le réseau, en carrière).
  */
-export const BUILD_FAMILIES: { id: FamilyId; key: string; variants: BuildTool[] }[] = [
+export const BUILD_FAMILIES: { id: FamilyId; key: string; variants: BuildTool[]; visible?: (s: GameState) => boolean }[] = [
   { id: 'compute', key: actionKey('buildCompute'), variants: ['rack', 'rack2', 'rack3'] },
   { id: 'cooling', key: actionKey('buildCooling'), variants: ['crac', 'cdu'] },
   { id: 'power', key: actionKey('buildPower'), variants: ['pdu', 'ups', 'generator'] },
+  { id: 'network', key: actionKey('buildNetwork'), variants: ['switch'], visible: (s) => s.rules.network },
   { id: 'demolish', key: actionKey('demolish'), variants: ['demolish'] },
 ];
 
@@ -69,6 +74,13 @@ export const toolAvailable = (s: GameState, tool: BuildTool): boolean => {
   const { kind, gen } = toolBuild(tool);
   return isUnlocked(s, kind) && (gen === 1 || (s.rules.progression && modifiers(s).maxGen >= gen));
 };
+/** Message d'une famille dont aucune variante n'est débloquée. */
+function lockedMessage(family: (typeof BUILD_FAMILIES)[number]): string {
+  const first = family.variants[0];
+  const node = first === 'demolish' ? undefined : unlockedBy(toolBuild(first).kind);
+  return node ? `Recherche requise : ${node.name}` : 'Indisponible';
+}
+
 /** Prix affiché d'un outil. */
 export const toolCost = (tool: Exclude<BuildTool, 'demolish'>) => {
   const { kind, gen } = toolBuild(tool);
@@ -87,7 +99,7 @@ function card(label: string, key: string, art: Node, cost?: string): { root: HTM
   const thumb = el('span', 'tool-thumb', art);
   const name = el('span', 'tool-name', label);
   const costEl = el('span', 'tool-cost', cost ?? '');
-  const root = el('button', 'tool-card', el('span', 'kbd', key), thumb, name, cost ? costEl : null);
+  const root = el('button', 'tool-card', el('span', 'kbd', key), el('span', 'tool-lock', icon('lock', 12)), thumb, name, cost ? costEl : null);
   return { root, thumb, name, cost: costEl };
 }
 
@@ -190,13 +202,18 @@ export class BuildBar {
 
   /**
    * Touche ou clic d'une famille : prend la variante montrée, puis passe à la suivante
-   * débloquée, puis rend la main (aucun outil). Les variantes verrouillées sont sautées.
+   * débloquée, puis rend la main (aucun outil). Les variantes verrouillées sont sautées ;
+   * une famille absente de la partie ne fait rien, une famille verrouillée le dit.
    */
   cycle(id: FamilyId): void {
     const family = BUILD_FAMILIES.find((f) => f.id === id)!;
     const s = this.state;
+    if (s && family.visible && !family.visible(s)) return;
     const open = s ? family.variants.filter((v) => toolAvailable(s, v)) : family.variants.slice(0, 1);
-    if (!open.length) return;
+    if (!open.length) {
+      this.actions.locked(lockedMessage(family));
+      return;
+    }
     const current = this.actions.currentTool();
     let next: Tool;
     if (current === null || !family.variants.includes(current)) {
@@ -234,8 +251,13 @@ export class BuildBar {
         if (!dot) return;
         dot.className = `variant-dot ${v === tool ? 'current' : ''} ${toolAvailable(s, v) ? '' : 'locked'}`;
       });
+      c.root.hidden = family.visible ? !family.visible(s) : false;
+      // Verrouillée, la carte reste survolable (son infobulle dit quelle recherche il faut).
+      const locked = !family.variants.some((v) => toolAvailable(s, v));
+      c.root.classList.toggle('locked', locked);
+      c.root.setAttribute('aria-disabled', String(locked));
       c.root.classList.toggle('active', owner?.id === family.id);
-      c.root.disabled = tool !== 'demolish' && s.money < toolCost(tool);
+      c.root.disabled = !locked && tool !== 'demolish' && s.money < toolCost(tool);
     }
     this.hireCard.disabled = !canHire(s);
     if (view.overlay !== this.shownOverlay) {

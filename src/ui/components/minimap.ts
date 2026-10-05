@@ -114,6 +114,7 @@ export class Minimap {
       else if (b.kind === 'ups') color = PALETTE.upsBody;
       else if (b.kind === 'generator') color = PALETTE.genBody;
       else if (b.kind === 'cdu') color = PALETTE.cduBody;
+      else if (b.kind === 'switch') color = PALETTE.switchAccent;
       else if (b.status === 'failed') color = statusColor('failed');
       else if (b.status === 'repairing') color = statusColor('repairing');
       else if (!b.powered) color = statusColor('shed');
