@@ -1,14 +1,19 @@
-export type BuildingKind = 'rack' | 'crac' | 'pdu' | 'ups' | 'generator' | 'cdu';
+/** Types d'équipement ; la sauvegarde vérifie ses valeurs sur ces listes. */
+export const BUILDING_KINDS = ['rack', 'crac', 'pdu', 'ups', 'generator', 'cdu'] as const;
+export type BuildingKind = (typeof BUILDING_KINDS)[number];
 
 /** Génération de GPU d'un rack (carrière ; 1 par défaut). */
-export type Gen = 1 | 2 | 3;
+export const GENS = [1, 2, 3] as const;
+export type Gen = (typeof GENS)[number];
 
 /** Orientation de la façade (prise d'air) : 0 = +y, 1 = +x, 2 = −y, 3 = −x. */
-export type Facing = 0 | 1 | 2 | 3;
+export const FACINGS = [0, 1, 2, 3] as const;
+export type Facing = (typeof FACINGS)[number];
 
 /** Pas de grille vers l'avant de chaque orientation. */
 export const FACING_STEP: Record<Facing, readonly [number, number]> = { 0: [0, 1], 1: [1, 0], 2: [0, -1], 3: [-1, 0] };
-export type BuildingStatus = 'construction' | 'ok' | 'failed' | 'repairing';
+export const BUILDING_STATUSES = ['construction', 'ok', 'failed', 'repairing'] as const;
+export type BuildingStatus = (typeof BUILDING_STATUSES)[number];
 
 export type Cell = { x: number; y: number };
 
@@ -47,7 +52,8 @@ export type TechTask =
   | { type: 'maintain'; target: number; left?: number };
 
 /** Spécialité d'un technicien (recherche) : il travaille deux fois plus vite dans son domaine. */
-export type Specialty = 'electrician' | 'hvac' | 'it';
+export const SPECIALTIES = ['electrician', 'hvac', 'it'] as const;
+export type Specialty = (typeof SPECIALTIES)[number];
 
 export interface Technician {
   id: number;
@@ -67,7 +73,10 @@ export interface Technician {
   specialty?: Specialty;
 }
 
-export type JobStatus = 'offer' | 'active';
+export const JOB_STATUSES = ['offer', 'active'] as const;
+export type JobStatus = (typeof JOB_STATUSES)[number];
+export const JOB_KINDS = ['inference', 'training'] as const;
+export type JobKind = (typeof JOB_KINDS)[number];
 
 export interface Job {
   id: number;
@@ -92,7 +101,7 @@ export interface Job {
   /** CU/s reçus au dernier tick, pour l'UI. */
   allocated: number;
   /** Entraînement : bloc de racks contigus dédié (sinon inférence sur le pool commun). */
-  kind?: 'inference' | 'training';
+  kind?: JobKind;
   /** Entraînement : taille du bloc demandé, génération minimale, racks attribués. */
   cluster?: number;
   minGen?: Gen;

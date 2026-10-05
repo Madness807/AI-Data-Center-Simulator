@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SAVE_FORMAT, SaveManager, deserialize, serialize } from '../src/save';
+import { MIGRATIONS, SAVE_FORMAT, SaveManager, deserialize, serialize } from '../src/save';
 import type { KeyValueStore } from '../src/settings';
 import { step } from '../src/sim/sim';
 import { addBuilding, createInitialState, type GameState } from '../src/sim/state';
@@ -58,12 +58,19 @@ describe('sauvegarde', () => {
       ['équipement hors salle', { ...good, state: { ...good.state, buildings: [{ ...good.state.buildings[0], x: 999 }] } }],
       ['vitesse inconnue', { ...good, state: { ...good.state, speed: 3 } }],
       ['case en désaccord', { ...good, state: { ...good.state, occupant: good.state.occupant.map(() => -1) } }],
+      // Un palier au-delà du dernier ferait planter la génération des offres.
+      ['palier inconnu', { ...good, state: { ...good.state, career: { ...good.state.career, tier: 9 } } }],
+      ['mémoire d’alertes illisible', { ...good, state: { ...good.state, alerts: { ...good.state.alerts, wornRacks: 'non' } } }],
     ];
     for (const [, v] of variants) {
       const r = deserialize(typeof v === 'string' ? v : JSON.stringify(v));
       expect(r.ok).toBe(false);
       if (!r.ok) expect(r.error.length).toBeGreaterThan(10);
     }
+  });
+
+  it('chaque ancien format a sa migration', () => {
+    for (let format = 1; format < SAVE_FORMAT; format++) expect(MIGRATIONS[format], `format ${format}`).toBeTypeOf('function');
   });
 
   it('migre une sauvegarde de la bêta 0.9 (format 1)', () => {

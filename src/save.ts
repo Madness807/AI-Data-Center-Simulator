@@ -1,11 +1,25 @@
 import type { KeyValueStore } from './settings';
 import { emptyAlerts } from './sim/alert-memory';
-import { defaultPolicies, emptyCareer, emptyResearch, rulesFor } from './sim/career';
-import { emptyCooling, emptyIncidents, emptyPower, type GameState, type Outcome } from './sim/state';
-import type { Building, Job, Technician } from './sim/entities';
+import { defaultPolicies, emptyCareer, emptyResearch, GAME_MODES, rulesFor } from './sim/career';
+import {
+  BUILDING_KINDS,
+  BUILDING_STATUSES,
+  FACINGS,
+  GENS,
+  JOB_KINDS,
+  JOB_STATUSES,
+  SPECIALTIES,
+  type Building,
+  type Job,
+  type Technician,
+} from './sim/entities';
+import { TIERS } from './sim/progression';
+import { emptyCooling, emptyIncidents, emptyPower, OUTCOMES, SPEEDS, type GameState, type Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
 export const SAVE_FORMAT = 7;
+/** Taille maximale d'une salle relue (garde-fou contre un fichier gonflé). */
+const MAX_CELLS = 10_000;
 
 export type SaveSlot = 'auto' | 1 | 2 | 3;
 export const SAVE_SLOTS: readonly SaveSlot[] = ['auto', 1, 2, 3];
@@ -20,12 +34,15 @@ export interface SaveSummary {
   tier?: number;
 }
 
+/** L'état sauvegardé : tout, sauf les champs passagers (commandes en attente, événements du tick). */
+export type PersistedState = Omit<GameState, 'commands' | 'events'>;
+
 export interface SaveFile {
   format: number;
   version: string;
   savedAt: string;
   summary: SaveSummary;
-  state: Omit<GameState, 'commands' | 'events'>;
+  state: PersistedState;
 }
 
 export type LoadResult = { ok: true; state: GameState; file: SaveFile } | { ok: false; error: string };
@@ -51,6 +68,8 @@ export function serialize(s: GameState, version: string, now = new Date()): stri
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isInt = (v: unknown): v is number => Number.isInteger(v);
+/** La valeur fait-elle partie de la liste (les listes de valeurs viennent des types du jeu) ? */
+const oneOf = <T>(list: readonly T[], v: unknown): v is T => (list as readonly unknown[]).includes(v);
 
 class Invalid extends Error {}
 function need(cond: boolean, what: string): asserts cond {
@@ -59,15 +78,15 @@ function need(cond: boolean, what: string): asserts cond {
 
 function checkBuilding(b: unknown, w: number, h: number): asserts b is Building {
   need(isObject(b), 'équipement illisible');
-  need(isInt(b.id) && ['rack', 'crac', 'pdu', 'ups', 'generator', 'cdu'].includes(b.kind as string), 'équipement inconnu');
-  need(isInt(b.x) && isInt(b.y) && (b.x as number) >= 0 && (b.y as number) >= 0 && (b.x as number) < w && (b.y as number) < h, 'équipement hors de la salle');
-  need(['construction', 'ok', 'failed', 'repairing'].includes(b.status as string), 'état d’équipement inconnu');
+  need(isInt(b.id) && oneOf(BUILDING_KINDS, b.kind), 'équipement inconnu');
+  need(isInt(b.x) && isInt(b.y) && b.x >= 0 && b.y >= 0 && b.x < w && b.y < h, 'équipement hors de la salle');
+  need(oneOf(BUILDING_STATUSES, b.status), 'état d’équipement inconnu');
   need(isNum(b.workLeft) && isInt(b.failures) && typeof b.powered === 'boolean', 'équipement incomplet');
   need(b.builtAt === null || isNum(b.builtAt), 'date de mise en service invalide');
   need(b.charge === undefined || isNum(b.charge), 'charge d’onduleur invalide');
   need(b.warmup === undefined || isNum(b.warmup), 'état de groupe électrogène invalide');
-  need(b.facing === undefined || [0, 1, 2, 3].includes(b.facing as number), 'orientation invalide');
-  need(b.gen === undefined || [1, 2, 3].includes(b.gen as number), 'génération de GPU invalide');
+  need(b.facing === undefined || oneOf(FACINGS, b.facing), 'orientation invalide');
+  need(b.gen === undefined || oneOf(GENS, b.gen), 'génération de GPU invalide');
   need(b.wear === undefined || isNum(b.wear), 'usure invalide');
 }
 
@@ -75,26 +94,31 @@ function checkTech(t: unknown): asserts t is Technician {
   need(isObject(t) && isInt(t.id) && isNum(t.x) && isNum(t.y) && isNum(t.prevX) && isNum(t.prevY), 'technicien illisible');
   need(Array.isArray(t.tasks) && typeof t.working === 'boolean', 'technicien incomplet');
   need(t.path === null || Array.isArray(t.path), 'chemin de technicien invalide');
-  need(t.specialty === undefined || ['electrician', 'hvac', 'it'].includes(t.specialty as string), 'spécialité inconnue');
+  need(t.specialty === undefined || oneOf(SPECIALTIES, t.specialty), 'spécialité inconnue');
 }
 
 function checkJob(j: unknown): asserts j is Job {
-  need(isObject(j) && isInt(j.id) && typeof j.name === 'string' && ['offer', 'active'].includes(j.status as string), 'contrat illisible');
+  need(isObject(j) && isInt(j.id) && typeof j.name === 'string' && oneOf(JOB_STATUSES, j.status), 'contrat illisible');
   for (const k of ['rateCU', 'durationS', 'work', 'progress', 'deadlineInS', 'payment', 'penalty', 'offeredAt', 'expiresAt', 'deadline', 'allocated']) {
     need(isNum(j[k]), 'contrat incomplet');
   }
-  need(j.kind === undefined || j.kind === 'inference' || j.kind === 'training', 'type de contrat inconnu');
+  need(j.kind === undefined || oneOf(JOB_KINDS, j.kind), 'type de contrat inconnu');
   need(j.assigned === undefined || (Array.isArray(j.assigned) && j.assigned.every(isInt)), 'bloc d’entraînement illisible');
   need(j.cluster === undefined || isInt(j.cluster), 'taille de bloc invalide');
+  need(j.minGen === undefined || oneOf(GENS, j.minGen), 'génération de bloc invalide');
+  need((j.sla === undefined || typeof j.sla === 'boolean') && (j.shortS === undefined || isNum(j.shortS)), 'engagement de service illisible');
 }
 
 type RawState = Record<string, unknown>;
+
+/** Les règles qu'ouvre le mode d'une sauvegarde (partie rapide si le mode manque). */
+const rulesOf = (state: RawState) => rulesFor(state.mode === 'career' ? 'career' : 'quick');
 
 /**
  * Mises à niveau successives, indexées par le format de départ : chaque étape ajoute ce que
  * le format suivant a introduit. Une sauvegarde de la bêta 0.9 (format 1) se recharge donc.
  */
-const MIGRATIONS: Record<number, (state: RawState) => void> = {
+export const MIGRATIONS: Record<number, (state: RawState) => void> = {
   // 1 → 2 (0.10) : alertes préventives et compteurs d'exploitation.
   1: (state) => {
     state.alerts = emptyAlerts();
@@ -114,14 +138,14 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
   // 3 → 4 (lot 3) : énergie de secours, incidents, carburant.
   3: (state) => {
     state.incidents = emptyIncidents();
-    if (isObject(state.rules)) state.rules.incidents = state.mode === 'career';
+    if (isObject(state.rules)) state.rules.incidents = rulesOf(state).incidents;
     state.power = { ...emptyPower(), ...(isObject(state.power) ? state.power : {}) };
     if (isObject(state.economy) && isObject(state.economy.ledger)) state.economy.ledger.fuel = 0;
     if (isObject(state.alerts)) state.alerts.upsLow = false;
   },
   // 4 → 5 (lot 4) : orientation des racks, météo, canicules, CDU.
   4: (state) => {
-    if (isObject(state.rules)) Object.assign(state.rules, { aisles: state.mode === 'career', weather: state.mode === 'career' });
+    if (isObject(state.rules)) Object.assign(state.rules, { aisles: rulesOf(state).aisles, weather: rulesOf(state).weather });
     if (isObject(state.incidents)) Object.assign(state.incidents, { heatwaveEndsAt: null, nextHeatwaveAt: null });
     state.cooling = emptyCooling();
   },
@@ -129,7 +153,7 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
   5: () => {},
   // 6 → 7 (lot 6) : usure, entretien, spécialités, maintenance planifiée.
   6: (state) => {
-    if (isObject(state.rules)) state.rules.wear = state.mode === 'career';
+    if (isObject(state.rules)) state.rules.wear = rulesOf(state).wear;
     if (isObject(state.policies)) state.policies.autoMaintain = true;
     if (isObject(state.alerts)) state.alerts.wornRacks = [];
   },
@@ -142,17 +166,19 @@ function migrate(file: RawState): void {
 }
 
 function checkAlerts(a: unknown): void {
-  need(isObject(a) && Array.isArray(a.hotRacks) && Array.isArray(a.lateJobs) && Array.isArray(a.unattended), 'alertes illisibles');
-  need(typeof a.power === 'boolean' && typeof a.cash === 'boolean', 'alertes incomplètes');
+  need(isObject(a) && ['hotRacks', 'lateJobs', 'unattended', 'wornRacks'].every((k) => Array.isArray(a[k])), 'alertes illisibles');
+  need(typeof a.power === 'boolean' && typeof a.cash === 'boolean' && typeof a.upsLow === 'boolean', 'alertes incomplètes');
 }
 
 /** Vérifie la forme et la cohérence d'un état chargé (types, grille, occupation des cases). */
-function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'events'> {
+function checkState(s: unknown): asserts s is PersistedState {
   need(isObject(s), 'partie illisible');
-  for (const k of ['seed', 'tick', 'time', 'rng', 'money', 'nextId', 'nextTechId', 'nextJobId', 'nextOfferAt']) need(isNum(s[k]), `valeur « ${k} » manquante`);
-  need([0, 1, 2, 4].includes(s.speed as number), 'vitesse invalide');
-  need(['playing', 'won', 'lost'].includes(s.outcome as string), 'issue de partie invalide');
-  need(isInt(s.w) && isInt(s.h) && (s.w as number) > 0 && (s.h as number) > 0 && (s.w as number) * (s.h as number) <= 10_000, 'taille de salle invalide');
+  for (const k of ['seed', 'tick', 'time', 'rng', 'money', 'nextId', 'nextTechId', 'nextJobId', 'nextOfferAt']) {
+    need(isNum(s[k]), `valeur « ${k} » manquante`);
+  }
+  need(oneOf(SPEEDS, s.speed), 'vitesse invalide');
+  need(oneOf(OUTCOMES, s.outcome), 'issue de partie invalide');
+  need(isInt(s.w) && isInt(s.h) && s.w > 0 && s.h > 0 && s.w * s.h <= MAX_CELLS, 'taille de salle invalide');
   const cells = (s.w as number) * (s.h as number);
   need(Array.isArray(s.temp) && s.temp.length === cells && s.temp.every(isNum), 'températures incohérentes');
   need(Array.isArray(s.occupant) && s.occupant.length === cells && s.occupant.every(isInt), 'occupation incohérente');
@@ -165,17 +191,20 @@ function checkState(s: unknown): asserts s is Omit<GameState, 'commands' | 'even
   need(isObject(s.power) && isObject(s.compute) && isObject(s.economy) && isObject(s.economy.ledger), 'statistiques manquantes');
   for (const k of ['failures', 'rackSecondsInstalled', 'rackSecondsActive']) need(isNum(s.economy[k]), `compteur « ${k} » manquant`);
   checkAlerts(s.alerts);
-  need(s.mode === 'quick' || s.mode === 'career', 'mode de jeu inconnu');
-  need(isObject(s.rules) && typeof s.rules.progression === 'boolean', 'règles illisibles');
-  need(isObject(s.career) && isNum(s.career.reputation) && isInt(s.career.tier) && (s.career.tier as number) >= 0, 'carrière illisible');
+  need(oneOf(GAME_MODES, s.mode), 'mode de jeu inconnu');
+  const rules = s.rules;
+  need(isObject(rules) && typeof rules.progression === 'boolean', 'règles illisibles');
+  const c = s.career;
+  need(isObject(c) && isNum(c.reputation) && isInt(c.tier) && c.tier >= 0 && c.tier < TIERS.length, 'carrière illisible');
   const r = s.research;
   need(isObject(r) && isNum(r.share) && (r.current === null || typeof r.current === 'string'), 'recherche illisible');
   need(Array.isArray(r.done) && r.done.every((d) => typeof d === 'string') && isObject(r.progress) && isNum(r.ratePerS), 'recherche incomplète');
   need(isObject(s.policies) && typeof s.policies.autoRepair === 'boolean' && typeof s.policies.autoMaintain === 'boolean', 'réglages illisibles');
   const inc = s.incidents;
-  need(isObject(inc) && (inc.outageEndsAt === null || isNum(inc.outageEndsAt)) && (inc.nextOutageAt === null || isNum(inc.nextOutageAt)) && isInt(inc.outages), 'incidents illisibles');
-  need(typeof s.rules.incidents === 'boolean' && typeof s.rules.aisles === 'boolean' && typeof s.rules.weather === 'boolean' && typeof s.rules.wear === 'boolean', 'règles incomplètes');
-  need((inc.heatwaveEndsAt === null || isNum(inc.heatwaveEndsAt)) && (inc.nextHeatwaveAt === null || isNum(inc.nextHeatwaveAt)), 'canicules illisibles');
+  const time = (v: unknown) => v === null || isNum(v);
+  need(isObject(inc) && time(inc.outageEndsAt) && time(inc.nextOutageAt) && isInt(inc.outages), 'incidents illisibles');
+  need(['incidents', 'aisles', 'weather', 'wear'].every((k) => typeof rules[k] === 'boolean'), 'règles incomplètes');
+  need(time(inc.heatwaveEndsAt) && time(inc.nextHeatwaveAt), 'canicules illisibles');
   need(isObject(s.cooling) && isNum(s.cooling.liquidKW) && isNum(s.cooling.cracFactor), 'refroidissement illisible');
 }
 
@@ -196,7 +225,7 @@ export function deserialize(json: string): LoadResult {
     if (e instanceof Invalid) return { ok: false, error: `Sauvegarde endommagée (${e.message}).` };
     throw e;
   }
-  const state: GameState = { ...(file.state as SaveFile['state']), commands: [], events: [] };
+  const state: GameState = { ...(file.state as PersistedState), commands: [], events: [] };
   return { ok: true, state, file: file as unknown as SaveFile };
 }
 

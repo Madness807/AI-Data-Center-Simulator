@@ -1,7 +1,8 @@
 import { RESEARCH_RATE } from './balance';
 
 /** Partie rapide : les règles de la bêta, objectif d'argent. Carrière : paliers et recherche. */
-export type GameMode = 'quick' | 'career';
+export const GAME_MODES = ['quick', 'career'] as const;
+export type GameMode = (typeof GAME_MODES)[number];
 
 /** Mécaniques actives, fixées à la création de la partie (la partie rapide les garde éteintes). */
 export interface Rules {

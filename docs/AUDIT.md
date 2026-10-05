@@ -88,7 +88,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 - **S5 · Listes de valeurs de `save.ts` recopiées des types** (haute)
   - **Où** : `save.ts:63-169` (10 listes).
   - **Constat** : un nouveau type d'équipement compile, mais rend toute sauvegarde qui le contient illisible.
-  - **Statut** : prévu au lot 4.
+  - **Statut** : ✅ lot 4. Les valeurs sont déclarées une fois en `as const` (`BUILDING_KINDS`, `BUILDING_STATUSES`, `FACINGS`, `GENS`, `SPECIALTIES`, `JOB_STATUSES`, `JOB_KINDS`, `SPEEDS`, `OUTCOMES`, `GAME_MODES`), et les types en sont déduits. `save.ts` vérifie avec ces listes : un nouveau type d'équipement est accepté d'office.
 - **S6 · Le bloc « un rack tombe en panne » est copié 3 fois** (moyenne)
   - **Où** : `systems/failures.ts:68-71`, `systems/incidents.ts:88-91`, `commands.ts:100-103`.
   - **Statut** : ✅ lot 3. `failRack()` dans `systems/failures.ts`, utilisé par les pannes, les coupures et l'exercice du tutoriel.
@@ -137,7 +137,12 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - une migration oubliée passerait en silence ;
     - le palier n'est pas borné (au-delà de 3, plantage dans `trainingOffer`) ;
     - `upsLow` et `wornRacks` ne sont pas vérifiés.
-  - **Statut** : prévu au lot 4.
+  - **Statut** : ✅ lot 4.
+    - Le type `PersistedState` est déclaré une seule fois.
+    - Les migrations lisent leurs règles dans `rulesFor`.
+    - `MIGRATIONS` est exporté, et un test vérifie qu'une migration existe pour chaque ancien format.
+    - Nouvelles validations, testées : palier inférieur au nombre de paliers, `upsLow` et `wornRacks`, `minGen`, `sla` et `shortS`. Elles refusent un fichier corrompu au lieu de planter.
+    - Les lignes trop longues sont coupées.
 - **S15 · Ajouter un effet de recherche demande 5 modifications** (moyenne)
   - **Où** : `research.ts:14-42`, `progression.ts:93-187`.
   - **Statut** : ⏸ refonte du calcul des modificateurs.

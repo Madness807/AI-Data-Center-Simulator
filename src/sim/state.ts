@@ -15,7 +15,8 @@ import {
 } from './career';
 import { emptyLedger, type Ledger } from './ledger';
 
-export type Speed = 0 | 1 | 2 | 4;
+export const SPEEDS = [0, 1, 2, 4] as const;
+export type Speed = (typeof SPEEDS)[number];
 
 export interface PowerStats {
   /** Capacité de distribution des PDU. */
@@ -122,7 +123,8 @@ export function notify(
   s.events.push({ type, message, time: s.time, ...(cell ? { cell: { x: cell.x, y: cell.y } } : {}), ...(code ? { code } : {}) });
 }
 
-export type Outcome = 'playing' | 'won' | 'lost';
+export const OUTCOMES = ['playing', 'won', 'lost'] as const;
+export type Outcome = (typeof OUTCOMES)[number];
 
 export interface EconomyStats {
   /** $/s d'électricité au dernier tick. */
