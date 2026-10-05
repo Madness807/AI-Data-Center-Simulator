@@ -1,6 +1,6 @@
 import { ECONOMY } from '../../sim/balance';
 import type { GameState, Speed } from '../../sim/state';
-import { tempStats } from '../../sim/stats';
+import { idleTechs, tempStats } from '../../sim/stats';
 import { TIERS } from '../../sim/progression';
 import type { Balance } from '../metrics';
 import type { DashboardTab } from './dashboard';
@@ -166,7 +166,7 @@ export class ResourceBar {
     setText(this.temp.sub, outside === null ? `moy. ${celsius(t.avg)}` : `ext. ${celsius(outside)}`);
     this.temp.sub.classList.toggle('warn', s.incidents.heatwaveEndsAt !== null);
 
-    const idle = s.techs.filter((tech) => tech.tasks.length === 0).length;
+    const idle = idleTechs(s).length;
     setText(this.team.value, `${s.techs.length} tech.`);
     setText(this.team.sub, `${idle} ${plural(idle, 'libre')}`);
 

@@ -277,7 +277,6 @@
 .legend-swatches { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); white-space: nowrap; }
 .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-.swatch.dashed { height: 3px; border-radius: 0; }
 .swatch.threshold { height: 0; border-top: 2px dashed var(--warn); border-radius: 0; }
 .legend-note { margin-top: 6px; font-size: 10.5px; color: var(--text-faint); }
 
@@ -314,7 +313,6 @@
 .chart-grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .chart-threshold { stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; opacity: 0.85; }
 .chart-line { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.chart-line.dashed { stroke-dasharray: 6 4; }
 .chart-y { position: absolute; left: calc(-1 * var(--chart-axis)); width: calc(var(--chart-axis) - 6px); text-align: right; font-size: 10.5px; color: var(--text-faint); }
 .chart-y-max { top: -6px; }
 .chart-y-min { bottom: -6px; }

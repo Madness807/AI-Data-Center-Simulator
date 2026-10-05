@@ -5,7 +5,7 @@ import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLo
 import { isRackActive, type Building, type Cell, type Technician } from '../../sim/entities';
 import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
-import { busyRackIds, coolersCovering, cracHeatLoad, redundancy } from '../../sim/stats';
+import { busyRackIds, coolersCovering, cracHeatLoad, redundancy, siteProgress } from '../../sim/stats';
 import { upsAutonomy } from '../../sim/systems/power';
 import { isTaskAssigned } from '../../sim/systems/technicians';
 import { tempCss } from '../color';
@@ -13,7 +13,7 @@ import { buildingName, KIND_INFO } from '../catalog';
 import { ConfirmGate } from '../confirm';
 import { batteryTone, intakeTone, loadTone, riskTone, WEAR_DANGER, wearTone, type Tone } from '../tones';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
-import { celsius, clock, decimal, money, percent, percentFine, plural, seconds, signedMoney } from '../format';
+import { celsius, clock, decimal, money, ordinal, percent, plural, riskPerMinute, seconds, signedMoney } from '../format';
 import type { IconName } from '../icons';
 import type { TemperatureHistory } from '../metrics';
 import { Sparkline } from './sparkline';
@@ -75,8 +75,6 @@ class Gauge {
     setHidden(this.root, !on);
   }
 }
-
-const ordinal = (n: number) => (n === 1 ? '1er' : `${n}e`);
 
 /** Ce que fait chaque technicien vis-à-vis de cet équipement (au travail, en route, en file). */
 function crew(s: GameState, id: number): { tech: Technician; state: string }[] {
@@ -165,6 +163,7 @@ export class Inspector {
     this.maintainButton.replaceChildren(icon('repair', 14), `Entretien · ${money(MAINTENANCE.cost)}`);
     this.maintainButton.title = 'Remet l’usure à zéro ; le rack continue de tourner (clic droit avec un technicien sélectionné)';
     this.maintainButton.onclick = () => this.current && actions.maintain(this.current.id);
+    this.sendButton.dataset.tuto = 'send';
     this.demolishButton.onclick = () => {
       if (!this.current) return;
       if (this.demolishConfirm.armed) {
@@ -336,7 +335,7 @@ export class Inspector {
       this.exhaust.set(ex === null ? 'gardée (mur ou équipement derrière)' : 'vers l’arrière', ex === null ? 'warn' : '');
     }
     this.risk.show(b.status === 'ok');
-    this.risk.set(risk < 0.001 ? '< 0,1 % / min' : `${percentFine(risk)} / min`, riskTone(risk));
+    this.risk.set(riskPerMinute(risk), riskTone(risk));
 
     const coolers = coolersCovering(s, b.x, b.y);
     this.cooling.set(
@@ -481,7 +480,7 @@ export class Inspector {
       team.length ? '' : 'warn',
     );
     if (!on) return '';
-    const done = 1 - b.workLeft / BUILD_TIME[b.kind];
+    const done = siteProgress(b);
     this.progress.set(done, percent(done), 'ok');
     const working = team.filter((m) => m.state === 'au travail').length;
     this.remaining.set(working ? seconds(b.workLeft / working) : 'en attente', working ? '' : 'warn');

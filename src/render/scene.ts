@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { KEYS, matches, type KeyAction } from '../input/keymap';
-import { BUILD_TIME, CRAC } from '../sim/balance';
+import { CRAC } from '../sim/balance';
 import type { Building } from '../sim/entities';
-import { busyRackIds } from '../sim/stats';
+import { busyRackIds, siteProgress } from '../sim/stats';
 import type { GameState } from '../sim/state';
 import type { Cell } from '../input/picking';
 import {
@@ -501,7 +501,7 @@ export class SceneView {
         dt: realDt,
         speed: s.speed,
         powered: b.powered,
-        progress: site ? 1 - b.workLeft / BUILD_TIME[b.kind] : 1,
+        progress: site ? siteProgress(b) : 1,
         charge: b.kind === 'ups' ? (b.charge ?? 0) / modifiers(s).upsStoreKJ : undefined,
         discharging: b.kind === 'ups' && !s.power.grid && s.power.upsKW > 0,
         starting: b.kind === 'generator' && b.warmup !== undefined && b.warmup > 0,

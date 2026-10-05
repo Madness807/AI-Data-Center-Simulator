@@ -1,5 +1,6 @@
 import { buildCost, TECH } from '../../sim/balance';
 import { isUnlocked, modifiers } from '../../sim/progression';
+import { canHire } from '../../sim/stats';
 import { toolBuild, type Tool } from '../../input/build';
 import { actionKey, HELP_CHAR } from '../../input/keymap';
 import type { GameState } from '../../sim/state';
@@ -236,7 +237,7 @@ export class BuildBar {
       c.root.classList.toggle('active', owner?.id === family.id);
       c.root.disabled = tool !== 'demolish' && s.money < toolCost(tool);
     }
-    this.hireCard.disabled = s.money < TECH.hireCost || s.techs.length >= TECH.max;
+    this.hireCard.disabled = !canHire(s);
     if (view.overlay !== this.shownOverlay) {
       this.shownOverlay = view.overlay;
       const info = view.overlay ? OVERLAY_INFO[view.overlay] : { short: 'Calques', icon: 'layers' as IconName };

@@ -1,5 +1,5 @@
-import { GENERATOR, rackSpec } from './balance';
-import { isRackActive, type Building } from './entities';
+import { BUILD_TIME, GENERATOR, rackSpec, TECH } from './balance';
+import { isRackActive, type Building, type Technician } from './entities';
 import { buildingById, type GameState } from './state';
 import { cracWeatherFactor } from './climate';
 import { modifiers, researchReserve } from './progression';
@@ -108,4 +108,19 @@ export function cracHeatLoad(s: GameState, crac: Building): { racks: number; hea
     heatKW += rackSpec(b).heatKW;
   }
   return { racks, heatKW };
+}
+
+/** Techniciens sans aucune tâche (ni en cours, ni en file). */
+export function idleTechs(s: GameState): Technician[] {
+  return s.techs.filter((t) => t.tasks.length === 0);
+}
+
+/** L'équipe peut-elle grandir (place libre et trésorerie suffisante) ? */
+export function canHire(s: GameState): boolean {
+  return s.money >= TECH.hireCost && s.techs.length < TECH.max;
+}
+
+/** Avancement d'un chantier, de 0 (rien de fait) à 1. */
+export function siteProgress(b: Building): number {
+  return 1 - b.workLeft / BUILD_TIME[b.kind];
 }

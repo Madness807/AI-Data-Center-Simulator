@@ -7,7 +7,7 @@ import { availability, pue, tempStats } from '../../sim/stats';
 import { rackRiskPerMinute } from '../../sim/systems/failures';
 import { rackTemp } from '../../sim/climate';
 import { el, icon, setText } from '../dom';
-import { celsius, clock, decimal, money, moneyRate, percent, percentFine, plural, signedMoney } from '../format';
+import { celsius, clock, decimal, money, moneyRate, percent, percentFine, plural, riskPerMinute, signedMoney } from '../format';
 import type { IconName } from '../icons';
 import type { Balance, GameHistory, Sample } from '../metrics';
 import { riskTone, roomTone } from '../tones';
@@ -146,10 +146,6 @@ export class Dashboard {
     this.root.hidden = true;
   }
 
-  toggle(): void {
-    if (this.isOpen) this.close();
-    else this.open();
-  }
 
   private show(tab: Tab): void {
     this.tab = tab;
@@ -226,7 +222,7 @@ export class Dashboard {
     const hot = racks.filter((b) => rackTemp(s, b) >= ALERTS.hotC).length;
     setKpi(this.thermal.hot, String(hot), `sur ${racks.length} ${plural(racks.length, 'rack')} en service`, hot ? 'warn' : '');
     const risk = racks.reduce((m, b) => Math.max(m, rackRiskPerMinute(s, b)), 0);
-    setKpi(this.thermal.risk, `${percentFine(risk)} / min`, 'rack le plus exposé', riskTone(risk));
+    setKpi(this.thermal.risk, riskPerMinute(risk), 'rack le plus exposé', riskTone(risk));
 
     this.tempChart.update(
       samples.map((x) => x.time),

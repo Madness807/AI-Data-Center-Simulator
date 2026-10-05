@@ -7,11 +7,11 @@ import './ui/styles/components.css';
 import { DT, HEAT, MAX_TICKS_PER_FRAME } from './sim/balance';
 import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
-import { buildingAt, createInitialState, notify, type GameEvent, type GameState, type Speed } from './sim/state';
+import { buildingAt, buildingById, createInitialState, notify, type GameEvent, type GameState, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
 import { OVERLAY_MODES, type OverlayMode } from './render/overlay-colors';
 import { renderThumbnails, type ThumbnailKey } from './render/thumbnails';
-import { BuildController, type Tool } from './input/build';
+import { BuildController } from './input/build';
 import { loadKeyboardLayout, matches, type KeyAction } from './input/keymap';
 import { pickGroundCell, rayFromScreen } from './input/picking';
 import { SelectionController } from './input/selection';
@@ -28,10 +28,10 @@ import { SettingsStore, safeStorage } from './settings';
 import { SaveManager, deserialize, serialize, type SaveSlot } from './save';
 import { AudioEngine } from './audio/engine';
 import { SoundDirector, type SoundId } from './audio/director';
-import { tempStats } from './sim/stats';
+import { idleTechs, tempStats } from './sim/stats';
 
-applyTheme();
 const settings = new SettingsStore();
+const hudRoot = document.getElementById('hud')!;
 const audio = new AudioEngine();
 /** Derniers sons joués (vérification en mode dev). */
 const soundLog: SoundId[] = [];
@@ -120,7 +120,6 @@ const setSpeed = (speed: Speed) => {
   if (speed !== 0) lastSpeed = speed as Exclude<Speed, 0>;
   enqueue({ type: 'setSpeed', speed });
 };
-const setTool = (tool: Tool) => build.setTool(build.tool === tool ? null : tool);
 const setOverlay = (mode: OverlayMode | null) => (view.overlay.mode = mode);
 /** H : calque suivant (Maj : précédent), en passant par « aucun ». */
 const cycleOverlay = (dir: 1 | -1) => {
@@ -219,13 +218,13 @@ const focusCell = (cell: { x: number; y: number }) => {
 
 /** Le technicien le plus proche, de préférence libre, part construire ou réparer l'équipement. */
 const sendTechnician = (id: number) => {
-  const b = state.buildings.find((o) => o.id === id);
+  const b = buildingById(state, id);
   if (!b) return;
   if (!state.techs.length) {
     notify(state, 'error', 'Aucun technicien : embauchez-en un (T)', { code: 'refused' });
     return;
   }
-  const idle = state.techs.filter((t) => t.tasks.length === 0);
+  const idle = idleTechs(state);
   const pool = idle.length ? idle : state.techs;
   const dist = (t: { x: number; y: number }) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
   const tech = pool.reduce((best, t) => (dist(t) < dist(best) ? t : best));
@@ -239,9 +238,9 @@ const closeInspector = () => (selection.inspected = null);
 const rotateBuilding = (id: number) => enqueue({ type: 'rotate', id });
 /** Entretien : le technicien le plus proche (de préférence libre) part remettre le rack à neuf. */
 const maintainBuilding = (id: number) => {
-  const b = state.buildings.find((o) => o.id === id);
+  const b = buildingById(state, id);
   if (!b || !state.techs.length) return;
-  const idle = state.techs.filter((t) => t.tasks.length === 0);
+  const idle = idleTechs(state);
   const pool = idle.length ? idle : state.techs;
   const dist = (t: { x: number; y: number }) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
   const tech = pool.reduce((best, t) => (dist(t) < dist(best) ? t : best));
@@ -250,9 +249,9 @@ const maintainBuilding = (id: number) => {
 };
 /** Modernisation : le rack repasse en chantier, confié au technicien le plus proche (de préférence libre). */
 const upgradeBuilding = (id: number) => {
-  const b = state.buildings.find((o) => o.id === id);
+  const b = buildingById(state, id);
   if (!b) return;
-  const idle = state.techs.filter((t) => t.tasks.length === 0);
+  const idle = idleTechs(state);
   const pool = idle.length ? idle : state.techs;
   const dist = (t: { x: number; y: number }) => Math.abs(t.x - b.x) + Math.abs(t.y - b.y);
   const tech = pool.length ? pool.reduce((best, t) => (dist(t) < dist(best) ? t : best)) : null;
@@ -267,9 +266,8 @@ const rotate = () => {
 };
 
 const hud = new Hud(
-  document.getElementById('hud')!,
+  hudRoot,
   {
-    setTool,
     currentTool: () => build.tool,
     selectTool: (tool) => build.setTool(tool),
     setSpeed,
@@ -308,12 +306,12 @@ const hud = new Hud(
   settings,
 );
 
-document.getElementById('hud')!.addEventListener('pointerdown', (e) => {
+hudRoot.addEventListener('pointerdown', (e) => {
   if ((e.target as Element).closest('button')) director.trigger('click');
 });
 
 // Disposition selon la largeur effective (src/ui/layout.ts), recalculée au redimensionnement.
-const relayout = () => applyLayout(document.getElementById('hud')!, settings.value.uiScale);
+const relayout = () => applyLayout(hudRoot, settings.value.uiScale);
 window.addEventListener('resize', relayout);
 
 // Les options s'appliquent en direct (l'anticrénelage, lui, au prochain lancement).
@@ -381,7 +379,7 @@ function frame(now: number) {
 
   selection.prune(state);
   build.update();
-  const inspected = selection.inspected === null ? null : (state.buildings.find((b) => b.id === selection.inspected) ?? null);
+  const inspected = selection.inspected === null ? null : (buildingById(state, selection.inspected) ?? null);
   view.render(state, now / 1000, realDt, acc / DT, selection.selected, inspected);
   // Son : événements et transitions de la partie, ambiance qui suit l'activité et la chaleur.
   if (phase === 'playing') {
@@ -406,6 +404,8 @@ function frame(now: number) {
     },
     now,
   );
+  // Les événements du tick ont servi (son, rapport de bug, alertes du HUD) : on repart à vide.
+  state.events.length = 0;
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

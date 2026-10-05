@@ -93,7 +93,6 @@ export interface Sample {
   computeTotal: number;
   pue: number | null;
   availability: number | null;
-  failures: number;
   avgTemp: number;
   maxTemp: number;
 }
@@ -126,7 +125,6 @@ export class GameHistory {
       computeTotal: s.compute.total,
       pue: pue(s),
       availability: availability(s),
-      failures: s.economy.failures,
       avgTemp: t.avg,
       maxTemp: t.max,
     });
@@ -138,10 +136,10 @@ export class GameHistory {
 
   /**
    * Revenus et dépenses d'exploitation par minute, sur la minute qui précède chaque mesure
-   * (moins en tout début de partie). Les investissements sont à part.
+   * (moins en tout début de partie). Les investissements n'y figurent pas.
    */
-  flows(): { time: number; revenue: number; operating: number; investment: number }[] {
-    const out: { time: number; revenue: number; operating: number; investment: number }[] = [];
+  flows(): { time: number; revenue: number; operating: number }[] {
+    const out: { time: number; revenue: number; operating: number }[] = [];
     let j = 0;
     for (const b of this.list) {
       while (j < this.list.length - 1 && b.time - this.list[j + 1].time >= BALANCE_WINDOW) j++;
@@ -150,7 +148,7 @@ export class GameHistory {
       if (!bal) continue;
       const perMinute = 60 / bal.seconds;
       const spent = OPERATING.reduce((sum, k) => sum + bal.operating[k], 0);
-      out.push({ time: b.time, revenue: bal.revenue * perMinute, operating: spent * perMinute, investment: bal.investment * perMinute });
+      out.push({ time: b.time, revenue: bal.revenue * perMinute, operating: spent * perMinute });
     }
     return out;
   }

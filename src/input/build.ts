@@ -26,7 +26,6 @@ export class BuildController {
   facing: Facing = 0;
   private groundHover: Cell | null = null;
   private buildingHover: Cell | null = null;
-  onToolChange: (tool: Tool) => void = () => {};
   private painting = false;
   private lastPainted = '';
   private readonly ghost = createBuildGhost();
@@ -84,7 +83,6 @@ export class BuildController {
   setTool(tool: Tool): void {
     this.tool = tool;
     this.painting = false;
-    this.onToolChange(tool);
   }
 
   /** Le premier clic envoie toujours la commande (pour afficher le refus) ; le glisser ne pose que là où c'est valide. */

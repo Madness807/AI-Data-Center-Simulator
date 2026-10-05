@@ -7,7 +7,6 @@ export interface ChartSeries {
   color: string;
   /** Une valeur par instant ; null interrompt la courbe. */
   values: readonly (number | null)[];
-  dashed?: boolean;
 }
 
 export interface ChartOptions {
@@ -48,11 +47,11 @@ export class LineChart {
   }
 
   update(times: readonly number[], series: ChartSeries[], formatTime: (t: number) => string): void {
-    const key = series.map((s) => `${s.label}|${s.color}|${s.dashed}`).join(';') + (this.opts.threshold?.label ?? '');
+    const key = series.map((s) => `${s.label}|${s.color}`).join(';') + (this.opts.threshold?.label ?? '');
     if (key !== this.legendKey) {
       this.legendKey = key;
       const items = series.map((s) => {
-        const dot = el('span', `swatch ${s.dashed ? 'dashed' : ''}`);
+        const dot = el('span', 'swatch');
         dot.style.background = s.color;
         return el('span', 'legend-item', dot, s.label);
       });
@@ -110,7 +109,7 @@ export class LineChart {
         pen = true;
       });
       if (!d) continue;
-      const path = svg('path', { d, class: `chart-line ${s.dashed ? 'dashed' : ''}` });
+      const path = svg('path', { d, class: 'chart-line' });
       path.style.stroke = s.color;
       this.plot.append(path);
     }

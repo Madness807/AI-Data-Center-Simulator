@@ -30,3 +30,12 @@ export const decimal = (n: number, digits: 1 | 2 = 1) => (digits === 2 ? nf2 : n
 export const percentFine = (ratio: number) => `${(ratio < 0.1 ? nf1 : nf).format(ratio * 100)} %`;
 
 export const plural = (n: number, one: string, many = `${one}s`) => (n > 1 ? many : one);
+
+/** Rang : « 1er », « 2e »… */
+export const ordinal = (n: number) => (n === 1 ? '1er' : `${n}e`);
+
+/** Durée courte : en secondes jusqu'à 90 s, puis en minutes. */
+export const duration = (s: number) => (s < 90 ? `${Math.max(1, Math.round(s))} s` : `${Math.round(s / 60)} min`);
+
+/** Risque de panne par minute (« < 0,1 % / min » pour un risque négligeable). */
+export const riskPerMinute = (r: number) => (r < 0.001 ? '< 0,1 % / min' : `${percentFine(r)} / min`);

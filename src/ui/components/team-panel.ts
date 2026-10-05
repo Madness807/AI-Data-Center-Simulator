@@ -1,6 +1,7 @@
 import { MAINTENANCE, SPECIALTY, TECH } from '../../sim/balance';
 import { actionKey } from '../../input/keymap';
 import { techName } from '../../sim/names';
+import { canHire, idleTechs } from '../../sim/stats';
 import { modifiers } from '../../sim/progression';
 import type { GameState } from '../../sim/state';
 import { el, icon, setText } from '../dom';
@@ -122,7 +123,7 @@ export class TeamPanel {
 
   update(s: GameState): void {
     if (!this.isOpen) return;
-    this.idle = s.techs.filter((t) => t.tasks.length === 0).map((t) => t.id);
+    this.idle = idleTechs(s).map((t) => t.id);
     setText(this.title, `Équipe · ${s.techs.length} ${plural(s.techs.length, 'technicien')} · ${this.idle.length} ${plural(this.idle.length, 'libre')}`);
     for (const t of s.techs) {
       let row = this.rows.get(t.id);
@@ -159,9 +160,9 @@ export class TeamPanel {
     this.autoMaintainRow.hidden = !m.autoMaintain;
     this.autoMaintain.checked = s.policies.autoMaintain;
     this.specialists.hidden = !m.specialties;
-    const canHire = s.money >= TECH.hireCost && s.techs.length < TECH.max;
-    for (const b of this.specialistButtons) b.disabled = !canHire;
+    const hiring = canHire(s);
+    for (const b of this.specialistButtons) b.disabled = !hiring;
     this.idleButton.disabled = this.idle.length === 0;
-    this.hireButton.disabled = s.money < TECH.hireCost || s.techs.length >= TECH.max;
+    this.hireButton.disabled = !hiring;
   }
 }

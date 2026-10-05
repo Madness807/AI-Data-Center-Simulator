@@ -106,6 +106,7 @@ export class ContractsPanel {
     const bar = el('div');
     const timer = el('span', 'contract-timer');
     const accept = el('button', 'btn btn-primary', icon('done', 14), 'Accepter');
+    accept.dataset.tuto = 'accept';
     accept.onclick = () => this.actions.acceptJob(job.id);
     const reject = el('button', 'btn btn-ghost', 'Refuser');
     reject.onclick = () => this.actions.rejectJob(job.id);

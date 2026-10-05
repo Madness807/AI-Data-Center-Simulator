@@ -1,7 +1,8 @@
 import { BUILD_COST, BUILD_TIME, CDU, CRAC, DEMOLISH_REFUND, GENERATOR, GPU, PDU, RACKS_PER_CRAC, TECH, UPS } from '../sim/balance';
 import type { Cell, Gen, Specialty } from '../sim/entities';
 import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
-import { buildingAt, idx, notify, type GameState, type Speed } from '../sim/state';
+import { buildingAt, buildingById, idx, notify, type GameState, type Speed } from '../sim/state';
+import { siteProgress } from '../sim/stats';
 import type { OverlayMode } from '../render/overlay-colors';
 import { tempCss } from './color';
 import { AlertFeed } from './components/alert-feed';
@@ -34,7 +35,6 @@ import { GameHistory, LedgerHistory, TemperatureHistory } from './metrics';
 import type { ThumbnailKey } from '../render/thumbnails';
 
 export interface HudActions {
-  setTool: (tool: Tool) => void;
   /** Barre de construction : outil en main et sélection exacte (sans bascule). */
   currentTool: () => Tool;
   selectTool: (tool: Tool) => void;
@@ -148,7 +148,7 @@ export class Hud {
   private victorySeen = false;
   private victoryOpen = false;
   private readonly actions: HudActions;
-  readonly pause: PauseMenu;
+  private readonly pause: PauseMenu;
   private readonly slots: SaveSlots;
   private readonly tutorial: Tutorial;
   private readonly tips: TipCard;
@@ -274,8 +274,8 @@ export class Hud {
   }
 
   /**
-   * Ouvre ou ferme le tableau de bord (sur l'onglet demandé) ou le panneau Équipe ; un seul
-   * des deux à la fois. Un clic sur un autre onglet que celui affiché change d'onglet.
+   * Ouvre ou ferme le tableau de bord (sur l'onglet demandé), le panneau Équipe ou la
+   * Recherche ; un seul à la fois. Un clic sur un autre onglet que celui affiché change d'onglet.
    */
   togglePanel(which: 'dashboard' | 'team' | 'research', tab?: DashboardTab): void {
     if (this.phase !== 'playing') return;
@@ -400,7 +400,7 @@ export class Hud {
     }
     this.contracts.update(s);
     this.selection.update(s, view.selected);
-    const inspected = view.inspected === null ? null : (s.buildings.find((b) => b.id === view.inspected) ?? null);
+    const inspected = view.inspected === null ? null : (buildingById(s, view.inspected) ?? null);
     this.inspector.update(s, inspected, this.temps);
     if (this.phase === 'playing') {
       this.tutorial.update({ s, selected: view.selected, inspected: view.inspected, heatmap: view.overlay === 'heat' }, now);
@@ -429,7 +429,6 @@ export class Hud {
       if (e.code === 'refused') this.flash.show(e.message);
       else this.alerts.push(e);
     }
-    s.events.length = 0;
   }
 
   private updateWorldTip(s: GameState, cell: Cell | null): void {
@@ -448,7 +447,7 @@ export class Hud {
       let hint: string | undefined;
       if (b.status === 'construction') {
         chip = el('span', 'chip warn', 'chantier');
-        rows.push(['Avancement', percent(1 - b.workLeft / BUILD_TIME[b.kind])]);
+        rows.push(['Avancement', percent(siteProgress(b))]);
         hint = 'Technicien sélectionné + clic droit pour construire';
       } else if (b.status === 'failed') {
         chip = el('span', 'chip danger', 'en panne');

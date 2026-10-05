@@ -74,7 +74,7 @@ export const STEPS: TutorialStep[] = [
     id: 'contract',
     title: 'Accepter un contrat',
     text: 'Les clients demandent du calcul (CU/s) pendant une durée, avant un délai. Acceptez l’offre dans le panneau Contrats : elle paie à la livraison.',
-    highlight: '.contract.offer .btn-primary',
+    highlight: '.contract.offer [data-tuto="accept"]',
     done: ({ s }) => s.jobs.some((j) => j.status === 'active') || s.economy.jobsDone > 0,
   },
   {
@@ -111,7 +111,7 @@ export const STEPS: TutorialStep[] = [
     id: 'repair',
     title: 'Réparer une panne',
     text: 'Un rack vient de tomber en panne ! Dans l’inspecteur, cliquez « Envoyer réparer » (ou technicien sélectionné + clic droit sur le rack).',
-    highlight: '.inspector .btn-primary',
+    highlight: '.inspector [data-tuto="send"]',
     enter: ({ s }, memo, enqueue) => {
       const rack = builtRacks(s).find((b) => b.status === 'ok');
       if (!rack) return;

@@ -4,7 +4,7 @@ import { researchBlocker, TIERS } from '../../sim/progression';
 import { BRANCHES, RESEARCH, researchById, type ResearchNode } from '../../sim/research';
 import type { GameState } from '../../sim/state';
 import { el, icon, setStyle, setText } from '../dom';
-import { decimal, percent } from '../format';
+import { decimal, duration, percent } from '../format';
 
 export interface ResearchActions {
   setShare: (share: number) => void;
@@ -17,8 +17,6 @@ interface Card {
   status: HTMLElement;
   fill: HTMLElement;
 }
-
-const minutes = (s: number) => (s < 90 ? `${Math.max(1, Math.round(s))} s` : `${Math.round(s / 60)} min`);
 
 /** Panneau Recherche (U, carrière) : part du calcul pour la R&D et arbre en quatre branches. */
 export class ResearchPanel {
@@ -133,7 +131,7 @@ export class ResearchPanel {
     if (current) {
       const done = r.progress[current.id] ?? 0;
       setText(this.currentName, current.name);
-      const eta = r.ratePerS > 0 ? ` · encore ${minutes((current.cost - done) / r.ratePerS)}` : ' · aucun calcul disponible';
+      const eta = r.ratePerS > 0 ? ` · encore ${duration((current.cost - done) / r.ratePerS)}` : ' · aucun calcul disponible';
       setText(this.currentInfo, `${Math.floor(done)} / ${current.cost} pts${eta}`);
       setStyle(this.currentFill, 'width', `${Math.min(100, (done / current.cost) * 100)}%`);
     } else {

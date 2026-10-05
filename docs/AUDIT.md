@@ -224,7 +224,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 - **U6 · Le code de fenêtre est copié 6 fois** (haute)
   - **Où** : tableau de bord, Équipe, Recherche, Aide, Sauvegardes, Pause.
   - **Constat** : les copies divergent déjà (icône de fermeture, titre, clic sur le fond).
-  - **Statut** : lot 9 si le temps le permet.
+  - **Statut** : ⏸ Le composant `modal.ts` commun n'a pas été fait cette nuit : il touche six fenêtres et leur CSS, et demande une vérification à l'œil.
 - **U7 · Nombres de mise en page répétés entre TypeScript et CSS** (haute)
   - **Constat** :
     - seuils de disposition, 112, 260, 336, 296 et 632 px ;
@@ -245,20 +245,24 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - `HudActions.setTool`, `Dashboard.toggle`, `onToolChange`, `ChartSeries.dashed`, des métriques jamais lues, l'icône `copy` ;
     - 13 règles `[hidden]` redondantes, `.faint` ;
     - des variables `--status-*` et `--ping-*` inutilisées.
-  - **Statut** : ✅ lot 6 pour le CSS : 13 règles `[hidden]` redondantes, `.faint`, une déclaration en double, les variables `--status-*` et `--ping-*` que personne ne lisait. Le code TypeScript mort est prévu au lot 9.
+  - **Statut** : ✅ lots 6 et 9.
+    - CSS : 13 règles `[hidden]` redondantes, `.faint`, une déclaration en double, `--status-*` et `--ping-*` jamais lus.
+    - TypeScript : `HudActions.setTool`, `Dashboard.toggle`, `onToolChange`, l'option `dashed` des graphiques (et son CSS), `Sample.failures`, `flows().investment`, l'icône `copy`, `TipCard.shown`.
+    - `Hud.pause` devient privé.
 - **U10 · La règle « n'écrire dans le DOM que si la valeur change » est inégalement appliquée** (moyenne)
   - **Où** : une vingtaine d'écritures à chaque image.
-  - **Statut** : prévu au lot 9.
+  - **Statut** : ⏸ Les aides `setClass`, `setTitle`, `setMeter` et `setContent` n'ont pas été ajoutées : il faudrait reprendre une vingtaine d'écritures dans dix composants, sans gain visible, et les vérifier à l'œil.
 - **U11 · Des règles de jeu sont recodées dans l'interface** (moyenne)
   - **Constat** :
     - statut d'un équipement (2 versions) ;
     - avancement d'un chantier (3 fois) ;
     - techniciens libres (5 fois) ;
     - « peut embaucher » (3 fois).
-  - **Statut** : prévu au lot 9.
+  - **Statut** : ✅ lot 9 pour les copies. `idleTechs`, `canHire` et `siteProgress` (`sim/stats.ts`) servent à `main.ts`, au bandeau, au panneau Équipe, à la barre, à l'infobulle, à l'inspecteur et au rendu des chantiers. `buildingById` sert dans `main.ts` et le HUD.
+    - Le module de statut d'un équipement est ⏸ : l'infobulle et l'inspecteur emploient des mots différents, et les unifier changerait des textes.
 - **U12 · Mises en forme hors de `format.ts`** (moyenne)
   - **Constat** : minutes, ordinal, « % / min », `kW` et `CU/s` écrits à la main.
-  - **Statut** : prévu au lot 9.
+  - **Statut** : ✅ lot 9 en partie : `ordinal`, `duration` et `riskPerMinute` dans `format.ts` (le tableau de bord écrit désormais « < 0,1 % / min » comme l'inspecteur). Les gabarits `kW` et `CU/s` écrits à la main (environ 40) sont ⏸.
 - **U13 · L'affichage des lignes de l'inspecteur dépend de l'ordre des appels** (moyenne)
   - **Où** : `inspector.ts`.
   - **Statut** : ⏸ refonte de l'inspecteur.
@@ -274,10 +278,15 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : ✅ lot 6. `src/ui/confirm.ts` (`CONFIRM_MS`, `ConfirmGate`) sert à l'inspecteur, au menu pause et aux sauvegardes. `restartAnimation()` est dans `dom.ts`. Le flash près du curseur disparaît à la fin de son animation CSS : une seule durée, et `REPEAT_MS` est nommé.
 - **U17 · Le HUD vide la liste d'événements de la simulation** (moyenne)
   - **Constat** : sons et rapport de bug ne marchent que parce qu'ils passent avant.
-  - **Statut** : prévu au lot 9.
+  - **Statut** : ✅ lot 9. La boucle de `main.ts` vide les événements juste après `hud.update`, au même moment qu'avant. Le HUD ne touche plus à l'état de la simulation.
 - **U18 · Conventions de composants disparates** (moyenne)
   - **Constat** : constructeurs, signatures d'`update`, source de l'heure, deux systèmes d'infobulles.
-  - **Statut** : ⏸ alignement général ; petites corrections au lot 9.
+  - **Statut** : En partie (lot 9).
+    - Corrigé :
+      - le tutoriel cible ses boutons par `data-tuto` au lieu de la classe de style `.btn-primary` ;
+      - `main.ts` lit `#hud` une seule fois et perd un `applyTheme()` redondant ;
+      - un commentaire est mis à jour.
+    - Alignement général des composants ⏸.
 - **U19 · Utilitaires de couleur et de SVG dupliqués** (basse)
   - **Statut** : ✅ lot 6. `src/ui/color.ts` (`hexCss`, `rgbCss`, `tempCss`) et `src/ui/svg.ts` remplacent les copies : thème, mini-carte, légende, HUD, inspecteur, mini-courbe, graphiques.
 - **U20 · Rendu : petits manquements aux conventions** (basse)
@@ -390,6 +399,7 @@ Tous corrigent une incohérence ou un texte faux ; aucun ne change une règle du
 - **Noms (lot 8)** :
   - l'infobulle de la salle et les tâches des techniciens précisent la génération (« Rack GPU G2 12,10 »), comme l'inspecteur ;
   - l'infobulle du CDU s'appelle « CDU (liquide) », comme l'inspecteur, au lieu de « CDU (refroidissement liquide) ».
+- **Tableau de bord (lot 9)** : un risque de panne négligeable s'écrit « < 0,1 % / min », comme dans l'inspecteur.
 
 ## Vérification dans le navigateur
 

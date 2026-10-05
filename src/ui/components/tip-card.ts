@@ -32,11 +32,6 @@ export class TipCard {
     this.root.hidden = true;
   }
 
-  /** Le conseil affiché, s'il y en a un (pour les tests dans le navigateur). */
-  get shown(): string | null {
-    return this.current?.id ?? null;
-  }
-
   /** `allowed` : faux pendant une fenêtre bloquante (palier, victoire, pause) ; le conseil attend. */
   update(s: GameState, now: number, allowed: boolean): void {
     if (this.current && now - this.shownAt > AUTO_HIDE_MS) this.hide();
