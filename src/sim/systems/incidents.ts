@@ -1,10 +1,11 @@
-import { CDU, CRAC, HEATWAVE, OUTAGE, rackSpec, UPS } from '../balance';
+import { HEATWAVE, OUTAGE } from '../balance';
 import { outsideTemp, weatherActive } from '../climate';
 import { isRackActive } from '../entities';
 import { lerp } from '../math';
 import { nextRandom } from '../rng';
 import { notify, type GameState } from '../state';
 import { failRack } from './failures';
+import { servedBy, upsAvailableKW } from './power';
 
 /**
  * Incidents de la carrière, tirés par le générateur aléatoire de la partie (rejouables avec la
@@ -79,16 +80,11 @@ function outages(s: GameState): void {
  * les racks qu'ils ne couvrent pas perdent brutalement le courant, au risque d'une panne.
  */
 function crashUnprotected(s: GameState): void {
-  let left = s.buildings.reduce((sum, b) => sum + (b.kind === 'ups' && b.status === 'ok' && (b.charge ?? 0) > 0 ? UPS.powerKW : 0), 0);
+  const ups = s.buildings.reduce((sum, b) => sum + (b.kind === 'ups' && b.status === 'ok' ? upsAvailableKW(b) : 0), 0);
+  // Même règle que la distribution : la capacité des PDU plafonne, le froid passe d'abord.
+  const protectedLoads = servedBy(s, Math.min(s.power.capacityKW, ups));
   for (const b of s.buildings) {
-    if ((b.kind === 'crac' || b.kind === 'cdu') && b.status === 'ok') left -= b.kind === 'crac' ? CRAC.powerKW : CDU.powerKW;
-  }
-  for (const b of s.buildings) {
-    if (!isRackActive(b)) continue;
-    if (left >= rackSpec(b).powerKW) {
-      left -= rackSpec(b).powerKW;
-      continue;
-    }
+    if (!isRackActive(b) || protectedLoads.has(b.id)) continue;
     if (nextRandom(s) < OUTAGE.crashChance) failRack(s, b, ' : arrêt brutal pendant la coupure');
   }
 }

@@ -63,10 +63,13 @@ export class RtsCamera {
   private focusGoal: THREE.Vector3 | null = null;
   /** Rotation lente continue (écran titre). */
   autoOrbit = false;
+  /** Vrai quand l'interface garde le clavier et la souris (écran titre, pause, fenêtres) : la caméra ne bouge pas. */
+  inputBlocked: () => boolean = () => false;
 
   constructor(dom: HTMLElement, private readonly w: number, private readonly h: number) {
     this.target = new THREE.Vector3(w / 2, 0, h / 2);
     window.addEventListener('keydown', (e) => {
+      if (this.inputBlocked()) return;
       const rotation = matches('rotateLeft', e) ? -1 : matches('rotateRight', e) ? 1 : 0;
       if (e.repeat && rotation) return;
       this.keys.add(e.code);
@@ -132,12 +135,14 @@ export class RtsCamera {
   update(dt: number): void {
     let right = 0;
     let fwd = 0;
+    // Une touche restée enfoncée à l'ouverture d'une fenêtre ne doit pas déplacer la vue dessous.
+    if (this.inputBlocked()) this.keys.clear();
     const held = (action: KeyAction) => KEYS[action].some((code) => this.keys.has(code));
     if (held('panUp')) fwd += 1;
     if (held('panDown')) fwd -= 1;
     if (held('panRight')) right += 1;
     if (held('panLeft')) right -= 1;
-    if (this.edgePan && this.mouse) {
+    if (this.edgePan && this.mouse && !this.inputBlocked()) {
       if (this.mouse.x < EDGE_MARGIN) right -= 1;
       if (this.mouse.x > window.innerWidth - EDGE_MARGIN) right += 1;
       if (this.mouse.y < EDGE_MARGIN) fwd += 1;

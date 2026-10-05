@@ -293,6 +293,23 @@ export class Hud {
     return this.dashboard.isOpen || this.team.isOpen || this.research.isOpen;
   }
 
+  /**
+   * L'interface garde-t-elle le clavier et la souris ? Écran titre, menus, aide, fenêtres de
+   * palier, de victoire ou de défaite, panneaux : la caméra ne doit pas bouger dessous.
+   */
+  blocksWorldInput(): boolean {
+    return (
+      this.phase === 'title' ||
+      this.help.isOpen ||
+      this.slots.isOpen ||
+      this.pause.isOpen ||
+      this.tierOpen ||
+      this.victoryOpen ||
+      this.state?.outcome === 'lost' ||
+      this.panelOpen
+    );
+  }
+
   /** Écran titre (salle de démonstration, HUD masqué) ou partie en cours. */
   setPhase(phase: 'title' | 'playing'): void {
     this.phase = phase;

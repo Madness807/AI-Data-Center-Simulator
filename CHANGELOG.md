@@ -2,7 +2,29 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
-## [Non publié]
+## [1.0.1] — 2026-10-05
+
+Correctif : les 4 bugs de jeu relevés par l'audit de propreté du code, et l'audit lui-même (interne). L'équilibrage ne bouge pas : les parties de référence du bot (carrière, avec et sans secours) se jouent à l'identique.
+
+### Corrigé
+
+- **Moderniser puis démolir** : un rack en cours de modernisation rend ce que la modernisation a coûté, en entier si les travaux n'ont pas commencé, la moitié sinon, plus la moitié de l'ancien rack. Avant, il rendait le prix d'un rack neuf de la nouvelle génération : 6 500 $ au lieu de 5 700 $ pour un G1 modernisé en G2 tout juste commandé.
+- **Coupures** : au premier instant d'une coupure, les racks à l'abri d'un arrêt brutal sont exactement ceux que les onduleurs alimentent. Le calcul suit enfin la distribution :
+  - charge réelle des batteries ;
+  - free cooling des CRAC ;
+  - CDU ;
+  - capacité des PDU.
+
+  Un refroidisseur délesté ne réduit plus la protection. Le calque énergie suit la même règle : avec des CDU, la salle n'y paraît plus mieux secourue qu'elle ne l'est.
+- **Caméra** : les touches de déplacement et le défilement par les bords ne bougent plus la vue sous :
+  - l'écran titre ;
+  - le menu pause, l'aide et les sauvegardes ;
+  - les fenêtres de palier, de victoire ou de défaite ;
+  - les panneaux (tableau de bord, équipe, recherche).
+
+  Une touche tenue à l'ouverture d'une fenêtre est relâchée.
+- **Ambiance sonore** : le souffle de la salle suit le nombre de racks en service. Il ne grimpe plus trop vite avec les GPU G2 et G3, qui comptaient pour 2,5 et 6 racks.
+- **Sauvegarde au format 8** : une modernisation en cours est enregistrée. Les parties d'avant se rechargent telles quelles.
 
 ### Interne
 
@@ -22,7 +44,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), num
   - oxlint dans `npm run check` (ESLint attendra que typescript-eslint prenne en charge TypeScript 7) ;
   - trois options strictes de plus pour le compilateur ;
   - un script `test:fast`.
-- **Tests** : fabriques communes, attentes tirées des constantes, test de cohérence du bot.
+- **Tests** : fabriques communes, attentes tirées des constantes, test de cohérence du bot ; 8 tests de plus pour les corrections de cette version (175 au total).
 
 ### Modifié
 

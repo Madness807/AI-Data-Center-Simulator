@@ -1,5 +1,5 @@
 import { BUILD_TIME, buildCost, DEMOLISH_REFUND, GPU, MAX_GEN, RESEARCH_RATE, RETROFIT, TECH } from './balance';
-import type { BuildingKind, Facing, Gen, Specialty, TechTask } from './entities';
+import type { Building, BuildingKind, Facing, Gen, Specialty, TechTask } from './entities';
 import { keepsAccess } from './pathfinding';
 import { isUnlocked, modifiers, researchBlocker, unlockedBy } from './progression';
 import { refund, spend } from './ledger';
@@ -68,9 +68,7 @@ export function processCommands(s: GameState): void {
       case 'demolish': {
         const b = buildingAt(s, c.x, c.y);
         if (!b) break;
-        // Un chantier pas encore commencé est remboursé en entier.
-        const untouched = b.status === 'construction' && b.workLeft >= BUILD_TIME[b.kind];
-        refund(s, 'construction', Math.round(buildCost(b.kind, b.gen) * (untouched ? 1 : DEMOLISH_REFUND)));
+        refund(s, 'construction', demolishRefund(b));
         removeBuilding(s, b);
         break;
       }
@@ -134,8 +132,11 @@ export function processCommands(s: GameState): void {
           break;
         }
         const next = ((b.gen ?? 1) + 1) as Gen;
-        spend(s, 'construction', upgradeCost(b));
-        // Le rack repasse en chantier le temps du remplacement des GPU.
+        const cost = upgradeCost(b);
+        spend(s, 'construction', cost);
+        // Le rack repasse en chantier le temps du remplacement des GPU ; on garde de quoi rembourser.
+        b.upgradeFrom = b.gen ?? 1;
+        b.upgradePaid = cost;
         b.gen = next;
         b.status = 'construction';
         b.workLeft = BUILD_TIME.rack;
@@ -157,6 +158,18 @@ export function processCommands(s: GameState): void {
   }
   // L'alimentation est instantanée : le joueur voit tout de suite l'effet d'un PDU ou d'un rack.
   updatePower(s);
+}
+
+/**
+ * Ce que rend une démolition : un chantier pas encore commencé en entier, sinon la moitié.
+ * Une modernisation en cours rend son prix selon la même règle, plus la moitié de l'ancien rack
+ * (comme si on le démolissait avant de le moderniser).
+ */
+export function demolishRefund(b: Building): number {
+  const untouched = b.status === 'construction' && b.workLeft >= BUILD_TIME[b.kind];
+  const share = untouched ? 1 : DEMOLISH_REFUND;
+  if (b.upgradeFrom !== undefined) return Math.round((b.upgradePaid ?? 0) * share + buildCost(b.kind, b.upgradeFrom) * DEMOLISH_REFUND);
+  return Math.round(buildCost(b.kind, b.gen) * share);
 }
 
 /** Prix de la modernisation d'un rack vers la génération suivante. */

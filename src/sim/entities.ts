@@ -42,6 +42,9 @@ export interface Building {
   gen?: Gen;
   /** Rack (carrière) : usure de 0 à 100 ; elle augmente le risque de panne, l'entretien la remet à zéro. */
   wear?: number;
+  /** Modernisation en cours : génération remplacée et prix payé, pour rembourser une démolition. */
+  upgradeFrom?: Gen;
+  upgradePaid?: number;
 }
 
 export type TechTask =

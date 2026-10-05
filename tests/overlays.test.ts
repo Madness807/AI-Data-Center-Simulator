@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { setColorblind, statusColor, type StatusName } from '../src/render/assets/status-colors';
-import { cracHeadroom, paintOverlay, riskToRgb, type OverlayMode } from '../src/render/overlay-colors';
+import { backupCoverage, cracHeadroom, paintOverlay, riskToRgb, type OverlayMode } from '../src/render/overlay-colors';
+import { GRID_H, GRID_W, OUTAGE, UPS } from '../src/sim/balance';
 import { addBuilding, createEmptyState, idx, type GameState } from '../src/sim/state';
 import { updateJobs } from '../src/sim/systems/jobs';
 import { updatePower } from '../src/sim/systems/power';
@@ -48,6 +49,23 @@ describe('calques', () => {
     at = paint('power', s);
     expect(colorOf(at(7, 2))).toEqual(status('shed'));
     expect(status('shed')).toEqual(rgb(0xe69f00));
+  });
+
+  it('énergie : la couverture des secours compte les CDU, comme la distribution', () => {
+    const s = createEmptyState(1, GRID_W, GRID_H, 'career');
+    s.career.tier = OUTAGE.minTier;
+    addBuilding(s, 'pdu', 0, 0);
+    addBuilding(s, 'pdu', 1, 0);
+    addBuilding(s, 'ups', 3, 0).charge = UPS.storeKJ; // 40 kW de secours
+    addBuilding(s, 'cdu', 8, 8);
+    const racks = [2, 3, 4, 5].map((x) => addBuilding(s, 'rack', x, 4)); // 4 × 10 kW
+    updatePower(s);
+    // La CDU passe avant les racks : le 4e tomberait pendant une coupure.
+    const covered = backupCoverage(s)!;
+    expect(racks.map((r) => covered.has(r.id))).toEqual([true, true, true, false]);
+    const at = paint('power', s);
+    expect(colorOf(at(2, 4))).toEqual(status('busy'));
+    expect(colorOf(at(5, 4))).toEqual(status('repairing'));
   });
 
   it('occupation : racks qui calculent et racks inactifs', () => {

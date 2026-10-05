@@ -1,4 +1,4 @@
-import { CRAC, rackSpec } from '../sim/balance';
+import { CRAC } from '../sim/balance';
 import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
 import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
@@ -6,7 +6,7 @@ import { rackRiskPerMinute } from '../sim/systems/failures';
 import { outagesActive } from '../sim/systems/incidents';
 import { inCoolingRange } from '../sim/systems/heat';
 import { hotAisleCells, liquidCapture } from '../sim/climate';
-import { plannedGeneratorKW, plannedUpsKW } from '../sim/systems/power';
+import { plannedGeneratorKW, plannedUpsKW, servedBy } from '../sim/systems/power';
 import { PALETTE, toRgb, type Rgb } from './assets/palette';
 import { statusColor, type StatusName } from './assets/status-colors';
 
@@ -228,18 +228,8 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
  */
 export function backupCoverage(s: GameState): Set<number> | null {
   if (!outagesActive(s)) return null;
-  let left = plannedGeneratorKW(s) + plannedUpsKW(s);
-  const out = new Set<number>();
-  const loads = s.buildings
-    .filter((b) => b.status === 'ok' && b.powered && (b.kind === 'crac' || b.kind === 'rack'))
-    .sort((a, b) => (a.kind === b.kind ? a.id - b.id : a.kind === 'crac' ? -1 : 1));
-  for (const b of loads) {
-    const kw = b.kind === 'crac' ? CRAC.powerKW : rackSpec(b).powerKW;
-    if (left < kw) break;
-    left -= kw;
-    out.add(b.id);
-  }
-  return out;
+  // Même règle que la distribution pendant une coupure (simulation, systems/power.ts).
+  return servedBy(s, Math.min(s.power.capacityKW, plannedGeneratorKW(s) + plannedUpsKW(s)));
 }
 
 /** Charge électrique en part de la capacité, pour le titre du calque énergie. */

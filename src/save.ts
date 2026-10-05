@@ -17,7 +17,7 @@ import { TIERS } from './sim/progression';
 import { emptyCooling, emptyIncidents, emptyPower, OUTCOMES, SPEEDS, type GameState, type Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 7;
+export const SAVE_FORMAT = 8;
 /** Taille maximale d'une salle relue (garde-fou contre un fichier gonflé). */
 const MAX_CELLS = 10_000;
 
@@ -88,6 +88,7 @@ function checkBuilding(b: unknown, w: number, h: number): asserts b is Building 
   need(b.facing === undefined || oneOf(FACINGS, b.facing), 'orientation invalide');
   need(b.gen === undefined || oneOf(GENS, b.gen), 'génération de GPU invalide');
   need(b.wear === undefined || isNum(b.wear), 'usure invalide');
+  need((b.upgradeFrom === undefined || oneOf(GENS, b.upgradeFrom)) && (b.upgradePaid === undefined || isNum(b.upgradePaid)), 'modernisation illisible');
 }
 
 function checkTech(t: unknown): asserts t is Technician {
@@ -157,6 +158,8 @@ export const MIGRATIONS: Record<number, (state: RawState) => void> = {
     if (isObject(state.policies)) state.policies.autoMaintain = true;
     if (isObject(state.alerts)) state.alerts.wornRacks = [];
   },
+  // 7 → 8 (1.0.1) : modernisation en cours (champs facultatifs, absents des parties d'avant).
+  7: () => {},
 };
 
 function migrate(file: RawState): void {

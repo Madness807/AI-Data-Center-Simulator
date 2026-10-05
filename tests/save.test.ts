@@ -64,6 +64,19 @@ describe('sauvegarde', () => {
     }
   });
 
+  it('garde une modernisation en cours, et refuse une modernisation illisible', () => {
+    const s = playedGame();
+    const rack = s.buildings.find((b) => b.kind === 'rack')!;
+    Object.assign(rack, { upgradeFrom: 1, upgradePaid: 4200 });
+    const loaded = deserialize(serialize(s, 'test'));
+    expect(loaded.ok && loaded.state.buildings.find((b) => b.id === rack.id)).toMatchObject({ upgradeFrom: 1, upgradePaid: 4200 });
+    const file = JSON.parse(serialize(s, 'test'));
+    file.state.buildings = file.state.buildings.map((b: { id: number }) => (b.id === rack.id ? { ...b, upgradeFrom: 9 } : b));
+    const bad = deserialize(JSON.stringify(file));
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.error).toMatch(/modernisation/);
+  });
+
   it('chaque ancien format a sa migration', () => {
     for (let format = 1; format < SAVE_FORMAT; format++) expect(MIGRATIONS[format], `format ${format}`).toBeTypeOf('function');
   });

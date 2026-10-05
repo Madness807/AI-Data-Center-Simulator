@@ -4,7 +4,7 @@ import '@fontsource/jetbrains-mono/600.css';
 import './ui/styles/tokens.css';
 import './ui/styles/base.css';
 import './ui/styles/components.css';
-import { DT, HEAT, MAX_TICKS_PER_FRAME } from './sim/balance';
+import { DT, MAX_TICKS_PER_FRAME } from './sim/balance';
 import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
 import { buildingAt, buildingById, createInitialState, notify, type GameEvent, type GameState, type Speed } from './sim/state';
@@ -27,8 +27,8 @@ import { buildReport } from './report';
 import { SettingsStore, safeStorage } from './settings';
 import { SaveManager, deserialize, serialize, type SaveSlot } from './save';
 import { AudioEngine } from './audio/engine';
-import { SoundDirector, type SoundId } from './audio/director';
-import { idleTechs, tempStats } from './sim/stats';
+import { ambienceOf, SoundDirector, type SoundId } from './audio/director';
+import { idleTechs } from './sim/stats';
 
 const settings = new SettingsStore();
 const hudRoot = document.getElementById('hud')!;
@@ -306,6 +306,8 @@ const hud = new Hud(
   settings,
 );
 
+view.rts.inputBlocked = () => hud.blocksWorldInput();
+
 hudRoot.addEventListener('pointerdown', (e) => {
   if ((e.target as Element).closest('button')) director.trigger('click');
 });
@@ -386,8 +388,8 @@ function frame(now: number) {
     director.onEvents(state.events);
     director.onFrame(state);
   }
-  const activeRacks = state.compute.total / 10;
-  audio.setAmbience(Math.min(1, activeRacks / 20), Math.min(1, Math.max(0, (tempStats(state).max - HEAT.ambient) / 30)), state.speed === 0);
+  const ambience = ambienceOf(state);
+  audio.setAmbience(ambience.load, ambience.heat, state.speed === 0);
   if (state.events.length) {
     eventLog.push(...state.events);
     eventLog.splice(0, Math.max(0, eventLog.length - 20));

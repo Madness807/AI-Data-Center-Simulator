@@ -1,4 +1,17 @@
+import { HEAT } from '../sim/balance';
+import { isRackActive } from '../sim/entities';
 import type { EventCode, GameEvent, GameState } from '../sim/state';
+import { tempStats } from '../sim/stats';
+
+/** Ambiance de la salle : l'activité suit les racks en service, la chaleur l'écart à l'air neuf. */
+export const AMBIENCE = { fullRacks: 20, heatRangeC: 30 };
+
+/** Intensités de l'ambiance, de 0 à 1 (activité des ventilateurs, chaleur). */
+export function ambienceOf(s: GameState): { load: number; heat: number } {
+  const racks = s.buildings.filter(isRackActive).length;
+  const heat = (tempStats(s).max - HEAT.ambient) / AMBIENCE.heatRangeC;
+  return { load: Math.min(1, racks / AMBIENCE.fullRacks), heat: Math.min(1, Math.max(0, heat)) };
+}
 
 export type SoundId =
   | 'click'

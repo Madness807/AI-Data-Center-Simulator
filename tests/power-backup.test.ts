@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CRAC, ECONOMY, GENERATOR, OUTAGE, RACK, UPS } from '../src/sim/balance';
+import { CRAC, DT, ECONOMY, GENERATOR, OUTAGE, RACK, UPS } from '../src/sim/balance';
 import { canBuild } from '../src/sim/commands';
 import { step } from '../src/sim/sim';
 import { addBuilding, createEmptyState, createInitialState, type GameState } from '../src/sim/state';
@@ -107,6 +107,26 @@ describe('énergie de secours', () => {
       updateIncidents(quick);
     }
     expect(quick.incidents.outageEndsAt).toBeNull();
+  });
+
+  it('au début d’une coupure, seuls les racks que les onduleurs alimentent vraiment sont à l’abri', () => {
+    const s = room({ ups: 1 });
+    // Onduleur presque vide : pendant le premier dixième de seconde, il ne tient que le CRAC et 2 racks.
+    s.buildings.find((b) => b.kind === 'ups')!.charge = (CRAC.powerKW + 2 * RACK.powerKW) * DT;
+    s.career.tier = OUTAGE.minTier;
+    s.incidents.nextOutageAt = s.time;
+    const chance = OUTAGE.crashChance;
+    OUTAGE.crashChance = 1; // tout rack exposé tombe : le test ne dépend pas du hasard
+    try {
+      updateIncidents(s);
+    } finally {
+      OUTAGE.crashChance = chance;
+    }
+    const racks = s.buildings.filter((b) => b.kind === 'rack');
+    expect(racks.map((r) => r.status)).toEqual(['ok', 'ok', 'failed']);
+    // Ce sont bien ceux que la distribution sert au premier instant de la coupure.
+    updatePower(s);
+    expect(racks.map((r) => r.powered)).toEqual([true, true, false]);
   });
 
   it('onduleurs et groupes se débloquent par la recherche, en carrière seulement', () => {

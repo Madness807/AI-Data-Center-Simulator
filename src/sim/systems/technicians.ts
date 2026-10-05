@@ -183,8 +183,10 @@ function work(s: GameState, t: Technician, task: TechTask, dt: number): boolean 
   notify(s, 'info', `${label} ${b.x},${b.y} ${built ? 'construit' : 'réparé'}`, { cell: b, code: built ? 'built' : 'repaired' });
   if (built) {
     b.builtAt = s.time;
-    // Un rack neuf (ou modernisé) repart sans usure.
+    // Un rack neuf (ou modernisé) repart sans usure ; la modernisation est terminée.
     if (b.kind === 'rack') b.wear = 0;
+    delete b.upgradeFrom;
+    delete b.upgradePaid;
   }
   b.status = 'ok';
   return true;

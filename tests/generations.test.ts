@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { BUILD_TIME, GPU, RACK, rackSpec, RETROFIT, SLA, TRAINING } from '../src/sim/balance';
+import { BUILD_TIME, DEMOLISH_REFUND, GPU, RACK, rackSpec, RETROFIT, SLA, TRAINING } from '../src/sim/balance';
 import { clusterIntact, findCluster, largestFreeCluster } from '../src/sim/clusters';
-import { canBuild, processCommands, upgradeCost } from '../src/sim/commands';
+import { canBuild, demolishRefund, processCommands, upgradeCost } from '../src/sim/commands';
 import type { Building, Job } from '../src/sim/entities';
-import { addBuilding, createInitialState, type GameState } from '../src/sim/state';
+import { addBuilding, addTech, createInitialState, type GameState } from '../src/sim/state';
 import { generateOffer, updateJobs } from '../src/sim/systems/jobs';
 import { updatePower } from '../src/sim/systems/power';
-import { room, testJob } from './helpers';
+import { room, runUntil, testJob } from './helpers';
 
 const career = (): GameState => room(5, { pdus: 10, money: 200000 });
 
@@ -68,6 +68,38 @@ describe('générations de GPU', () => {
     expect(b.workLeft).toBe(BUILD_TIME.rack);
     expect(before - s.money).toBe(upgradeCost({ gen: 1 }));
     expect(upgradeCost({ gen: 1 })).toBe(Math.round((GPU[2].cost - GPU[1].cost) * RETROFIT.surcharge));
+  });
+
+  it('démolir pendant une modernisation rend ce qu’elle a coûté, plus la moitié de l’ancien rack', () => {
+    const s = career();
+    s.research.done.push('gpu-g2', 'retrofit');
+    const b = rack(s, 5, 5);
+    s.commands.push({ type: 'upgrade', id: b.id });
+    processCommands(s);
+    const paid = upgradeCost({ gen: 1 });
+    // Travaux pas commencés : la modernisation revient en entier (et non le prix d'un G2 neuf).
+    expect(demolishRefund(b)).toBe(paid + GPU[1].cost * DEMOLISH_REFUND);
+    expect(demolishRefund(b)).toBeLessThan(GPU[2].cost);
+    // Travaux commencés : la moitié de tout, comme pour n'importe quel chantier.
+    b.workLeft = BUILD_TIME.rack / 2;
+    const before = s.money;
+    s.commands.push({ type: 'demolish', x: 5, y: 5 });
+    processCommands(s);
+    expect(s.money - before).toBe((paid + GPU[1].cost) * DEMOLISH_REFUND);
+  });
+
+  it('une fois modernisé, le rack se démolit comme un rack neuf de sa génération', () => {
+    const s = career();
+    s.research.done.push('gpu-g2', 'retrofit');
+    const b = rack(s, 5, 5);
+    const tech = addTech(s, { x: 5, y: 7 });
+    s.commands.push({ type: 'upgrade', id: b.id, assign: [tech.id] });
+    processCommands(s);
+    expect(runUntil(s, () => b.status === 'ok', 60)).toBe(true);
+    expect(b.gen).toBe(2);
+    expect(b.upgradeFrom).toBeUndefined();
+    expect(b.upgradePaid).toBeUndefined();
+    expect(demolishRefund(b)).toBe(GPU[2].cost * DEMOLISH_REFUND);
   });
 });
 

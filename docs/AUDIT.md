@@ -11,6 +11,8 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 - ⏸ reporté (avec la raison) ;
 - 🐞 bug de jeu, noté sans être corrigé (une correction changerait le jeu).
 
+**Suite** : les 4 bugs de jeu (S4, S16, U22, U23) sont corrigés dans la version 1.0.1. Leur statut indique comment.
+
 ## Méthode
 
 1. **Trois explorations en lecture seule** :
@@ -86,7 +88,13 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Constat** :
     - `crashUnprotected` ignore le free cooling, utilise la puissance nominale des onduleurs et compte des refroidisseurs délestés ;
     - le calque oublie les CDU.
-  - **Statut** : 🐞 une correction change les tirages de la carrière.
+  - **Statut** : ✅ 1.0.1. `servedBy()` (`systems/power.ts`) sert à la distribution, aux arrêts brutaux et au calque, avec :
+    - la charge réelle des onduleurs ;
+    - le free cooling ;
+    - les CDU ;
+    - le plafond des PDU.
+
+    Une charge qui ne rentre pas est sautée. Les parties de référence du bot n'en sont pas changées.
 - **S5 · Listes de valeurs de `save.ts` recopiées des types** (haute)
   - **Où** : `save.ts:63-169` (10 listes).
   - **Constat** : un nouveau type d'équipement compile, mais rend toute sauvegarde qui le contient illisible.
@@ -151,7 +159,11 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 - **S16 · Moderniser puis démolir rembourse 100 % du prix neuf** (moyenne)
   - **Où** : `commands.ts:72-73,139-146`.
   - **Constat** : construire un G1 (3 000 $), le moderniser (4 200 $), puis le démolir rend 6 500 $.
-  - **Statut** : 🐞
+  - **Statut** : ✅ 1.0.1. `demolishRefund()` (`commands.ts`, utilisé aussi par l'inspecteur) rend :
+    - le prix de la modernisation, en entier si les travaux n'ont pas commencé ;
+    - la moitié de l'ancien rack.
+
+    L'exemple rend donc 5 700 $. Le rack garde `upgradeFrom` et `upgradePaid` jusqu'à la fin des travaux (sauvegarde au format 8).
 - **S17 · Une catégorie d'équipement imprévue serait alimentée gratuitement** (moyenne)
   - **Où** : `systems/power.ts:33-38`.
   - **Statut** : ✅ lot 3. `switch` exhaustif sur le type d'équipement, avec `unknownKind()` (`entities.ts`) : un type oublié ne compile plus.
@@ -303,9 +315,12 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - les volumes par défaut sont recopiés d'une source à l'autre ;
     - les coefficients d'ambiance sont écrits en ligne dans `main.ts` ;
     - `/ 10` suppose 10 CU/s par rack.
-  - **Statut** : 🐞 pour `/ 10` (l'ambiance changerait en carrière). Le reste est ⏸ : les volumes par défaut du moteur, les coefficients d'ambiance écrits en ligne, la table exhaustive des sons par événement.
+  - **Statut** : ✅ 1.0.1 pour `/ 10` et les coefficients. `ambienceOf()` (`audio/director.ts`) compte les racks en service, avec les réglages nommés `AMBIENCE`. Le reste est ⏸ : les volumes par défaut du moteur, la table exhaustive des sons par événement.
 - **U23 · Les touches de caméra restent actives sous les fenêtres et l'écran titre** (basse)
-  - **Statut** : 🐞 Non corrigé (comportement) : les touches de caméra sont désormais lues dans la table des raccourcis, mais le passage par `hud.handleKey` reste à ajouter.
+  - **Statut** : ✅ 1.0.1. `RtsCamera.inputBlocked` est branché sur `Hud.blocksWorldInput()`. Sous l'écran titre, les menus, les fenêtres et les panneaux :
+    - les touches de caméra sont ignorées ;
+    - le défilement par les bords est coupé ;
+    - une touche tenue à l'ouverture est relâchée.
 ### Tests, outillage, documentation
 
 - **T1 · Fabriques de test dupliquées** (haute)

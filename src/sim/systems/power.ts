@@ -5,8 +5,44 @@ import { modifiers } from '../progression';
 import type { GameState } from '../state';
 
 /** Puissance qu'un onduleur peut fournir pendant un tick, selon sa charge. */
-function upsAvailableKW(b: Building): number {
+export function upsAvailableKW(b: Building): number {
   return Math.min(UPS.powerKW, (b.charge ?? 0) / DT);
+}
+
+/** Ce qu'appelle un équipement en service : le froid (free cooling compris), les pompes, les racks. */
+export function loadKW(s: GameState, b: Building): number {
+  if (b.kind === 'crac') return cracPowerKW(s);
+  if (b.kind === 'cdu') return CDU.powerKW;
+  if (b.kind === 'rack') return rackSpec(b).powerKW;
+  return 0;
+}
+
+/**
+ * Ordre de service de l'énergie, le même partout (distribution, arrêts brutaux d'une coupure,
+ * calque) : le refroidissement d'abord (CRAC, CDU), puis les racks du plus ancien au plus récent.
+ */
+export function serviceOrder(s: GameState): Building[] {
+  const coolers: Building[] = [];
+  const racks: Building[] = [];
+  for (const b of s.buildings) {
+    if (b.status !== 'ok') continue;
+    if (b.kind === 'crac' || b.kind === 'cdu') coolers.push(b);
+    else if (b.kind === 'rack') racks.push(b);
+  }
+  return [...coolers, ...racks.sort(byRackPriority)];
+}
+
+/** Équipements qu'une puissance donnée peut servir, dans l'ordre de service : ce qui ne rentre pas est délesté. */
+export function servedBy(s: GameState, budgetKW: number): Set<number> {
+  const served = new Set<number>();
+  let left = budgetKW;
+  for (const b of serviceOrder(s)) {
+    const kw = loadKW(s, b);
+    if (left < kw) continue;
+    left -= kw;
+    served.add(b.id);
+  }
+  return served;
 }
 
 /**
@@ -19,8 +55,6 @@ function upsAvailableKW(b: Building): number {
 export function updatePower(s: GameState): void {
   let capacity = 0;
   const pduKW = modifiers(s).pduCapacityKW;
-  const cracs: Building[] = [];
-  const racks: Building[] = [];
   let generatorKW = 0;
   let upsKW = 0;
   for (const b of s.buildings) {
@@ -35,11 +69,8 @@ export function updatePower(s: GameState): void {
         break;
       case 'crac':
       case 'cdu':
-        cracs.push(b);
-        break;
       case 'rack':
-        racks.push(b);
-        break;
+        break; // servis plus bas, dans l'ordre de service
       // Onduleurs et groupes : sources de secours, toujours « en service » quand ils sont construits.
       case 'generator':
         b.powered = true;
@@ -65,16 +96,14 @@ export function updatePower(s: GameState): void {
     else shed++;
   };
   // Le refroidissement passe avant le calcul : CRAC et CDU d'abord, puis les racks.
-  const cracKW = cracPowerKW(s);
-  const coolerKW = (b: Building) => (b.kind === 'cdu' ? CDU.powerKW : cracKW);
-  for (const c of cracs) serve(c, coolerKW(c));
-  for (const r of racks.sort(byRackPriority)) serve(r, rackSpec(r).powerKW);
+  const loads = serviceOrder(s);
+  for (const b of loads) serve(b, loadKW(s, b));
 
   const load = supply - remaining;
   const fromGenerators = grid ? 0 : Math.min(load, generatorKW);
   s.power = {
     capacityKW: capacity,
-    demandKW: cracs.reduce((sum, c) => sum + coolerKW(c), 0) + racks.reduce((sum, r) => sum + rackSpec(r).powerKW, 0),
+    demandKW: loads.reduce((sum, b) => sum + loadKW(s, b), 0),
     loadKW: load,
     shedCount: shed,
     grid,

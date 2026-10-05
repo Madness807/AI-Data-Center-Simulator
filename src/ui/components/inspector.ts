@@ -1,5 +1,5 @@
-import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, UPS, WEAR } from '../../sim/balance';
-import { upgradeBlocker, upgradeCost } from '../../sim/commands';
+import { CDU, CRAC, FAILURE, GENERATOR, GPU, HEAT, MAINTENANCE, rackSpec, UPS, WEAR } from '../../sim/balance';
+import { demolishRefund, upgradeBlocker, upgradeCost } from '../../sim/commands';
 import { failureRiskPerMinute, rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
 import { isRackActive, type Building, type Cell, type Technician } from '../../sim/entities';
@@ -270,8 +270,7 @@ export class Inspector {
       }
       this.sendButton.disabled = s.techs.length === 0;
     }
-    const untouched = site && b.workLeft >= BUILD_TIME[b.kind];
-    const refund = Math.round(buildCost(b.kind, b.gen) * (untouched ? 1 : DEMOLISH_REFUND));
+    const refund = demolishRefund(b);
     const confirming = this.demolishConfirm.armed;
     const demolishLabel = confirming ? 'Confirmer ?' : `Démolir (${signedMoney(refund)})`;
     if (this.demolishButton.dataset.label !== demolishLabel) {
