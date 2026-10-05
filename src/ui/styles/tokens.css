@@ -46,6 +46,16 @@
   --z-tooltip: 20;
   --z-flash: 30;
 
+  /* Disposition : colonnes latérales, barre du haut, inspecteur, hauteur de fenêtre en px d'interface. */
+  --col-left: 236px;
+  --col-right: 312px;
+  /* Sous 1 520 px effectifs, les contrats passent sous la barre du haut, un peu plus étroits. */
+  --col-right-narrow: 296px;
+  --top-bar-h: 112px;
+  --bottom-bar-h: 140px;
+  --inspector-w: 300px;
+  --vh-ui: calc(100vh / var(--ui-scale, 1));
+
   --radius-s: 6px;
   --radius-m: 10px;
   --radius-l: 14px;

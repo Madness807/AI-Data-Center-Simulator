@@ -1,5 +1,6 @@
 import type { Settings, SettingsStore } from '../../settings';
 import { el, icon } from '../dom';
+import { UI_SCALES } from '../layout';
 import type { IconName } from '../icons';
 
 function section(name: IconName, title: string, ...rows: HTMLElement[]): HTMLElement {
@@ -32,11 +33,7 @@ export class OptionsPanel {
           [2, 'Haute'],
         ]),
         this.toggle('Anticrénelage', 'antialias', 'au prochain lancement'),
-        this.choice('Taille de l’interface', 'uiScale', [
-          [0.9, '90 %'],
-          [1, '100 %'],
-          [1.15, '115 %'],
-        ], 'limitée si la fenêtre est petite'),
+        this.choice('Taille de l’interface', 'uiScale', UI_SCALES.map((v) => [v, `${Math.round(v * 100)} %`]), 'limitée si la fenêtre est petite'),
       ),
       section(
         'accessibility',

@@ -1,3 +1,5 @@
+import { UI_SCALES, type UiScale } from './ui/layout';
+
 /**
  * Options du joueur, conservées entre les parties. Le stockage du navigateur peut être
  * indisponible (navigation privée, stockage bloqué) : on retombe alors sur une mémoire
@@ -15,7 +17,7 @@ export interface Settings {
   /** Pris en compte au prochain lancement (le contexte WebGL doit être recréé). */
   antialias: boolean;
   edgePan: boolean;
-  uiScale: 0.9 | 1 | 1.15;
+  uiScale: UiScale;
   colorblind: boolean;
   /** Conseils de carrière déjà affichés : chacun ne s'affiche qu'une fois. */
   tipsSeen: readonly string[];
@@ -71,7 +73,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   if (isVolume(r.volumeAmbience)) s.volumeAmbience = r.volumeAmbience;
   for (const k of ['shadows', 'antialias', 'edgePan', 'colorblind'] as const) if (typeof r[k] === 'boolean') s[k] = r[k];
   if (r.pixelRatio === 1 || r.pixelRatio === 2) s.pixelRatio = r.pixelRatio;
-  if (r.uiScale === 0.9 || r.uiScale === 1 || r.uiScale === 1.15) s.uiScale = r.uiScale;
+  if ((UI_SCALES as readonly unknown[]).includes(r.uiScale)) s.uiScale = r.uiScale as UiScale;
   s.tipsSeen = Array.isArray(r.tipsSeen) ? [...new Set(r.tipsSeen.filter((id): id is string => typeof id === 'string'))].slice(0, 50) : [];
   return s;
 }

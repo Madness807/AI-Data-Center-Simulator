@@ -223,7 +223,12 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - neuf `calc(100vh …)` ;
     - tailles d'interface en 3 endroits ;
     - zone de 280 px pour un inspecteur de 300 px.
-  - **Statut** : prévu au lot 7.
+  - **Statut** : ✅ lot 7.
+    - `src/ui/layout.ts` regroupe `BREAKPOINTS`, `UI_SCALES` (le type des options et la liste du panneau en dérivent), `MIN_HUD` et `applyLayout`, sorti de `main.ts`.
+    - Variables CSS : `--col-left`, `--col-right`, `--col-right-narrow`, `--top-bar-h`, `--bottom-bar-h`, `--inspector-w` et `--vh-ui`. Les `calc()` remplacent 260, 336, 296, 632, 112 et 160 px, ainsi que les neuf `100vh / zoom`. La marge d'axe des graphiques devient `--chart-axis`, et la hauteur de la mini-courbe n'est plus écrite qu'une fois.
+    - Vérifié dans les styles calculés (mêmes px) et sur 13 dispositions en iframes : aucun chevauchement, mêmes classes `lt-*`.
+    - La hauteur des graphiques n'est pas couplée au CSS : `preserveAspectRatio: none` étire le tracé.
+    - Les 280 px de la zone face aux 300 px de l'inspecteur sont laissés tels quels : aucun effet visible (zone sans fond, et le décalage de la barre du bas suit déjà l'inspecteur). Élargir la zone élargirait le panneau de sélection.
 - **U8 · `hud.ts` et `main.ts` mélangent les rôles** (haute)
   - **Constat** : infobulles, enchaînement des écrans, actions, clavier, boucle de jeu.
   - **Statut** : ⏸ découpage de gros fichiers (refonte profonde).

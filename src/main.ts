@@ -18,6 +18,7 @@ import { Hud } from './ui/hud';
 import type { NewGameKind } from './ui/components/screens';
 import type { FamilyId } from './ui/components/build-bar';
 import { createShowcaseState } from './ui/showcase';
+import { applyLayout } from './ui/layout';
 import { applyTheme } from './ui/theme';
 import { setColorblind } from './render/assets';
 import { copyText, installCrashHandler, showFatal } from './ui/components/error-screen';
@@ -310,19 +311,9 @@ document.getElementById('hud')!.addEventListener('pointerdown', (e) => {
   if ((e.target as Element).closest('button')) director.trigger('click');
 });
 
-/**
- * Taille d'interface effective et seuils de disposition. Le zoom choisi est plafonné à ce
- * que la fenêtre permet (le HUD est conçu pour au moins 1 000 × 680 px effectifs), puis les
- * seuils se calculent sur la largeur effective (fenêtre ÷ zoom).
- */
-const applyLayout = () => {
-  const scale = Math.max(0.9, Math.min(settings.value.uiScale, innerWidth / 1000, innerHeight / 680));
-  document.documentElement.style.setProperty('--ui-scale', String(scale));
-  const width = innerWidth / scale;
-  const root = document.getElementById('hud')!;
-  for (const limit of [1520, 1320, 1100]) root.classList.toggle(`lt-${limit}`, width <= limit);
-};
-window.addEventListener('resize', applyLayout);
+// Disposition selon la largeur effective (src/ui/layout.ts), recalculée au redimensionnement.
+const relayout = () => applyLayout(document.getElementById('hud')!, settings.value.uiScale);
+window.addEventListener('resize', relayout);
 
 // Les options s'appliquent en direct (l'anticrénelage, lui, au prochain lancement).
 settings.subscribe((s) => {
@@ -331,7 +322,7 @@ settings.subscribe((s) => {
   audio.setVolumes({ master: s.volumeMaster, sfx: s.volumeSfx, ambience: s.volumeAmbience });
   view.applyGraphics(s);
   view.rts.edgePan = s.edgePan;
-  applyLayout();
+  relayout();
 });
 // Vignettes des vrais modèles 3D dans la barre de construction.
 for (const [key, url] of Object.entries(renderThumbnails())) hud.setThumbnail(key as ThumbnailKey, url);

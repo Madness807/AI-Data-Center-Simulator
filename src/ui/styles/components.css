@@ -1,9 +1,9 @@
 /* ───────────── Zones de l'écran ───────────── */
 .region { position: absolute; display: flex; flex-direction: column; gap: var(--gap); }
 /* Centrée dans l'espace laissé libre par la colonne de gauche et celle des contrats. */
-.region-top { top: var(--edge); left: 260px; right: 336px; align-items: center; }
-.region-top-left { top: var(--edge); left: var(--edge); width: 236px; }
-.region-right { top: var(--edge); right: var(--edge); width: 312px; max-height: calc(100vh / var(--ui-scale, 1) - 150px); }
+.region-top { top: var(--edge); left: calc(var(--col-left) + 2 * var(--edge)); right: calc(var(--col-right) + 2 * var(--edge)); align-items: center; }
+.region-top-left { top: var(--edge); left: var(--edge); width: var(--col-left); }
+.region-right { top: var(--edge); right: var(--edge); width: var(--col-right); max-height: calc(var(--vh-ui) - 150px); }
 .region-bottom { bottom: var(--edge); left: 50%; transform: translateX(-50%); align-items: center; }
 .region-bottom-left { bottom: var(--edge); left: var(--edge); width: 280px; }
 .region-overlay { inset: 0; align-items: center; justify-content: center; }
@@ -149,7 +149,7 @@
 
 /* ───────────── Inspecteur ───────────── */
 /* Hauteur bornée pour ne jamais atteindre la colonne de gauche (mini-carte + alertes réduites). */
-.inspector { width: 300px; padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 9px; max-height: calc(100vh / var(--ui-scale, 1) - 356px); overflow-y: auto; }
+.inspector { width: var(--inspector-w); padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 9px; max-height: calc(var(--vh-ui) - 356px); overflow-y: auto; }
 .insp-head { display: flex; align-items: center; gap: 10px; }
 .insp-thumb { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); color: var(--accent); overflow: hidden; }
 .insp-thumb img { width: 50px; height: 50px; object-fit: contain; margin-top: -4px; }
@@ -173,7 +173,7 @@
 .insp-actions .btn-primary { grid-column: 1 / -1; }
 .insp-actions .btn { white-space: nowrap; }
 .insp-demolish.confirm { color: var(--danger-text); background: rgba(var(--danger-rgb), 0.16); border-color: var(--danger); }
-.sparkline { display: block; width: 100%; height: 46px; overflow: visible; }
+.sparkline { display: block; width: 100%; overflow: visible; }
 .spark-area { fill: rgba(var(--accent-rgb), 0.12); }
 .spark-line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
 .spark-threshold { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.8; }
@@ -291,7 +291,7 @@
 /* ───────────── Tableau de bord ───────────── */
 .res.clickable { cursor: pointer; border-radius: var(--radius-s); }
 .res.clickable:hover { background: var(--surface-hover); }
-.dashboard { width: min(880px, calc(100% - 32px)); height: min(640px, calc(100vh / var(--ui-scale, 1) - 48px)); overflow-y: auto; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+.dashboard { width: min(880px, calc(100% - 32px)); height: min(640px, calc(var(--vh-ui) - 48px)); overflow-y: auto; padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
 .dashboard .menu-head { gap: 10px; margin-bottom: 0; }
 .dash-tabs { display: flex; gap: 6px; margin-left: auto; }
 .dash-tab { gap: 6px; padding: 6px 11px; font-size: 12px; }
@@ -305,20 +305,20 @@
 .kpi-value.warn { color: var(--warn); }
 .kpi-value.danger { color: var(--danger); }
 .kpi-sub { font-size: 11px; line-height: 1.35; color: var(--text-dim); }
-.chart { margin: 0; padding: 10px 12px 8px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }
+.chart { --chart-axis: 58px; margin: 0; padding: 10px 12px 8px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }
 .chart-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
 .chart-title { font-size: 12px; font-weight: 600; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-.chart-plot { position: relative; height: 140px; margin-left: 58px; }
+.chart-plot { position: relative; height: 140px; margin-left: var(--chart-axis); }
 .chart-svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .chart-grid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .chart-threshold { stroke: var(--warn); stroke-width: 1.2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; opacity: 0.85; }
 .chart-line { fill: none; stroke-width: 2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .chart-line.dashed { stroke-dasharray: 6 4; }
-.chart-y { position: absolute; left: -58px; width: 52px; text-align: right; font-size: 10.5px; color: var(--text-faint); }
+.chart-y { position: absolute; left: calc(-1 * var(--chart-axis)); width: calc(var(--chart-axis) - 6px); text-align: right; font-size: 10.5px; color: var(--text-faint); }
 .chart-y-max { top: -6px; }
 .chart-y-min { bottom: -6px; }
-.chart-x { display: flex; justify-content: space-between; margin: 4px 0 0 58px; font-size: 10.5px; color: var(--text-faint); }
+.chart-x { display: flex; justify-content: space-between; margin: 4px 0 0 var(--chart-axis); font-size: 10.5px; color: var(--text-faint); }
 .chart-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: var(--text-faint); }
 .dash-section { display: flex; flex-direction: column; gap: 8px; }
 .dash-section-title { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
@@ -329,7 +329,7 @@
 .expense-bar.ok { background: var(--ok); }
 
 /* ───────────── Équipe ───────────── */
-.team { width: min(600px, calc(100% - 32px)); max-height: calc(100vh / var(--ui-scale, 1) - 48px); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+.team { width: min(600px, calc(100% - 32px)); max-height: calc(var(--vh-ui) - 48px); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 .team .menu-head { gap: 10px; margin-bottom: 0; }
 .team .menu-head .kbd { margin-left: auto; }
 .team-list { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; }
@@ -394,26 +394,26 @@
  */
 /* La barre du haut fait environ 1 000 px : sous 1 520 px, les contrats passent dessous. */
 #hud.lt-1520 .region-top { right: var(--edge); }
-#hud.lt-1520 .region-right { top: 112px; max-height: calc(100vh / var(--ui-scale, 1) - 240px); width: 296px; }
+#hud.lt-1520 .region-right { top: var(--top-bar-h); max-height: calc(var(--vh-ui) - 240px); width: var(--col-right-narrow); }
 /* Ce qui s'empile sous la barre (bandeaux, tutoriel, conseils) reste dans l'allée centrale,
    entre les colonnes passées dessous : jusqu'à 296 px de chaque côté, plus l'écart. */
-#hud.lt-1520 .region-top .banner, #hud.lt-1520 .region-top > .tutorial { max-width: calc(100% - 632px); }
+#hud.lt-1520 .region-top .banner, #hud.lt-1520 .region-top > .tutorial { max-width: calc(100% - 2 * (var(--col-right-narrow) + 2 * var(--gap))); }
 #hud.lt-1520 .region-top .banner { text-align: center; border-radius: 16px; }
 /* Sous 1 320 px : la barre du haut prend toute la largeur et la colonne de gauche passe dessous.
    Quand un panneau occupe le bas à gauche (inspecteur, sélection), les alertes s'effacent et la
    barre de construction se décale vers la droite pour lui laisser la place. */
 #hud.lt-1320 .region-top { left: var(--edge); right: var(--edge); }
-#hud.lt-1320 .region-top-left { top: 112px; }
+#hud.lt-1320 .region-top-left { top: var(--top-bar-h); }
 /* Sous la barre du haut : mini-carte puis légende de la heatmap, que l'inspecteur ne doit pas atteindre. */
-#hud.lt-1320 .inspector { max-height: calc(100vh / var(--ui-scale, 1) - 380px); }
+#hud.lt-1320 .inspector { max-height: calc(var(--vh-ui) - 380px); }
 #hud.lt-1320 .alerts { max-height: 200px; }
 /* La colonne de gauche s'arrête au-dessus de la barre du bas : les alertes rétrécissent. */
-#hud.lt-1320 .region-top-left { max-height: calc(100vh / var(--ui-scale, 1) - 112px - 140px); }
+#hud.lt-1320 .region-top-left { max-height: calc(var(--vh-ui) - var(--top-bar-h) - var(--bottom-bar-h)); }
 #hud.lt-1320 .region-top-left > * { flex-shrink: 0; }
 #hud.lt-1320 .region-top-left > .alerts { flex-shrink: 1; min-height: 0; }
-#hud.lt-1320:has(.legend:not([hidden])) .inspector { max-height: calc(100vh / var(--ui-scale, 1) - 420px); }
+#hud.lt-1320:has(.legend:not([hidden])) .inspector { max-height: calc(var(--vh-ui) - 420px); }
 #hud.lt-1320:has(.inspector:not([hidden])) .alerts, #hud.lt-1320:has(.selection:not([hidden])) .alerts { display: none; }
-#hud.lt-1320:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1320:has(.selection:not([hidden])) .region-bottom { left: calc(50% + 160px); }
+#hud.lt-1320:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1320:has(.selection:not([hidden])) .region-bottom { left: calc(50% + var(--inspector-w) / 2 + var(--gap)); }
 #hud.lt-1100 .res-label, #hud.lt-1100 .res .meter { display: none; }
 #hud.lt-1100 .res { padding: 2px 8px; }
 #hud.lt-1100 .tool-card { width: 70px; }
@@ -421,7 +421,7 @@
 #hud.lt-1100 .tutorial { width: 360px; }
 
 /* ───────────── Recherche ───────────── */
-.research { width: min(980px, calc(100% - 32px)); height: min(640px, calc(100vh / var(--ui-scale, 1) - 48px)); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+.research { width: min(980px, calc(100% - 32px)); height: min(640px, calc(var(--vh-ui) - 48px)); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
 .research .menu-head { gap: 10px; margin-bottom: 0; }
 .research .menu-head .kbd { margin-left: auto; }
 .research-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
