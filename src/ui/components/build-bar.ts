@@ -1,8 +1,10 @@
 import { buildCost, TECH } from '../../sim/balance';
 import { isUnlocked, modifiers } from '../../sim/progression';
 import { toolBuild, type Tool } from '../../input/build';
+import { actionKey, HELP_CHAR } from '../../input/keymap';
 import type { GameState } from '../../sim/state';
 import { OVERLAY_MODES, type OverlayMode } from '../../render/overlay-colors';
+import { KIND_INFO, shortName } from '../catalog';
 import { el, icon, setText } from '../dom';
 import { money } from '../format';
 import type { IconName } from '../icons';
@@ -33,15 +35,19 @@ export type BuildTool = Exclude<Tool, null>;
 export type FamilyId = 'compute' | 'cooling' | 'power' | 'demolish';
 
 /** Nom court et icône de chaque outil. */
+const toolInfo = (tool: Exclude<BuildTool, 'demolish'>) => {
+  const { kind, gen } = toolBuild(tool);
+  return { label: shortName(kind, gen), icon: KIND_INFO[kind].icon };
+};
 export const TOOL_INFO: Record<BuildTool, { label: string; icon: IconName }> = {
-  rack: { label: 'Rack GPU', icon: 'rack' },
-  rack2: { label: 'Rack G2', icon: 'rack' },
-  rack3: { label: 'Rack G3', icon: 'rack' },
-  crac: { label: 'CRAC', icon: 'crac' },
-  pdu: { label: 'PDU', icon: 'pdu' },
-  ups: { label: 'Onduleur', icon: 'ups' },
-  generator: { label: 'Groupe', icon: 'generator' },
-  cdu: { label: 'CDU', icon: 'cdu' },
+  rack: toolInfo('rack'),
+  rack2: toolInfo('rack2'),
+  rack3: toolInfo('rack3'),
+  crac: toolInfo('crac'),
+  pdu: toolInfo('pdu'),
+  ups: toolInfo('ups'),
+  generator: toolInfo('generator'),
+  cdu: toolInfo('cdu'),
   demolish: { label: 'Démolir', icon: 'demolish' },
 };
 
@@ -50,10 +56,10 @@ export const TOOL_INFO: Record<BuildTool, { label: string; icon: IconName }> = {
  * clic) passe d'une variante débloquée à la suivante, puis rend la main.
  */
 export const BUILD_FAMILIES: { id: FamilyId; key: string; variants: BuildTool[] }[] = [
-  { id: 'compute', key: 'R', variants: ['rack', 'rack2', 'rack3'] },
-  { id: 'cooling', key: 'C', variants: ['crac', 'cdu'] },
-  { id: 'power', key: 'P', variants: ['pdu', 'ups', 'generator'] },
-  { id: 'demolish', key: 'X', variants: ['demolish'] },
+  { id: 'compute', key: actionKey('buildCompute'), variants: ['rack', 'rack2', 'rack3'] },
+  { id: 'cooling', key: actionKey('buildCooling'), variants: ['crac', 'cdu'] },
+  { id: 'power', key: actionKey('buildPower'), variants: ['pdu', 'ups', 'generator'] },
+  { id: 'demolish', key: actionKey('demolish'), variants: ['demolish'] },
 ];
 
 const familyOf = (tool: Tool) => BUILD_FAMILIES.find((f) => tool !== null && f.variants.includes(tool));
@@ -130,13 +136,13 @@ export class BuildBar {
       this.last.set(family.id, first);
       bar.append(c.root);
     }
-    const hire = card('Embaucher', 'T', icon('hire', 24), money(TECH.hireCost));
+    const hire = card('Embaucher', actionKey('hire'), icon('hire', 24), money(TECH.hireCost));
     hire.root.onclick = actions.hire;
     this.hireCard = hire.root;
     this.hireThumb = hire.thumb;
 
     // Calques : un bouton (H les fait défiler) et un menu pour choisir directement.
-    this.overlayButton = el('button', 'btn overlay-button', this.overlayIcon, this.overlayLabel, el('span', 'kbd', 'H'));
+    this.overlayButton = el('button', 'btn overlay-button', this.overlayIcon, this.overlayLabel, el('span', 'kbd', actionKey('overlay')));
     this.overlayButton.dataset.toggle = 'overlay';
     this.overlayMenu = el('div', 'overlay-menu glass');
     this.overlayMenu.hidden = true;
@@ -155,9 +161,9 @@ export class BuildBar {
       const target = e.target as Node;
       if (!this.overlayMenu.hidden && !this.overlayMenu.contains(target) && !this.overlayButton.contains(target)) this.overlayMenu.hidden = true;
     });
-    this.edgeButton = toggle('edgePan', 'Bords', 'B', actions.toggleEdgePan);
-    this.helpButton = toggle('help', 'Aide', '?', actions.toggleHelp);
-    this.researchButton = toggle('research', 'R&D', 'U', actions.toggleResearch);
+    this.edgeButton = toggle('edgePan', 'Bords', actionKey('edgePan'), actions.toggleEdgePan);
+    this.helpButton = toggle('help', 'Aide', HELP_CHAR, actions.toggleHelp);
+    this.researchButton = toggle('research', 'R&D', actionKey('research'), actions.toggleResearch);
     this.researchButton.dataset.panel = 'research';
     this.researchButton.hidden = true;
     const overlays = el('div', 'overlay-picker', this.overlayButton, this.overlayMenu);

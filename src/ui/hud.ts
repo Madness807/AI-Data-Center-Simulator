@@ -7,6 +7,7 @@ import { tempCss } from './color';
 import { AlertFeed } from './components/alert-feed';
 import { BUILD_FAMILIES, BuildBar, TOOL_INFO, toolAvailable, toolCost, type FamilyId } from './components/build-bar';
 import { toolBuild, type Tool } from '../input/build';
+import { HELP_CHAR, matches } from '../input/keymap';
 import { ContractsPanel } from './components/contracts-panel';
 import { CursorFlash } from './components/cursor-flash';
 import { Dashboard, type DashboardTab } from './components/dashboard';
@@ -24,7 +25,8 @@ import type { SettingsStore } from '../settings';
 import { ResourceBar } from './components/resource-bar';
 import { DefeatScreen, TierScreen, TitleScreen, VictoryScreen, type NewGameKind } from './components/screens';
 import { ResearchPanel } from './components/research-panel';
-import { BUILDING_LABEL, SelectionPanel } from './components/selection-panel';
+import { SelectionPanel } from './components/selection-panel';
+import { buildingName } from './catalog';
 import { Tooltip } from './components/tooltip';
 import { el, icon, setHidden } from './dom';
 import { celsius, money, moneyRate, percent, seconds, signedMoney } from './format';
@@ -309,47 +311,47 @@ export class Hud {
    * titre ou une fenêtre de fin, les raccourcis de jeu sont bloqués.
    */
   handleKey(e: KeyboardEvent): boolean {
-    if (e.key === '?' || e.code === 'F1') {
+    if (e.key === HELP_CHAR || matches('help', e)) {
       e.preventDefault();
       this.help.toggle();
       return true;
     }
-    if (e.code === 'Escape' && this.help.isOpen) {
+    if (matches('cancel', e) && this.help.isOpen) {
       this.help.close();
       return true;
     }
     if (this.slots.isOpen) {
-      if (e.code === 'Escape') this.slots.close();
+      if (matches('cancel', e)) this.slots.close();
       return true;
     }
     if (this.pause.isOpen) {
-      if (e.code === 'Escape') this.closePause();
+      if (matches('cancel', e)) this.closePause();
       return true;
     }
     if (this.phase === 'title') {
-      if (e.code === 'Enter') this.title.primary();
+      if (matches('confirm', e)) this.title.primary();
       return true;
     }
     if (this.tierOpen) {
-      if (e.code === 'Enter' || e.code === 'Escape') this.tier.root.querySelector<HTMLButtonElement>('.btn-primary')?.click();
+      if (matches('confirm', e) || matches('cancel', e)) this.tier.root.querySelector<HTMLButtonElement>('.btn-primary')?.click();
       return true;
     }
     if (this.victoryOpen || this.state?.outcome === 'lost') return true;
-    const panelKey = e.code === 'Tab' ? 'dashboard' : e.code === 'KeyG' ? 'team' : e.code === 'KeyU' ? 'research' : null;
+    const panelKey = matches('dashboard', e) ? 'dashboard' : matches('team', e) ? 'team' : matches('research', e) ? 'research' : null;
     if (panelKey) {
       e.preventDefault();
       this.togglePanel(panelKey);
       return true;
     }
     if (this.panelOpen) {
-      if (e.code === 'Escape') {
+      if (matches('cancel', e)) {
         this.dashboard.close();
         this.team.close();
         this.research.close();
         return true;
       }
       // Fenêtre ouverte : seules la pause et la vitesse passent au jeu.
-      return !['Space', 'Digit1', 'Digit2', 'Digit3'].includes(e.code);
+      return !(['pause', 'speed1', 'speed2', 'speed4'] as const).some((action) => matches(action, e));
     }
     return false;
   }
@@ -459,7 +461,7 @@ export class Hud {
         chip = el('span', 'chip danger', 'délesté');
         hint = 'Pas assez de capacité électrique : ajoutez un PDU';
       }
-      return tip(el('span', undefined, `${BUILDING_LABEL[b.kind]} ${x},${y} `, chip), rows, hint);
+      return tip(el('span', undefined, `${buildingName(b.kind, b.gen)} ${x},${y} `, chip), rows, hint);
     });
   }
 
@@ -494,7 +496,7 @@ export class Hud {
           : this.state?.rules.aisles
             ? 'F : pivoter. L’avant aspire l’air froid, l’arrière souffle la chaleur.'
             : 'Laissez une case libre devant pour l’entretien.';
-      return tip(`Rack GPU${gen > 1 ? ` G${gen}` : ''} · ${money(spec.cost)}`, [
+      return tip(`${buildingName('rack', gen)} · ${money(spec.cost)}`, [
         ['Calcul', `${spec.computeCU} CU/s`],
         ['Consommation', `${spec.powerKW} kW`],
         ['Chaleur dégagée', `${spec.heatKW} kW`],
@@ -506,33 +508,33 @@ export class Hud {
       rack2: rackTip(2),
       rack3: rackTip(3),
       crac: () =>
-        tip(`CRAC · ${money(BUILD_COST.crac)}`, [
+        tip(`${buildingName('crac')} · ${money(BUILD_COST.crac)}`, [
           ['Refroidissement', `${Math.round(this.state ? modifiers(this.state).cracCoolingKW : CRAC.coolingKW)} kW`],
           ['Portée', `${CRAC.radius} cases`],
           ['Consommation', `${CRAC.powerKW} kW`],
           ['Chantier', `${BUILD_TIME.crac} s`],
         ], `Un CRAC suffit pour environ ${RACKS_PER_CRAC} racks.`),
       pdu: () =>
-        tip(`PDU · ${money(BUILD_COST.pdu)}`, [
+        tip(`${buildingName('pdu')} · ${money(BUILD_COST.pdu)}`, [
           ['Capacité', `+${Math.round(this.state ? modifiers(this.state).pduCapacityKW : PDU.capacityKW)} kW`],
           ['Chantier', `${BUILD_TIME.pdu} s`],
         ], 'Sans capacité suffisante, les racks les plus récents sont délestés.'),
       ups: () =>
-        tip(`Onduleur · ${money(BUILD_COST.ups)}`, [
+        tip(`${buildingName('ups')} · ${money(BUILD_COST.ups)}`, [
           ['Batterie', `${Math.round(this.state ? modifiers(this.state).upsStoreKJ : UPS.storeKJ)} kJ`],
           ['Puissance', `${UPS.powerKW} kW`],
           ['Recharge', `${UPS.rechargeKW} kW sur le réseau`],
           ['Chantier', `${BUILD_TIME.ups} s`],
         ], 'Prend le relais dès la première seconde d’une coupure, environ une minute.'),
       generator: () =>
-        tip(`Groupe électrogène · ${money(BUILD_COST.generator)}`, [
+        tip(`${buildingName('generator')} · ${money(BUILD_COST.generator)}`, [
           ['Puissance', `${GENERATOR.powerKW} kW`],
           ['Démarrage', `${this.state ? modifiers(this.state).generatorStartS : GENERATOR.startS} s`],
           ['Carburant', `${GENERATOR.fuelPerKWs} $ par kW·s`],
           ['Chantier', `${BUILD_TIME.generator} s`],
         ], 'Tient toute la coupure ; un onduleur couvre son démarrage.'),
       cdu: () =>
-        tip(`CDU (refroidissement liquide) · ${money(BUILD_COST.cdu)}`, [
+        tip(`${buildingName('cdu')} · ${money(BUILD_COST.cdu)}`, [
           ['Capte', `${CDU.captured * 100} % de la chaleur des racks`],
           ['Portée', `${CDU.radius} cases`],
           ['Capacité', `${CDU.capacityKW} kW`],

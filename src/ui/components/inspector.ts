@@ -2,20 +2,20 @@ import { BUILD_TIME, buildCost, CDU, CRAC, DEMOLISH_REFUND, FAILURE, GENERATOR, 
 import { upgradeBlocker, upgradeCost } from '../../sim/commands';
 import { failureRiskPerMinute, rackRiskPerMinute, wearActive } from '../../sim/systems/failures';
 import { breathesExhaust, cracWeatherFactor, exhaustIndex, intakeIndex, liquidLoads, rackTemp } from '../../sim/climate';
-import { isRackActive, type Building, type BuildingKind, type Cell, type Technician } from '../../sim/entities';
+import { isRackActive, type Building, type Cell, type Technician } from '../../sim/entities';
 import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad, redundancy } from '../../sim/stats';
 import { upsAutonomy } from '../../sim/systems/power';
 import { isTaskAssigned } from '../../sim/systems/technicians';
 import { tempCss } from '../color';
+import { buildingName, KIND_INFO } from '../catalog';
 import { ConfirmGate } from '../confirm';
 import { batteryTone, intakeTone, loadTone, riskTone, WEAR_DANGER, wearTone, type Tone } from '../tones';
 import { el, icon, setHidden, setStyle, setText } from '../dom';
 import { celsius, clock, decimal, money, percent, percentFine, plural, seconds, signedMoney } from '../format';
 import type { IconName } from '../icons';
 import type { TemperatureHistory } from '../metrics';
-import { BUILDING_LABEL } from './selection-panel';
 import { Sparkline } from './sparkline';
 
 export interface InspectorActions {
@@ -32,7 +32,6 @@ export interface InspectorActions {
   maintain: (buildingId: number) => void;
 }
 
-const KIND_ICON: Record<BuildingKind, IconName> = { rack: 'rack', crac: 'crac', pdu: 'pdu', ups: 'ups', generator: 'generator', cdu: 'cdu' };
 
 /** Ligne « libellé / valeur », mise à jour en place. */
 class Row {
@@ -289,8 +288,8 @@ export class Inspector {
     this.headerKey = key;
     this.demolishConfirm.disarm();
     const url = this.thumbnails[b.kind === 'rack' && (b.gen ?? 1) > 1 ? `rack${b.gen}` : b.kind];
-    this.thumb.replaceChildren(url ? Object.assign(document.createElement('img'), { src: url, alt: '' }) : icon(KIND_ICON[b.kind], 22));
-    const label = `${BUILDING_LABEL[b.kind]}${b.kind === 'rack' && (b.gen ?? 1) > 1 ? ` G${b.gen}` : ''}`;
+    this.thumb.replaceChildren(url ? Object.assign(document.createElement('img'), { src: url, alt: '' }) : icon(KIND_INFO[b.kind].icon, 22));
+    const label = buildingName(b.kind, b.gen);
     setText(this.title, b.status === 'construction' ? `Chantier : ${label}` : label);
     setText(this.coords, `${b.x},${b.y}`);
   }

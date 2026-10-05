@@ -1,10 +1,12 @@
 import { MAINTENANCE, SPECIALTY, TECH } from '../../sim/balance';
+import { actionKey } from '../../input/keymap';
 import { techName } from '../../sim/names';
 import { modifiers } from '../../sim/progression';
 import type { GameState } from '../../sim/state';
 import { el, icon, setText } from '../dom';
 import { money, plural } from '../format';
-import { describeTask, SPECIALTY_LABEL } from './selection-panel';
+import { SPECIALTY_LABEL } from '../catalog';
+import { describeTask } from './selection-panel';
 import type { Specialty } from '../../sim/entities';
 
 export interface TeamActions {
@@ -81,7 +83,7 @@ export class TeamPanel {
     const panel = el(
       'div',
       'team glass',
-      el('div', 'menu-head', el('span', 'panel-title', icon('team', 14), this.title), el('span', 'kbd', 'G'), close),
+      el('div', 'menu-head', el('span', 'panel-title', icon('team', 14), this.title), el('span', 'kbd', actionKey('team')), close),
       this.list,
       this.autoRepairRow,
       this.autoMaintainRow,

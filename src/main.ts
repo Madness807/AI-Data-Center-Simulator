@@ -12,6 +12,7 @@ import { SceneView } from './render/scene';
 import { OVERLAY_MODES, type OverlayMode } from './render/overlay-colors';
 import { renderThumbnails, type ThumbnailKey } from './render/thumbnails';
 import { BuildController, type Tool } from './input/build';
+import { loadKeyboardLayout, matches, type KeyAction } from './input/keymap';
 import { pickGroundCell, rayFromScreen } from './input/picking';
 import { SelectionController } from './input/selection';
 import { Hud } from './ui/hud';
@@ -328,26 +329,33 @@ settings.subscribe((s) => {
 for (const [key, url] of Object.entries(renderThumbnails())) hud.setThumbnail(key as ThumbnailKey, url);
 
 /** Une touche par famille de la barre : un nouvel appui passe à la variante suivante. */
-const FAMILY_KEYS: Record<string, FamilyId> = { KeyR: 'compute', KeyC: 'cooling', KeyP: 'power', KeyX: 'demolish' };
+const FAMILY_KEYS: [KeyAction, FamilyId][] = [
+  ['buildCompute', 'compute'],
+  ['buildCooling', 'cooling'],
+  ['buildPower', 'power'],
+  ['demolish', 'demolish'],
+];
+loadKeyboardLayout();
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.metaKey || e.ctrlKey) return;
   if (hud.handleKey(e)) return;
-  if (e.code in FAMILY_KEYS) hud.cycleBuild(FAMILY_KEYS[e.code]);
-  else if (e.code === 'Escape') {
+  const family = FAMILY_KEYS.find(([action]) => matches(action, e));
+  if (family) hud.cycleBuild(family[1]);
+  else if (matches('cancel', e)) {
     // Échap annule d'abord ce qui est en cours, puis ouvre le menu pause.
     if (build.tool) build.setTool(null);
     else if (selection.selected.size || selection.inspected !== null) selection.clear();
     else hud.openPause();
-  } else if (e.code === 'KeyT') hire();
-  else if (e.code === 'KeyH') cycleOverlay(e.shiftKey ? -1 : 1);
-  else if (e.code === 'KeyB') toggleEdgePan();
-  else if (e.code === 'KeyF') rotate();
-  else if (e.code === 'Space') {
+  } else if (matches('hire', e)) hire();
+  else if (matches('overlay', e)) cycleOverlay(e.shiftKey ? -1 : 1);
+  else if (matches('edgePan', e)) toggleEdgePan();
+  else if (matches('rotateBuilding', e)) rotate();
+  else if (matches('pause', e)) {
     e.preventDefault();
     setSpeed(state.speed === 0 ? lastSpeed : 0);
-  } else if (e.code === 'Digit1') setSpeed(1);
-  else if (e.code === 'Digit2') setSpeed(2);
-  else if (e.code === 'Digit3') setSpeed(4);
+  } else if (matches('speed1', e)) setSpeed(1);
+  else if (matches('speed2', e)) setSpeed(2);
+  else if (matches('speed4', e)) setSpeed(4);
 });
 
 showTitle();

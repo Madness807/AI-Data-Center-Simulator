@@ -1,4 +1,5 @@
 import { RESEARCH_RATE } from '../../sim/balance';
+import { actionKey } from '../../input/keymap';
 import { researchBlocker, TIERS } from '../../sim/progression';
 import { BRANCHES, RESEARCH, researchById, type ResearchNode } from '../../sim/research';
 import type { GameState } from '../../sim/state';
@@ -57,7 +58,7 @@ export class ResearchPanel {
     const panel = el(
       'div',
       'research glass',
-      el('div', 'menu-head', el('span', 'panel-title', icon('research', 14), 'Recherche · ', this.rate), el('span', 'kbd', 'U'), close),
+      el('div', 'menu-head', el('span', 'panel-title', icon('research', 14), 'Recherche · ', this.rate), el('span', 'kbd', actionKey('research')), close),
       el(
         'div',
         'research-controls',

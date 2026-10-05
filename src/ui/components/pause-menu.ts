@@ -1,4 +1,5 @@
 import type { SettingsStore } from '../../settings';
+import { actionKey } from '../../input/keymap';
 import { CONFIRM_MS, ConfirmGate } from '../confirm';
 import { el, icon } from '../dom';
 import type { IconName } from '../icons';
@@ -49,7 +50,7 @@ export class PauseMenu {
     this.menu = el(
       'div',
       'pause-main',
-      el('div', 'menu-head', el('span', 'panel-title', icon('pause', 14), 'Pause'), el('span', 'kbd', 'Échap')),
+      el('div', 'menu-head', el('span', 'panel-title', icon('pause', 14), 'Pause'), el('span', 'kbd', actionKey('cancel'))),
       item('play', 'Reprendre', () => actions.resume(), true),
       this.extra,
       item('settings', 'Options', () => this.show('options')),

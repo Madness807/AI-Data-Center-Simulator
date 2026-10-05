@@ -1,4 +1,5 @@
 import { ALERTS, FAILURE } from '../../sim/balance';
+import { actionKey } from '../../input/keymap';
 import { isRackActive } from '../../sim/entities';
 import { OPERATING, type ExpenseKind } from '../../sim/ledger';
 import type { GameState } from '../../sim/state';
@@ -117,7 +118,7 @@ export class Dashboard {
     const panel = el(
       'div',
       'dashboard glass',
-      el('div', 'menu-head', el('span', 'panel-title', icon('dashboard', 14), 'Tableau de bord'), tabs, el('span', 'kbd', 'Tab'), close),
+      el('div', 'menu-head', el('span', 'panel-title', icon('dashboard', 14), 'Tableau de bord'), tabs, el('span', 'kbd', actionKey('dashboard')), close),
       ...this.pages.values(),
     );
     this.root = el('div', 'modal-backdrop interactive', panel);

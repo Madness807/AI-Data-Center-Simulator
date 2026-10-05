@@ -1,13 +1,10 @@
-import type { BuildingKind, Specialty, Technician } from '../../sim/entities';
+import type { Technician } from '../../sim/entities';
 import { techName } from '../../sim/names';
 import { buildingById, type GameState } from '../../sim/state';
+import { buildingName } from '../catalog';
 import { el, icon, setText } from '../dom';
 import { plural } from '../format';
 
-/** Libellé de chaque spécialité. */
-export const SPECIALTY_LABEL: Record<Specialty, string> = { electrician: 'électricien', hvac: 'frigoriste', it: 'informaticien' };
-
-export const BUILDING_LABEL: Record<BuildingKind, string> = { rack: 'Rack GPU', crac: 'CRAC', pdu: 'PDU', ups: 'Onduleur', generator: 'Groupe électrogène', cdu: 'CDU (liquide)' };
 
 /** Ce que fait le technicien, en clair. */
 export function describeTask(s: GameState, t: Technician): string {
@@ -15,7 +12,7 @@ export function describeTask(s: GameState, t: Technician): string {
   if (!task) return 'inactif';
   if (task.type === 'move') return `se déplace vers ${task.x},${task.y}`;
   const b = buildingById(s, task.target);
-  const what = b ? `${BUILDING_LABEL[b.kind]} ${b.x},${b.y}` : '?';
+  const what = b ? `${buildingName(b.kind, b.gen)} ${b.x},${b.y}` : '?';
   const verbs = { build: ['construit', 'construire'], repair: ['répare', 'réparer'], maintain: ['entretient', 'entretenir'] }[task.type];
   return `${t.working ? verbs[0] : `va ${verbs[1]}`} ${what}`;
 }

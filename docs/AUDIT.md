@@ -179,7 +179,12 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
 - **U1 · Pas de table unique des raccourcis** (haute)
   - **Où** : gestionnaires dans `main.ts:341-361`, `hud.ts:314-358`, `scene.ts:68-138` ; libellés écrits à la main dans une quinzaine de fichiers.
   - **Constat** : l'aide affiche W A S D / Q E alors que les touches sont physiques. Sur AZERTY, ce sont Z Q S D / A E.
-  - **Statut** : prévu au lot 8.
+  - **Statut** : ✅ lot 8.
+    - `src/input/keymap.ts` est la table unique : un code physique par action, `matches()`, `keyLabel()`, `actionKey()`, avec un test.
+    - Elle sert les gestionnaires de `main.ts`, du HUD et de la caméra (`scene.ts`), l'aide (générée à chaque ouverture) et les pastilles de touches de la barre et des fenêtres.
+    - Libellés : avec Chrome ou Edge, `navigator.keyboard.getLayoutMap()` donne les vraies lettres (Z Q S D sur un AZERTY) ; ailleurs, les lettres QWERTY d'avant.
+    - Vérifié dans le navigateur par de vrais événements clavier : vitesses, pause, Tab, G, U, F1 et « ? », Q et E, R, C, P, X, Échap, T, H et Maj+H, B.
+    - Les textes qui citent R, C, P, X, T, H, B, F, G ou U restent écrits en clair : ces lettres sont au même endroit sur AZERTY et QWERTY.
 - **U2 · Une même valeur, des couleurs différentes selon le panneau** (haute)
   - **Constat** :
     - température max : avertissement à 35 / 50 °C dans le bandeau, à 32 / 35 °C dans le tableau de bord ;
@@ -205,7 +210,10 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - Prix et durée de réparation lus dans `modifiers(s)`, dans l'infobulle de la salle comme dans le bouton de l'inspecteur.
 - **U4 · Les noms des équipements, outils, calques et panneaux sont écrits à 5 endroits ou plus** (haute)
   - **Constat** : « CDU », « CDU (liquide) » et « CDU (refroidissement liquide) » ; « Groupe » et « Groupe électrogène ».
-  - **Statut** : prévu au lot 8.
+  - **Statut** : ✅ lot 8.
+    - `src/ui/catalog.ts` porte `KIND_INFO` (nom complet, nom court, icône), `buildingName()`, `shortName()` et `SPECIALTY_LABEL`.
+    - La barre (`TOOL_INFO` en dérive), les infobulles, l'inspecteur, les tâches des techniciens et le panneau Équipe l'utilisent ; `BUILDING_LABEL` et `KIND_ICON` disparaissent.
+    - Les noms des panneaux (« Commandes », « Tableau de bord ») restent près de leur composant ⏸.
 - **U5 · Teintes de couleur littérales dans le CSS** (haute)
   - **Constat** : 49 teintes, que le mode daltonien ne suit pas (`.chip.ok`, `.btn-primary`…).
   - **Statut** : ✅ lot 6.
@@ -288,8 +296,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - `/ 10` suppose 10 CU/s par rack.
   - **Statut** : 🐞 pour `/ 10` (l'ambiance changerait en carrière) ; le reste est prévu au lot 9.
 - **U23 · Les touches de caméra restent actives sous les fenêtres et l'écran titre** (basse)
-  - **Statut** : 🐞
-
+  - **Statut** : 🐞 Non corrigé (comportement) : les touches de caméra sont désormais lues dans la table des raccourcis, mais le passage par `hud.handleKey` reste à ajouter.
 ### Tests, outillage, documentation
 
 - **T1 · Fabriques de test dupliquées** (haute)
@@ -377,6 +384,12 @@ Tous corrigent une incohérence ou un texte faux ; aucun ne change une règle du
   - « Température max » prend les seuils du bandeau, alerte à 35 °C et danger à 50 °C, au lieu de 32 et 35 °C. C'est le point le plus chaud de la salle, allées chaudes comprises.
   - « Risque max » passe au rouge à 15 %/min, comme l'inspecteur, au lieu de 5 %.
 - **Inspecteur d'onduleur (lot 6)** : l'autonomie passe au rouge sous 20 s, le seuil de l'alerte ; elle reste jaune jusqu'à 30 s, comme avant.
+- **Aide (lot 8)** :
+  - avec Chrome ou Edge, les touches de caméra s'affichent selon le clavier du joueur (Z Q S D et A E sur un AZERTY) ;
+  - une ligne indique aussi les flèches.
+- **Noms (lot 8)** :
+  - l'infobulle de la salle et les tâches des techniciens précisent la génération (« Rack GPU G2 12,10 »), comme l'inspecteur ;
+  - l'infobulle du CDU s'appelle « CDU (liquide) », comme l'inspecteur, au lieu de « CDU (refroidissement liquide) ».
 
 ## Vérification dans le navigateur
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { KEYS, matches, type KeyAction } from '../input/keymap';
 import { BUILD_TIME, CRAC } from '../sim/balance';
 import type { Building } from '../sim/entities';
 import { busyRackIds } from '../sim/stats';
@@ -66,10 +67,10 @@ export class RtsCamera {
   constructor(dom: HTMLElement, private readonly w: number, private readonly h: number) {
     this.target = new THREE.Vector3(w / 2, 0, h / 2);
     window.addEventListener('keydown', (e) => {
-      if (e.repeat && (e.code === 'KeyQ' || e.code === 'KeyE')) return;
+      const rotation = matches('rotateLeft', e) ? -1 : matches('rotateRight', e) ? 1 : 0;
+      if (e.repeat && rotation) return;
       this.keys.add(e.code);
-      if (e.code === 'KeyQ') this.azimuthGoal -= Math.PI / 2;
-      if (e.code === 'KeyE') this.azimuthGoal += Math.PI / 2;
+      this.azimuthGoal += (rotation * Math.PI) / 2;
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
@@ -131,11 +132,11 @@ export class RtsCamera {
   update(dt: number): void {
     let right = 0;
     let fwd = 0;
-    const k = this.keys;
-    if (k.has('KeyW') || k.has('ArrowUp')) fwd += 1;
-    if (k.has('KeyS') || k.has('ArrowDown')) fwd -= 1;
-    if (k.has('KeyD') || k.has('ArrowRight')) right += 1;
-    if (k.has('KeyA') || k.has('ArrowLeft')) right -= 1;
+    const held = (action: KeyAction) => KEYS[action].some((code) => this.keys.has(code));
+    if (held('panUp')) fwd += 1;
+    if (held('panDown')) fwd -= 1;
+    if (held('panRight')) right += 1;
+    if (held('panLeft')) right -= 1;
     if (this.edgePan && this.mouse) {
       if (this.mouse.x < EDGE_MARGIN) right -= 1;
       if (this.mouse.x > window.innerWidth - EDGE_MARGIN) right += 1;
