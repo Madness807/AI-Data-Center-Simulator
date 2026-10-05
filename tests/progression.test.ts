@@ -4,27 +4,24 @@ import { BUILD_COST, ECONOMY, RACK } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
 import type { Job } from '../src/sim/entities';
 import { deliveryReputation, gainReputation, modifiers, promote, researchBlocker, TIERS } from '../src/sim/progression';
-import { addBuilding, addTech, createEmptyState, createInitialState, idx, type GameState } from '../src/sim/state';
+import { addBuilding, addTech, createInitialState, idx, type GameState } from '../src/sim/state';
 import { freeCapacity } from '../src/sim/stats';
 import { updateEconomy } from '../src/sim/systems/economy';
 import { updateHeat } from '../src/sim/systems/heat';
 import { clientsFor, generateOffer, updateJobs } from '../src/sim/systems/jobs';
 import { updatePower } from '../src/sim/systems/power';
 import { updateTechnicians } from '../src/sim/systems/technicians';
+import { room, testJob } from './helpers';
 
 /** Carrière avec `racks` racks en service (alimentés). */
 function career(racks = 3): GameState {
-  const s = createEmptyState(7, 24, 16, 'career');
-  addBuilding(s, 'pdu', 0, 0);
-  addBuilding(s, 'pdu', 1, 0);
+  const s = room(7, { pdus: 2, offers: true });
   for (let i = 0; i < racks; i++) addBuilding(s, 'rack', 4 + i, 4);
   updatePower(s);
   return s;
 }
 
-function job(id: number, rateCU: number, work: number): Job {
-  return { id, name: `C${id}`, status: 'active', rateCU, durationS: work / rateCU, work, progress: 0, deadlineInS: 1000, payment: 1000, penalty: 500, offeredAt: 0, expiresAt: 0, deadline: 1000, allocated: 0 };
-}
+const job = (id: number, rateCU: number, work: number): Job => testJob({ id, rateCU, work, durationS: work / rateCU });
 
 describe('recherche', () => {
   it('la part réservée produit des points et termine le nœud en cours', () => {

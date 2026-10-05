@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { ALERTS } from '../src/sim/balance';
 import type { Job } from '../src/sim/entities';
 import { addBuilding, addTech, createEmptyState, emptyPower, idx, type EventCode, type GameState } from '../src/sim/state';
 import { availability, pue } from '../src/sim/stats';
 import { predictCompletion, updateAlerts } from '../src/sim/systems/alerts';
 import { updateEconomy } from '../src/sim/systems/economy';
 import { updatePower } from '../src/sim/systems/power';
+import { testJob } from './helpers';
 
 /** Lance une passe d'alertes et compte celles du code donné. */
 function alertsOf(s: GameState, code: EventCode): number {
@@ -17,22 +19,7 @@ function alertsOf(s: GameState, code: EventCode): number {
 function activeJob(s: GameState, id: number, o: { rate: number; work: number; deadlineIn: number; startedAgo?: number }): Job {
   const deadline = s.time + o.deadlineIn;
   const deadlineInS = o.deadlineIn + (o.startedAgo ?? 10);
-  const job: Job = {
-    id,
-    name: `Contrat ${id}`,
-    status: 'active',
-    rateCU: o.rate,
-    durationS: o.work / o.rate,
-    work: o.work,
-    progress: 0,
-    deadlineInS,
-    payment: 1000,
-    penalty: 500,
-    offeredAt: 0,
-    expiresAt: 0,
-    deadline,
-    allocated: 0,
-  };
+  const job = testJob({ id, name: `Contrat ${id}`, rateCU: o.rate, durationS: o.work / o.rate, work: o.work, deadlineInS, deadline });
   s.jobs.push(job);
   return job;
 }
@@ -47,12 +34,13 @@ describe('alertes préventives', () => {
       s.temp[idx(s, 5, 5)] = t;
       return alertsOf(s, 'overheat');
     };
-    expect(at(33)).toBe(1);
-    expect(at(33)).toBe(0);
-    expect(at(31)).toBe(0); // encore au-dessus du seuil de réarmement
-    expect(at(33)).toBe(0);
-    expect(at(29)).toBe(0); // réarmée
-    expect(at(33)).toBe(1);
+    const hot = ALERTS.hotC + 1;
+    expect(at(hot)).toBe(1);
+    expect(at(hot)).toBe(0);
+    expect(at(ALERTS.hotResetC + 1)).toBe(0); // encore au-dessus du seuil de réarmement
+    expect(at(hot)).toBe(0);
+    expect(at(ALERTS.hotResetC - 1)).toBe(0); // réarmée
+    expect(at(hot)).toBe(1);
   });
 
   it('surchauffe : plusieurs racks d’un coup donnent une seule alerte, sur le plus chaud', () => {
@@ -60,25 +48,27 @@ describe('alertes préventives', () => {
     addBuilding(s, 'pdu', 0, 0);
     for (const x of [5, 6, 7]) addBuilding(s, 'rack', x, 5);
     updatePower(s);
-    s.temp[idx(s, 5, 5)] = 33;
-    s.temp[idx(s, 6, 5)] = 36;
-    s.temp[idx(s, 7, 5)] = 34;
+    s.temp[idx(s, 5, 5)] = ALERTS.hotC + 1;
+    s.temp[idx(s, 6, 5)] = ALERTS.hotC + 4;
+    s.temp[idx(s, 7, 5)] = ALERTS.hotC + 2;
     expect(alertsOf(s, 'overheat')).toBe(1);
     expect(s.events[0].cell).toEqual({ x: 6, y: 5 });
     expect(s.events[0].message).toMatch(/3 racks/);
   });
 
-  it('énergie : alerte à 90 % de la capacité, réarmée sous 85 %', () => {
+  it(`énergie : alerte à ${ALERTS.power * 100} % de la capacité, réarmée sous ${ALERTS.powerReset * 100} %`, () => {
     const s = createEmptyState(1);
-    const at = (demandKW: number) => {
-      s.power = { ...emptyPower(), capacityKW: 40, demandKW, loadKW: Math.min(demandKW, 40) };
+    const cap = 40;
+    const at = (ratio: number) => {
+      const demandKW = cap * ratio;
+      s.power = { ...emptyPower(), capacityKW: cap, demandKW, loadKW: Math.min(demandKW, cap) };
       return alertsOf(s, 'powerHigh');
     };
-    expect(at(36)).toBe(1);
-    expect(at(38)).toBe(0);
-    expect(at(35)).toBe(0); // 87,5 % : pas encore réarmée
-    expect(at(33)).toBe(0); // 82,5 % : réarmée
-    expect(at(37)).toBe(1);
+    expect(at(ALERTS.power)).toBe(1);
+    expect(at(ALERTS.power + 0.05)).toBe(0);
+    expect(at((ALERTS.power + ALERTS.powerReset) / 2)).toBe(0); // entre les deux seuils : pas encore réarmée
+    expect(at(ALERTS.powerReset - 0.025)).toBe(0); // réarmée
+    expect(at(ALERTS.power + 0.025)).toBe(1);
   });
 
   it('retard probable : prévu selon l’ordre des échéances, signalé une fois', () => {
@@ -103,30 +93,31 @@ describe('alertes préventives', () => {
   it('retard probable : pas de jugement pendant les premières secondes d’un contrat', () => {
     const s = createEmptyState(1);
     s.compute = { total: 0, used: 0 };
-    activeJob(s, 1, { rate: 20, work: 1200, deadlineIn: 150, startedAgo: 2 });
+    activeJob(s, 1, { rate: 20, work: 1200, deadlineIn: 150, startedAgo: ALERTS.lateGraceS - 3 });
     expect(alertsOf(s, 'lateRisk')).toBe(0);
     s.time += 4;
     expect(alertsOf(s, 'lateRisk')).toBe(1);
   });
 
-  it('trésorerie : alerte sous 60 s de dépenses, réarmée au-delà de 120 s', () => {
+  it(`trésorerie : alerte sous ${ALERTS.cashS} s de dépenses, réarmée au-delà de ${ALERTS.cashResetS} s`, () => {
     const s = createEmptyState(1);
     s.economy.electricityPerS = 9;
     s.economy.salariesPerS = 1;
-    const at = (money: number) => {
-      s.money = money;
+    const burn = 10;
+    const at = (secondsCovered: number) => {
+      s.money = burn * secondsCovered;
       return alertsOf(s, 'cashLow');
     };
-    expect(at(5000)).toBe(0);
-    expect(at(590)).toBe(1);
-    expect(at(500)).toBe(0);
-    expect(at(1100)).toBe(0); // 110 s : pas encore réarmée
-    expect(at(1300)).toBe(0); // réarmée
-    expect(at(-50)).toBe(0); // dans le rouge : le compte à rebours de faillite prend le relais
-    expect(at(400)).toBe(1);
+    expect(at(10 * ALERTS.cashS)).toBe(0);
+    expect(at(ALERTS.cashS - 1)).toBe(1);
+    expect(at(ALERTS.cashS - 10)).toBe(0);
+    expect(at(ALERTS.cashResetS - 10)).toBe(0); // pas encore réarmée
+    expect(at(ALERTS.cashResetS + 10)).toBe(0); // réarmée
+    expect(at(-5)).toBe(0); // dans le rouge : le compte à rebours de faillite prend le relais
+    expect(at(ALERTS.cashS - 20)).toBe(1);
   });
 
-  it('panne sans technicien : alerte après 20 s, sauf si une réparation est demandée', () => {
+  it(`panne sans technicien : alerte après ${ALERTS.unattendedS} s, sauf si une réparation est demandée`, () => {
     const s = createEmptyState(1);
     const rack = addBuilding(s, 'rack', 5, 5);
     rack.status = 'failed';
@@ -135,18 +126,20 @@ describe('alertes préventives', () => {
       s.time = time;
       return alertsOf(s, 'unattended');
     };
+    const wait = ALERTS.unattendedS;
     expect(at(0)).toBe(0);
-    expect(at(19)).toBe(0);
-    expect(at(20)).toBe(1);
-    expect(at(40)).toBe(0);
+    expect(at(wait - 1)).toBe(0);
+    expect(at(wait)).toBe(1);
+    expect(at(2 * wait)).toBe(0);
 
     // Un ordre de réparation efface l'attente ; s'il est annulé, le décompte repart.
     tech.tasks.push({ type: 'repair', target: rack.id });
-    expect(at(41)).toBe(0);
+    expect(at(2 * wait + 1)).toBe(0);
     tech.tasks = [];
-    expect(at(42)).toBe(0);
-    expect(at(61)).toBe(0);
-    expect(at(62)).toBe(1);
+    const restart = 2 * wait + 2;
+    expect(at(restart)).toBe(0);
+    expect(at(restart + wait - 1)).toBe(0);
+    expect(at(restart + wait)).toBe(1);
   });
 });
 

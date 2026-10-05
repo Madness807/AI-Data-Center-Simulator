@@ -1,23 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { MAINTENANCE, PREDICTIVE, REPAIR, SPARE_PARTS, WEAR } from '../src/sim/balance';
+import { MAINTENANCE, PREDICTIVE, REPAIR, SPARE_PARTS, SPECIALTY, WEAR } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
 import type { Building } from '../src/sim/entities';
-import { addBuilding, addTech, createEmptyState, createInitialState, idx, type GameState } from '../src/sim/state';
+import { addBuilding, addTech, createInitialState, idx, type GameState } from '../src/sim/state';
 import { rackRiskPerMinute, updateWear, wearMultiplier } from '../src/sim/systems/failures';
 import { updateAlerts } from '../src/sim/systems/alerts';
 import { updatePower } from '../src/sim/systems/power';
 import { updateTechnicians, workSpeed } from '../src/sim/systems/technicians';
-import { runSeconds } from './helpers';
+import { room, runSeconds } from './helpers';
 
 /** Carrière au palier où l'usure compte, alimentée, sans offres. */
-function hall(): GameState {
-  const s = createEmptyState(9, 24, 16, 'career');
-  s.career.tier = WEAR.minTier;
-  s.nextOfferAt = Number.MAX_SAFE_INTEGER;
-  s.money = 50000;
-  for (let x = 0; x < 4; x++) addBuilding(s, 'pdu', x, 0);
-  return s;
-}
+const hall = (): GameState => room(9, { tier: WEAR.minTier, money: 50000, pdus: 4 });
 
 function rack(s: GameState, x: number, y: number): Building {
   const b = addBuilding(s, 'rack', x, y);
@@ -105,7 +98,7 @@ describe('équipe', () => {
     expect(t.specialty).toBe('hvac');
     const crac = addBuilding(s, 'crac', 8, 8);
     const r = addBuilding(s, 'rack', 12, 8);
-    expect(workSpeed(t, crac)).toBe(2);
+    expect(workSpeed(t, crac)).toBe(SPECIALTY.speed);
     expect(workSpeed(t, r)).toBe(1);
   });
 

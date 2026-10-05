@@ -3,20 +3,15 @@ import { AISLE, CDU, CRAC, HEAT, HEATWAVE, RACK, WEATHER } from '../src/sim/bala
 import { breathesExhaust, cracPowerKW, cracWeatherFactor, liquidCapture, outsideTemp, rackTemp } from '../src/sim/climate';
 import { processCommands } from '../src/sim/commands';
 import type { Building, Facing } from '../src/sim/entities';
-import { addBuilding, createEmptyState, idx, type GameState } from '../src/sim/state';
+import { addBuilding, idx, type GameState } from '../src/sim/state';
 import { updateEconomy } from '../src/sim/systems/economy';
 import { updateHeat } from '../src/sim/systems/heat';
 import { updateIncidents } from '../src/sim/systems/incidents';
 import { updatePower } from '../src/sim/systems/power';
-import { runSeconds } from './helpers';
+import { room, runSeconds } from './helpers';
 
 /** Salle de carrière vide, alimentée largement, sans offres. */
-function hall(mode: 'career' | 'quick' = 'career'): GameState {
-  const s = createEmptyState(21, 24, 16, mode);
-  s.nextOfferAt = Number.MAX_SAFE_INTEGER;
-  for (let x = 0; x < 5; x++) addBuilding(s, 'pdu', x, 0);
-  return s;
-}
+const hall = (mode: 'career' | 'quick' = 'career'): GameState => room(21, { mode, pdus: 5 });
 
 function rack(s: GameState, x: number, y: number, facing: Facing): Building {
   const b = addBuilding(s, 'rack', x, y);

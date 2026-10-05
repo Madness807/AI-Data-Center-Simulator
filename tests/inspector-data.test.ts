@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILD_TIME, CRAC, RACK } from '../src/sim/balance';
-import { addBuilding, addTech, buildingAt, createEmptyState } from '../src/sim/state';
+import { addBuilding, addTech, buildingAt, createEmptyState, idx } from '../src/sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad } from '../src/sim/stats';
 import { failureProbability, failureRiskPerMinute } from '../src/sim/systems/failures';
 import { updatePower } from '../src/sim/systems/power';
@@ -13,7 +13,7 @@ describe('données de l’inspecteur', () => {
     addBuilding(s, 'pdu', 0, 0);
     const r = addBuilding(s, 'rack', 6, 6);
     expect(r.failures).toBe(0);
-    expect(runUntil(s, () => ((s.temp[6 * s.w + 6] = 70), r.status === 'failed'), 600)).toBe(true);
+    expect(runUntil(s, () => ((s.temp[idx(s, 6, 6)] = 70), r.status === 'failed'), 600)).toBe(true);
     expect(r.failures).toBe(1);
   });
 

@@ -1,19 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BUILD_TIME, GPU, rackSpec, SLA, TRAINING } from '../src/sim/balance';
+import { BUILD_TIME, GPU, RACK, rackSpec, RETROFIT, SLA, TRAINING } from '../src/sim/balance';
 import { clusterIntact, findCluster, largestFreeCluster } from '../src/sim/clusters';
 import { canBuild, processCommands, upgradeCost } from '../src/sim/commands';
 import type { Building, Job } from '../src/sim/entities';
-import { addBuilding, createEmptyState, createInitialState, type GameState } from '../src/sim/state';
+import { addBuilding, createInitialState, type GameState } from '../src/sim/state';
 import { generateOffer, updateJobs } from '../src/sim/systems/jobs';
 import { updatePower } from '../src/sim/systems/power';
+import { room, testJob } from './helpers';
 
-function career(): GameState {
-  const s = createEmptyState(5, 24, 16, 'career');
-  s.nextOfferAt = Number.MAX_SAFE_INTEGER;
-  s.money = 200000;
-  for (let x = 0; x < 10; x++) addBuilding(s, 'pdu', x, 0);
-  return s;
-}
+const career = (): GameState => room(5, { pdus: 10, money: 200000 });
 
 function rack(s: GameState, x: number, y: number, gen: 1 | 2 | 3 = 1): Building {
   const b = addBuilding(s, 'rack', x, y);
@@ -22,7 +17,7 @@ function rack(s: GameState, x: number, y: number, gen: 1 | 2 | 3 = 1): Building 
 }
 
 function training(id: number, cluster: number, work = 1e6): Job {
-  return { id, name: `T${id}`, status: 'active', rateCU: cluster * 10, durationS: 100, work, progress: 0, deadlineInS: 1000, payment: 5000, penalty: 2500, offeredAt: 0, expiresAt: 0, deadline: 1000, allocated: 0, kind: 'training', cluster, minGen: 1 };
+  return testJob({ id, name: `T${id}`, rateCU: cluster * RACK.computeCU, work, payment: 5000, penalty: 2500, kind: 'training', cluster, minGen: 1 });
 }
 
 describe('générations de GPU', () => {
@@ -72,7 +67,7 @@ describe('générations de GPU', () => {
     expect(b.status).toBe('construction');
     expect(b.workLeft).toBe(BUILD_TIME.rack);
     expect(before - s.money).toBe(upgradeCost({ gen: 1 }));
-    expect(upgradeCost({ gen: 1 })).toBe(Math.round((GPU[2].cost - GPU[1].cost) * 1.2));
+    expect(upgradeCost({ gen: 1 })).toBe(Math.round((GPU[2].cost - GPU[1].cost) * RETROFIT.surcharge));
   });
 });
 

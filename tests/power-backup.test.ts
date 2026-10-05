@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { GENERATOR, OUTAGE, UPS } from '../src/sim/balance';
+import { CRAC, ECONOMY, GENERATOR, OUTAGE, RACK, UPS } from '../src/sim/balance';
 import { canBuild } from '../src/sim/commands';
 import { step } from '../src/sim/sim';
 import { addBuilding, createEmptyState, createInitialState, type GameState } from '../src/sim/state';
 import { redundancy } from '../src/sim/stats';
 import { updateIncidents } from '../src/sim/systems/incidents';
 import { updatePower } from '../src/sim/systems/power';
-import { runSeconds } from './helpers';
+import { room as baseRoom, runSeconds } from './helpers';
 
 /** Carrière avec 3 racks et un CRAC (34 kW), deux PDU, offres coupées. */
+/** Charge de la salle : le CRAC et ses 3 racks. */
+const LOAD_KW = CRAC.powerKW + 3 * RACK.powerKW;
+
 function room(backup: { ups?: number; generators?: number } = {}): GameState {
-  const s = createEmptyState(11, 24, 16, 'career');
-  s.nextOfferAt = Number.MAX_SAFE_INTEGER;
+  const s = baseRoom(11, { pdus: 2 });
   s.research.done.push('ups', 'generators');
-  addBuilding(s, 'pdu', 0, 0);
-  addBuilding(s, 'pdu', 1, 0);
   addBuilding(s, 'crac', 8, 8);
   for (const x of [7, 8, 9]) addBuilding(s, 'rack', x, 10);
   for (let i = 0; i < (backup.ups ?? 0); i++) addBuilding(s, 'ups', 3 + i, 3).charge = UPS.storeKJ;
@@ -42,8 +42,8 @@ describe('énergie de secours', () => {
     outage(s, 300);
     runSeconds(s, 60);
     expect(racksPowered(s)).toBe(3);
-    expect(s.power.upsKW).toBe(34);
-    runSeconds(s, 15); // 2 400 kJ / 34 kW ≈ 70 s
+    expect(s.power.upsKW).toBe(LOAD_KW);
+    runSeconds(s, 15); // 2 400 kJ / 34 kW ≈ 70 s d'autonomie
     expect(racksPowered(s)).toBe(0);
   });
 
@@ -54,15 +54,15 @@ describe('énergie de secours', () => {
     expect(s.power.generatorKW).toBe(0);
     expect(racksPowered(s)).toBe(3);
     runSeconds(s, 3);
-    expect(s.power.generatorKW).toBe(34);
+    expect(s.power.generatorKW).toBe(LOAD_KW);
     expect(s.power.upsKW).toBe(0);
     const ups = s.buildings.find((b) => b.kind === 'ups')!;
     const left = ups.charge!;
-    expect(left).toBeGreaterThan(UPS.storeKJ - 34 * (GENERATOR.startS + 1));
+    expect(left).toBeGreaterThan(UPS.storeKJ - LOAD_KW * (GENERATOR.startS + 1));
     runSeconds(s, 60);
     expect(ups.charge).toBeCloseTo(left);
     // Le carburant est payé au kW·s produit.
-    expect(s.economy.ledger.fuel).toBeGreaterThan(34 * GENERATOR.fuelPerKWs * 60);
+    expect(s.economy.ledger.fuel).toBeGreaterThan(LOAD_KW * GENERATOR.fuelPerKWs * 60);
     expect(s.economy.ledger.electricity).toBe(0);
   });
 
@@ -78,7 +78,7 @@ describe('énergie de secours', () => {
     runSeconds(s, 10);
     expect(ups.charge!).toBeCloseTo(before + UPS.rechargeKW * 10);
     expect(s.power.chargeKW).toBe(UPS.rechargeKW);
-    expect(s.economy.electricityPerS).toBeGreaterThan(34 * 0.09);
+    expect(s.economy.electricityPerS).toBeGreaterThan(LOAD_KW * ECONOMY.electricityPerKWs);
   });
 
   it('coupures en carrière seulement, à partir du palier Scale-up, rejouables avec la graine', () => {
@@ -133,6 +133,6 @@ describe('énergie de secours', () => {
     s.research.done.push('switchover-2n');
     outage(s, 300);
     runSeconds(s, 4);
-    expect(s.power.generatorKW).toBe(34);
+    expect(s.power.generatorKW).toBe(LOAD_KW);
   });
 });

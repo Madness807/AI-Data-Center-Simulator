@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { BUILD_COST, DEMOLISH_REFUND, REPAIR, START_MONEY, TECH } from '../src/sim/balance';
+import { BUILD_COST, DEMOLISH_REFUND, JOBS, REPAIR, START_MONEY, TECH } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
 import { OPERATING, type Ledger } from '../src/sim/ledger';
 import { step } from '../src/sim/sim';
-import { addBuilding, addTech, buildingAt, createEmptyState, createInitialState, type GameState } from '../src/sim/state';
+import { addBuilding, addTech, buildingAt, createEmptyState, createInitialState, type GameState, idx } from '../src/sim/state';
 import { committedCompute, freeCapacity } from '../src/sim/stats';
 import { runSeconds, runUntil } from './helpers';
 
-const expenses = (l: Ledger) => l.penalties + l.electricity + l.salaries + l.repairs + l.construction + l.hiring;
+/** Toutes les dépenses (tous les postes sauf les recettes, carburant compris). */
+const expenses = (l: Ledger) => Object.entries(l).reduce((sum, [k, v]) => (k === 'revenue' ? sum : sum + v), 0);
 
 /** Invariant : la trésorerie se déduit exactement du grand livre. */
 function expectBalanced(s: GameState, start = START_MONEY): void {
@@ -38,7 +39,7 @@ describe('grand livre', () => {
     s.commands.push({ type: 'acceptJob', id: s.jobs[0].id });
     runSeconds(s, 70);
     const l = s.economy.ledger;
-    expect(l.revenue).toBe(6000);
+    expect(l.revenue).toBe(JOBS.firstJob.payment);
     expect(l.electricity).toBeGreaterThan(0);
     expect(l.salaries).toBeCloseTo(70 * s.techs.length * TECH.salaryPerS, 1);
 
@@ -75,7 +76,7 @@ describe('événements localisés', () => {
       runUntil(
         s,
         () => {
-          s.temp[3 * s.w + 7] = 70;
+          s.temp[idx(s, 7, 3)] = 70;
           return r.status === 'failed';
         },
         600,

@@ -314,27 +314,32 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
     - `memoryStore` 2 fois ;
     - « sans offres » écrit 14 fois avec deux valeurs ;
     - `addBuilding(s,'pdu',0,0)` 23 fois.
-  - **Statut** : prévu au lot 10.
+  - **Statut** : ✅ lot 10.
+    - `tests/helpers.ts` reçoit `room(graine, options)`, `noOffers()` (une valeur finie, qui survit au JSON) et `memoryStore()`.
+    - Elles servent à `progression`, `generations`, `maintenance`, `aisles`, `power-backup`, `save` et `settings`, chacun gardant sa graine.
+    - Les fabriques propres à un seul fichier (salle de `jobs`, partie de `save`) restent sur place.
 - **T2 · Contrats de test écrits à la main** (haute)
   - **Constat** : 6 objets de 14 champs.
-  - **Statut** : prévu au lot 10.
+  - **Statut** : ✅ lot 10. `testJob()` remplace les contrats écrits à la main dans `progression`, `generations` et `supervision`.
 - **T3 · Attentes qui recopient `balance.ts` ou `ALERTS`** (haute)
   - **Où** : `supervision.test.ts`, `power-backup.test.ts`, `progression.test.ts`, `ledger.test.ts`…
-  - **Statut** : prévu au lot 10.
+  - **Statut** : ✅ lot 10.
+    - `supervision.test.ts` déduit tous ses seuils d'`ALERTS`, juste au-dessus et juste en dessous de chacun, titres compris.
+    - Ailleurs, `LOAD_KW` (`power-backup`), `JOBS.firstJob.payment`, `HEAT.ambient`, `SPECIALTY.speed`, `RETROFIT.surcharge` et `CRAC.powerKW` remplacent leurs littéraux.
 - **T4 · Le fichier d'équilibrage est lent et sans durée maximale explicite** (haute)
   - **Constat** : il rejoue les 6 parties rapides.
-  - **Statut** : prévu au lot 10.
+  - **Statut** : ✅ lot 10. Les parties rapides du joueur compétent sont jouées une fois pour deux tests, et chaque test d'équilibrage a une durée maximale nommée (`QUICK_TIMEOUT_MS`, `CAREER_TIMEOUT_MS`). `npm run test:fast` passe l'équilibrage (lot 1).
 - **T5 · L'arborescence d'architecture de `PLAN.md` est périmée** (haute)
   - **Constat** : `meshes.ts` et `interpolate.ts` n'existent plus ; la moitié des modules manque.
   - **Statut** : prévu au lot 11.
 - **T6 · Structure de `tests/bot.ts`** (moyenne)
   - **Constat** : 374 lignes, réglages sans nom, rythme des ticks codé en dur, aides dupliquées.
-  - **Statut** : réglages et aides au lot 10 ; découpage en modules ⏸.
+  - **Statut** : ✅ lot 10 pour les réglages : un objet `BOT` commenté et `TICK_HZ` au lieu de 10 et 600 ; la fonction `describe()` du bot devient `timelineLine()`, pour ne plus cacher celle de Vitest. Les décisions sont identiques (vérifié par l'empreinte). Le découpage en modules est ⏸.
 - **T7 · Les échecs du bot passent inaperçus** (moyenne)
   - **Constat** : un nœud de recherche renommé ou une case non constructible ne donnent qu'un « pas de victoire ».
-  - **Statut** : prévu au lot 10.
+  - **Statut** : ✅ lot 10. `tests/bot.test.ts` vérifie que l'ordre de recherche du bot reprend exactement les nœuds du jeu, et que chaque case de ses plans est constructible sur une partie neuve.
 - **T8 · `ledger.test.ts` oublie le carburant dans le total des dépenses** (moyenne)
-  - **Statut** : prévu au lot 10.
+  - **Statut** : ✅ lot 10. Le total des dépenses somme tous les postes sauf les recettes, carburant compris.
 - **T9 · Ni linter ni formateur** (moyenne)
   - **Constat** : style tenu à la main, environ 160 colonnes.
   - **Statut** : ✅ lot 1, oxlint (`.oxlintrc.json`, `npm run lint`, dans `check`).
@@ -366,7 +371,7 @@ Les corrections sûres ont été appliquées dans la foulée, un commit par lot.
   - **Statut** : ✅ lot 1. `check` enchaîne lint, typage, tests et build. `test:fast` passe le fichier d'équilibrage. `.editorconfig` ajouté.
 - **T16 · Petits écarts dans les tests** (basse)
   - **Constat** : titres trompeurs, tests rangés dans le mauvais fichier, `y*s.w+x` au lieu d'`idx()`.
-  - **Statut** : prévu au lot 10.
+  - **Statut** : ✅ lot 10 en partie : `idx()` au lieu de `y * s.w + x`, titre du test de carrière (« Scale-up en 8 à 16 minutes »). Les tests rangés dans le mauvais fichier n'ont pas été déplacés ⏸.
 - **T17 · Écarts de documentation** (basse)
   - **Constat** :
     - `PLAN.md` dit « B = construction » ;

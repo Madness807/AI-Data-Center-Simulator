@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILD_COST, BUILD_TIME, DEMOLISH_REFUND, ENTRANCE } from '../src/sim/balance';
+import { BUILD_COST, BUILD_TIME, CRAC, DEMOLISH_REFUND, ENTRANCE } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
 import { addBuilding, buildingAt, createEmptyState, createInitialState } from '../src/sim/state';
 import { nextRandom } from '../src/sim/rng';
@@ -63,7 +63,7 @@ describe('commands', () => {
     s.commands.push({ type: 'build', kind: 'rack', x: 4, y: 4 });
     processCommands(s);
     expect(buildingAt(s, 4, 4)?.powered).toBe(false);
-    expect(s.power.demandKW).toBe(4); // le CRAC de départ seulement
+    expect(s.power.demandKW).toBe(CRAC.powerKW); // le CRAC de départ seulement
   });
 
   it('le state est sérialisable et le RNG déterministe', () => {

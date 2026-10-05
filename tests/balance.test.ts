@@ -10,8 +10,22 @@ const minutes = (s: number | null) => (s === null ? null : s / 60);
 const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 const wonAt = (run: BotRun) => minutes(run.wonAt) ?? Infinity;
 
-/** Une carrière dure jusqu'à deux heures : les parties du joueur soigné servent à plusieurs tests. */
+/** Une partie rapide se joue en 45 minutes au plus ; une carrière, jusqu'à deux heures. */
+const QUICK_HORIZON_S = 45 * 60;
 const CAREER_HORIZON_S = 130 * 60;
+/** Durées maximales des tests (une partie de bot dure de quelques dixièmes à quelques secondes). */
+const QUICK_TIMEOUT_MS = 30_000;
+const CAREER_TIMEOUT_MS = 120_000;
+
+/** Les parties du joueur compétent servent à deux tests : jouées une seule fois. */
+const quickRuns = new Map<number, BotRun>();
+function quickRun(seed: number): BotRun {
+  let run = quickRuns.get(seed);
+  if (!run) quickRuns.set(seed, (run = playBot(seed, COMPETENT, QUICK_HORIZON_S)));
+  return run;
+}
+
+/** Les parties du joueur soigné en carrière servent aussi à plusieurs tests. */
 const careerRuns = new Map<number, BotRun>();
 function careerRun(seed: number): BotRun {
   let run = careerRuns.get(seed);
@@ -22,20 +36,20 @@ function careerRun(seed: number): BotRun {
 describe('équilibrage', () => {
   it('un joueur compétent atteint l’objectif en 25 à 40 minutes de jeu, sans frôler la faillite', () => {
     for (const seed of SEEDS) {
-      const run = playBot(seed, COMPETENT, 45 * 60);
+      const run = quickRun(seed);
       expect(run.lostAt, `graine ${seed}`).toBeNull();
       expect(minutes(run.wonAt), `graine ${seed}`).toBeGreaterThanOrEqual(25);
       expect(minutes(run.wonAt), `graine ${seed}`).toBeLessThanOrEqual(40);
       expect(run.state.economy.jobsFailed, `graine ${seed}`).toBe(0);
       expect(run.maxTemp, `graine ${seed}`).toBeLessThan(35);
     }
-  });
+  }, QUICK_TIMEOUT_MS);
 
   it('grandir paie : un petit parc de 6 racks gagne nettement plus tard', () => {
-    const competent = median(SEEDS.map((seed) => wonAt(playBot(seed, COMPETENT, 45 * 60))));
+    const competent = median(SEEDS.map((seed) => wonAt(quickRun(seed))));
     const small = median(SEEDS.map((seed) => wonAt(playBot(seed, { ...COMPETENT, maxRacks: 6 }, 60 * 60))));
     expect(small).toBeGreaterThan(competent + 4);
-  });
+  }, QUICK_TIMEOUT_MS);
 
   it('sans refroidissement, c’est la faillite', () => {
     for (const seed of SEEDS) {
@@ -44,7 +58,7 @@ describe('équilibrage', () => {
       expect(minutes(run.lostAt), `graine ${seed}`).toBeLessThan(40);
       expect(run.maxTemp, `graine ${seed}`).toBeGreaterThan(50);
     }
-  });
+  }, QUICK_TIMEOUT_MS);
 
   it('en refusant tous les contrats, la trésorerie s’effondre', () => {
     for (const seed of SEEDS) {
@@ -52,9 +66,9 @@ describe('équilibrage', () => {
       expect(run.state.economy.ledger.revenue, `graine ${seed}`).toBe(0);
       expect(minutes(run.lostAt), `graine ${seed}`).toBeLessThan(40);
     }
-  });
+  }, QUICK_TIMEOUT_MS);
 
-  it('carrière : le palier 2 vers 10-15 minutes, les secours prêts avant le palier 3, victoire en 75 à 120 minutes', () => {
+  it('carrière : Scale-up en 8 à 16 minutes, les secours prêts avant le Labo d’IA, victoire en 75 à 120 minutes', () => {
     for (const seed of SEEDS.slice(0, 4)) {
       const run = careerRun(seed);
       expect(run.lostAt, `graine ${seed}`).toBeNull();
@@ -67,7 +81,7 @@ describe('équilibrage', () => {
       expect(minutes(run.wonAt), `graine ${seed}`).toBeGreaterThanOrEqual(75);
       expect(minutes(run.wonAt), `graine ${seed}`).toBeLessThanOrEqual(120);
     }
-  }, 120_000);
+  }, CAREER_TIMEOUT_MS);
 
   it('carrière : sans recherche, le parc plafonne au palier Labo d’IA', () => {
     for (const seed of SEEDS.slice(0, 3)) {
@@ -77,7 +91,7 @@ describe('équilibrage', () => {
       expect(run.state.career.tier, `graine ${seed}`).toBeGreaterThanOrEqual(1);
       expect(run.state.career.tier, `graine ${seed}`).toBeLessThanOrEqual(2);
     }
-  }, 120_000);
+  }, CAREER_TIMEOUT_MS);
 
   it('carrière : sans énergie de secours, les coupures coûtent des retards et du temps', () => {
     for (const seed of SEEDS.slice(0, 3)) {
@@ -90,11 +104,11 @@ describe('équilibrage', () => {
       expect(failures(reckless), `graine ${seed}`).toBeGreaterThan(failures(careful) + 8);
       expect(wonAt(reckless), `graine ${seed}`).toBeGreaterThan(wonAt(careful));
     }
-  }, 120_000);
+  }, CAREER_TIMEOUT_MS);
 
   it('le premier contrat est honoré en moins de 2 minutes', () => {
     for (const seed of SEEDS) {
       expect(playBot(seed, COMPETENT, 3 * 60).firstDeliveryAt, `graine ${seed}`).toBeLessThan(120);
     }
-  });
+  }, QUICK_TIMEOUT_MS);
 });

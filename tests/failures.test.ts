@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FAILURE, REPAIR } from '../src/sim/balance';
+import { FAILURE, HEAT, REPAIR } from '../src/sim/balance';
 import { addBuilding, createEmptyState, idx } from '../src/sim/state';
 import { failureProbability, failureRate, updateFailures } from '../src/sim/systems/failures';
 import { updateHeat } from '../src/sim/systems/heat';
@@ -49,7 +49,7 @@ describe('failures', () => {
     expect(s.power.loadKW).toBe(0);
     expect(s.power.shedCount).toBe(0);
     for (let i = 0; i < 100; i++) updateHeat(s, 0.1);
-    expect(s.temp[idx(s, 5, 5)]).toBeCloseTo(22, 9);
+    expect(s.temp[idx(s, 5, 5)]).toBeCloseTo(HEAT.ambient, 9);
   });
 
   it('les réparations sont faites par les techniciens (voir technicians.test.ts)', () => {

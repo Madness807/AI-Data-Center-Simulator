@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { buildReport } from '../src/report';
-import { DEFAULT_SETTINGS, SETTINGS_KEY, SettingsStore, sanitizeSettings, type KeyValueStore } from '../src/settings';
+import { DEFAULT_SETTINGS, SETTINGS_KEY, SettingsStore, sanitizeSettings } from '../src/settings';
 import { createInitialState, notify } from '../src/sim/state';
-
-function memoryStore(initial: Record<string, string> = {}): KeyValueStore & { data: Map<string, string> } {
-  const data = new Map(Object.entries(initial));
-  return { data, getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v), removeItem: (k) => void data.delete(k) };
-}
+import { memoryStore } from './helpers';
 
 describe('options', () => {
   it('valeurs par défaut sans stockage, ni stockage illisible', () => {

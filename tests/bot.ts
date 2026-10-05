@@ -1,4 +1,4 @@
-import { buildCost, CRAC, GENERATOR, GPU, RACK, TECH, UPS, WEATHER } from '../src/sim/balance';
+import { buildCost, CRAC, GENERATOR, GPU, RACK, TECH, TICK_HZ, UPS, WEATHER } from '../src/sim/balance';
 import { rackTemp } from '../src/sim/climate';
 import { largestFreeCluster } from '../src/sim/clusters';
 import { canBuild, upgradeBlocker } from '../src/sim/commands';
@@ -30,7 +30,7 @@ export interface BotProfile {
 }
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
-const RESEARCH_ORDER = [
+export const RESEARCH_ORDER = [
   'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'spare-parts', 'containment', 'planned-maintenance', 'gpu-g2',
   'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3',
   'specialties', 'switchover-2n', 'predictive', 'heat-reuse', 'optical',
@@ -38,6 +38,26 @@ const RESEARCH_ORDER = [
 export const CAREER_RESEARCH_SHARE = 0.2;
 
 export const COMPETENT: BotProfile = { cooling: true, contracts: true, maxRacks: 14, reserve: 4000 };
+
+/** Réglages de la stratégie du bot (l'équilibrage du jeu, lui, est dans src/sim/balance.ts). */
+const BOT = {
+  /** Avant la météo, le froid prévu des CRAC doit couvrir la chaleur prévue avec cette marge. */
+  coolingMargin: 0.85,
+  /** Usure (%) à partir de laquelle il envoie un entretien manuel. */
+  maintainWear: 60,
+  /** Part du calcul libre qu'il ose engager sur un contrat avec SLA. */
+  slaHeadroom: 0.8,
+  /** Trésorerie (en plus de sa réserve) à partir de laquelle il modernise un rack. */
+  retrofitMoney: 40000,
+  /** Il grandit vers le calcul exigé par le palier suivant dès cette part de la réputation requise. */
+  growAtReputation: 0.6,
+  /** Parc visé en carrière : le dernier palier exige 400 CU/s. */
+  careerRacks: 22,
+  /** Un technicien de plus tous les N racks. */
+  racksPerTech: 8,
+  /** Le bot réfléchit une fois par seconde de jeu. */
+  thinkEveryTicks: TICK_HZ,
+};
 
 export interface BotRun {
   state: GameState;
@@ -70,7 +90,7 @@ const row = (y: number, items: Array<[BuildingKind, number]>): Item[] =>
  * Disposition visée : deux rangées de racks (y = 10 puis y = 6), un CRAC tous les 3 racks,
  * allées libres entre elles. Le CRAC de départ (8,8) couvre le premier bloc.
  */
-const LAYOUT: Item[] = [
+export const LAYOUT: Item[] = [
   ...row(10, [['rack', 7], ['rack', 9], ['rack', 8]]),
   ...row(10, [['crac', 12], ['rack', 11], ['rack', 13], ['rack', 10]]),
   ...row(10, [['crac', 16], ['rack', 15], ['rack', 17], ['rack', 14]]),
@@ -87,11 +107,11 @@ const LAYOUT: Item[] = [
  * pour former de grands blocs d'entraînement. Les CRAC vont sur la ligne centrale (y = 8),
  * entre les deux allées chaudes, à mesure que la chaleur des racks l'exige.
  */
-const CAREER_RACKS: Item[] = [
+export const CAREER_RACKS: Item[] = [
   ...[7, 8, 9, 6, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map((x) => ({ kind: 'rack' as const, x, y: 10, facing: 0 as Facing })),
   ...[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21].map((x) => ({ kind: 'rack' as const, x, y: 6, facing: 2 as Facing })),
 ];
-const CAREER_CRACS = [11, 14, 17, 20, 5, 12, 15, 18, 9, 21, 6, 13, 16, 19, 10, 22, 7].map((x) => ({ kind: 'crac' as const, x, y: 8 }));
+export const CAREER_CRACS = [11, 14, 17, 20, 5, 12, 15, 18, 9, 21, 6, 13, 16, 19, 10, 22, 7].map((x) => ({ kind: 'crac' as const, x, y: 8 }));
 
 /**
  * Chaleur prévue des racks (construits ou en chantier) face au froid prévu des CRAC. Une fois
@@ -100,19 +120,18 @@ const CAREER_CRACS = [11, 14, 17, 20, 5, 12, 15, 18, 9, 21, 6, 13, 16, 19, 10, 2
 function coolingDeficit(s: GameState): boolean {
   const heat = s.buildings.reduce((sum, b) => sum + (b.kind === 'rack' ? GPU[b.gen ?? 1].heatKW : 0), 0);
   const cold = s.buildings.filter((b) => b.kind === 'crac').length * modifiers(s).cracCoolingKW;
-  return heat > cold * (s.career.tier >= WEATHER.minTier ? WEATHER.cracMin : 0.85);
+  return heat > cold * (s.career.tier >= WEATHER.minTier ? WEATHER.cracMin : BOT.coolingMargin);
 }
 
 /** Secours le long du mur du bas, une case sur deux, puis devant les PDU du fond. */
-const BACKUP_SPOTS = [
+export const BACKUP_SPOTS = [
   ...[2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((x) => ({ x, y: 14 })),
   ...[4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((x) => ({ x, y: 3 })),
 ];
 
 /** PDU le long du mur du fond, une case sur deux. */
-const PDU_SPOTS: Item[] = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21].map((x) => ({ kind: 'pdu', x, y: 1 }));
+export const PDU_SPOTS: Item[] = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21].map((x) => ({ kind: 'pdu', x, y: 1 }));
 
-const THINK_EVERY_TICKS = 10;
 
 const kw = (kind: BuildingKind, gen: Gen = 1) => (kind === 'rack' ? GPU[gen].powerKW : kind === 'crac' ? CRAC.powerKW : 0);
 
@@ -193,7 +212,7 @@ class Bot {
   /** Entretien manuel (avant la maintenance planifiée) : un rack usé à 60 % part chez un technicien libre. */
   private maintain(s: GameState): void {
     for (const b of s.buildings) {
-      if (b.kind !== 'rack' || b.status !== 'ok' || (b.wear ?? 0) < 60) continue;
+      if (b.kind !== 'rack' || b.status !== 'ok' || (b.wear ?? 0) < BOT.maintainWear) continue;
       if (s.techs.some((t) => t.tasks.some((k) => k.type === 'maintain' && k.target === b.id))) continue;
       const idle = s.techs.find((t) => t.tasks.length === 0);
       if (!idle) return;
@@ -227,7 +246,7 @@ class Bot {
           free -= j.rateCU;
           training = true;
         }
-      } else if (j.rateCU <= free * (j.sla ? 0.8 : 1)) {
+      } else if (j.rateCU <= free * (j.sla ? BOT.slaHeadroom : 1)) {
         s.commands.push({ type: 'acceptJob', id: j.id });
         free -= j.rateCU;
       }
@@ -239,7 +258,7 @@ class Bot {
    * le bot ne pose pas de CDU, et un G3 refroidi à l'air seul surchauffe.
    */
   private retrofit(s: GameState): boolean {
-    if (!modifiers(s).retrofit || s.money < 40000 + this.profile.reserve) return false;
+    if (!modifiers(s).retrofit || s.money < BOT.retrofitMoney + this.profile.reserve) return false;
     if (s.buildings.some((b) => b.status === 'construction')) return false;
     const target = s.buildings.find((b) => b.kind === 'rack' && (b.gen ?? 1) === 1 && upgradeBlocker(s, b) === null);
     if (!target) return false;
@@ -269,7 +288,7 @@ class Bot {
     if (!this.profile.contracts) return true;
     // Carrière : le palier suivant exige du calcul en service ; il grandit jusqu'à l'atteindre.
     const next = this.profile.career ? TIERS[s.career.tier + 1] : undefined;
-    if (next?.computeCU && s.career.reputation >= next.reputation * 0.6 && s.compute.total < next.computeCU) return true;
+    if (next?.computeCU && s.career.reputation >= next.reputation * BOT.growAtReputation && s.compute.total < next.computeCU) return true;
     const building = s.buildings.filter((b) => b.kind === 'rack' && b.status === 'construction').length;
     const free = freeCapacity(s) + building * RACK.computeCU;
     const offers = s.jobs.filter((j) => j.status === 'offer');
@@ -292,7 +311,7 @@ class Bot {
     if (!item) return;
     const racks = s.buildings.filter((b) => b.kind === 'rack').length;
     // En carrière, le dernier palier exige 400 CU/s : le bot vise un parc plus grand.
-    if (racks >= (this.profile.career ? Math.max(this.profile.maxRacks, 22) : this.profile.maxRacks)) return;
+    if (racks >= (this.profile.career ? Math.max(this.profile.maxRacks, BOT.careerRacks) : this.profile.maxRacks)) return;
     const sites = s.buildings.filter((b) => b.status === 'construction').length;
     if (sites >= s.techs.length) return;
     // Un CRAC précède ses racks : il est posé dès que le rack suivant devient utile.
@@ -322,7 +341,7 @@ class Bot {
   /** Un technicien de plus tous les 8 racks. */
   private hire(s: GameState): void {
     const racks = s.buildings.filter((b) => b.kind === 'rack').length;
-    const wanted = Math.min(TECH.max, TECH.start + Math.floor(racks / 8));
+    const wanted = Math.min(TECH.max, TECH.start + Math.floor(racks / BOT.racksPerTech));
     if (s.techs.length < wanted && s.money >= TECH.hireCost + this.profile.reserve) s.commands.push({ type: 'hire' });
   }
 }
@@ -332,9 +351,9 @@ export function playBot(seed: number, profile: BotProfile, maxSeconds: number): 
   const s = createInitialState(seed, profile.career ? 'career' : 'quick');
   const bot = new Bot(profile);
   const run: BotRun = { state: s, tierAt: [0], researchAt: {}, wonAt: null, lostAt: null, firstDeliveryAt: null, maxTemp: 0, maxIntake: 0, timeline: [] };
-  const totalTicks = Math.round(maxSeconds * 10);
+  const totalTicks = Math.round(maxSeconds * TICK_HZ);
   for (let tick = 0; tick < totalTicks; tick++) {
-    if (tick % THINK_EVERY_TICKS === 0) bot.think(s);
+    if (tick % BOT.thinkEveryTicks === 0) bot.think(s);
     step(s);
     for (const e of s.events) {
       if (e.code === 'delivered' && run.firstDeliveryAt === null) run.firstDeliveryAt = s.time;
@@ -344,7 +363,7 @@ export function playBot(seed: number, profile: BotProfile, maxSeconds: number): 
     s.events.length = 0;
     run.maxTemp = Math.max(run.maxTemp, tempStats(s).max);
     for (const b of s.buildings) if (isRackActive(b)) run.maxIntake = Math.max(run.maxIntake, rackTemp(s, b));
-    if (s.tick % 600 === 0) run.timeline.push(describe(s));
+    if (s.tick % (60 * TICK_HZ) === 0) run.timeline.push(timelineLine(s));
     if (s.outcome === 'won') {
       run.wonAt = s.time;
       break;
@@ -357,7 +376,7 @@ export function playBot(seed: number, profile: BotProfile, maxSeconds: number): 
   return run;
 }
 
-function describe(s: GameState): string {
+function timelineLine(s: GameState): string {
   const count = (kind: BuildingKind) => s.buildings.filter((b) => b.kind === kind).length;
   const failures = s.buildings.reduce((n, b) => n + b.failures, 0);
   const use = s.compute.total ? Math.round((100 * s.compute.used) / s.compute.total) : 0;

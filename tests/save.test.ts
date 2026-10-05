@@ -3,12 +3,7 @@ import { MIGRATIONS, SAVE_FORMAT, SaveManager, deserialize, serialize } from '..
 import type { KeyValueStore } from '../src/settings';
 import { step } from '../src/sim/sim';
 import { addBuilding, createInitialState, type GameState } from '../src/sim/state';
-import { runSeconds } from './helpers';
-
-function memoryStore(): KeyValueStore {
-  const data = new Map<string, string>();
-  return { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v), removeItem: (k) => void data.delete(k) };
-}
+import { memoryStore, runSeconds } from './helpers';
 
 /** Une partie un peu avancée : racks, contrat, chaleur, pannes possibles. */
 function playedGame(seed = 31): GameState {
