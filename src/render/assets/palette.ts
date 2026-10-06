@@ -118,6 +118,8 @@ export const PALETTE = {
   aisleHot: 0xff8a3d,
   containmentGlass: 0x9fd8ff,
   ghostBad: 0xff4040,
+  /** Construction possible mais qui couperait des câbles réseau. */
+  ghostWarn: 0xffb020,
   ghostNeutral: 0x666666,
   markerSymbol: 0x15171b,
 
@@ -135,7 +137,7 @@ export const PALETTE = {
   ping: { move: 0x3dffa0, build: 0xffc83d, repair: 0xffa23b, maintain: 0x5ef2c6, focus: 0x4fd1ff },
 
   /** Calques au sol (render/overlay-colors.ts) : liquide, entraînement, sol assombri sous les équipements. */
-  overlay: { liquid: 0x9678ff, training: 0xff6ec8, dim: 0x080c12 },
+  overlay: { liquid: 0x9678ff, training: 0xff6ec8, dim: 0x080c12, switchFull: 0xd9dee7 },
 } as const;
 
 export type Rgb = readonly [number, number, number];

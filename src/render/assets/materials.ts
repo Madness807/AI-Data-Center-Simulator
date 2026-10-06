@@ -52,6 +52,11 @@ export const MATERIALS = {
   switchLedOff: standard(PALETTE.upsLedOff, { roughness: 0.4 }),
   /** Fibre des câbles réseau : un léger éclat pour rester lisible au plafond. */
   fiber: standard(PALETTE.fiber, { roughness: 0.5, emissive: PALETTE.fiber, emissiveIntensity: 0.25 }),
+  /** Câbles d'un aperçu (switch pas encore posé) et câbles de l'équipement inspecté. */
+  cablePreview: glow(PALETTE.fiber, { transparent: true, opacity: 0.55, depthWrite: false }),
+  cableHighlight: glow(PALETTE.inspect, { transparent: true, opacity: 0.6, depthWrite: false }),
+  /** Cases à portée de câble d'un switch (aperçu, inspection). */
+  networkReach: overlay(PALETTE.switchAccent, 0.22),
 
   scaffold: standard(PALETTE.scaffold, { roughness: 0.5, metalness: 0.2 }),
   blueprint: standard(PALETTE.blueprint, {

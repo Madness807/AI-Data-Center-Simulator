@@ -1,4 +1,4 @@
-import { CRAC } from '../sim/balance';
+import { CRAC, NETWORK } from '../sim/balance';
 import { isRackActive, type Building } from '../sim/entities';
 import type { GameState } from '../sim/state';
 import { busyRackIds, cracCoolingKW, cracHeatLoad } from '../sim/stats';
@@ -7,12 +7,19 @@ import { outagesActive } from '../sim/systems/incidents';
 import { inCoolingRange } from '../sim/systems/heat';
 import { hotAisleCells, liquidCapture } from '../sim/climate';
 import { plannedGeneratorKW, plannedUpsKW, servedBy } from '../sim/systems/power';
+import { networkVisible } from '../sim/network';
+import { cableLayout, openReach } from './cable-paths';
 import { PALETTE, toRgb, type Rgb } from './assets/palette';
 import { statusColor, type StatusName } from './assets/status-colors';
 
 /** Calques posés sur le sol de la salle ; H les fait défiler. */
-export type OverlayMode = 'heat' | 'power' | 'cooling' | 'occupancy' | 'risk';
-export const OVERLAY_MODES: readonly OverlayMode[] = ['heat', 'power', 'cooling', 'occupancy', 'risk'];
+export type OverlayMode = 'heat' | 'power' | 'cooling' | 'occupancy' | 'risk' | 'network';
+export const OVERLAY_MODES: readonly OverlayMode[] = ['heat', 'power', 'cooling', 'occupancy', 'risk', 'network'];
+
+/** Le calque a-t-il un sens dans cette partie ? Le réseau n'existe qu'en carrière, une fois le switch débloqué. */
+export function overlayAvailable(mode: OverlayMode, s: GameState): boolean {
+  return mode !== 'network' || networkVisible(s);
+}
 
 export type { Rgb };
 
@@ -50,6 +57,10 @@ const HOT_AISLE = toRgb(PALETTE.aisleHot);
 const LIQUID = toRgb(PALETTE.overlay.liquid);
 /** Racks pris par un entraînement (bloc dédié). */
 const TRAINING_RGB = toRgb(PALETTE.overlay.training);
+/** Réseau : le mauve des switchs (et de leur portée), le jaune des câbles, le gris clair d'un switch plein. */
+const SWITCH_RGB = toRgb(PALETTE.switchAccent);
+const SWITCH_FULL = toRgb(PALETTE.overlay.switchFull);
+const FIBER = toRgb(PALETTE.fiber);
 /** Sol assombri sous les calques par équipement : les cases colorées ressortent. */
 const DIM = toRgb(PALETTE.overlay.dim);
 const DIM_ALPHA = 130;
@@ -131,6 +142,17 @@ export function overlayLegend(mode: Exclude<OverlayMode, 'heat'>): { title: stri
           { label: `≥ ${RISK_TICKS[2] * 100} %`, rgb: riskToRgb(RISK_TICKS[2]) },
         ],
       };
+    case 'network':
+      return {
+        title: 'Réseau · racks reliés aux switchs',
+        items: [
+          { label: 'Rack relié', rgb: status('busy') },
+          { label: 'Rack non relié', rgb: status('failed') },
+          { label: 'Câbles', rgb: FIBER },
+          { label: 'Switch libre · portée', rgb: SWITCH_RGB },
+          { label: 'Switch plein', rgb: SWITCH_FULL },
+        ],
+      };
   }
 }
 
@@ -156,48 +178,61 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
   for (let i = 0; i < s.temp.length; i++) put(i, DIM, DIM_ALPHA);
   const cell = (b: Building) => b.y * s.w + b.x;
 
-  if (mode === 'power') {
-    const load = s.power.capacityKW > 0 ? s.power.demandKW / s.power.capacityKW : 1;
-    const covered = backupCoverage(s);
-    for (const b of s.buildings) {
-      const i = cell(b);
-      if (b.status === 'construction') put(i, status('idle'), 140);
-      else if (b.status === 'failed' || b.status === 'repairing') put(i, status('failed'), 235);
-      else if (b.kind === 'pdu') put(i, load >= 1 ? status('shed') : load >= LOAD_WARN ? status('repairing') : status('busy'), 235);
-      else if (b.kind === 'ups' || b.kind === 'generator') put(i, COOL, 235);
-      else if (!b.powered) put(i, status('shed'), 235);
-      // Alimenté mais qui tomberait si le réseau coupait : orange.
-      else put(i, covered && !covered.has(b.id) ? status('repairing') : status('busy'), 235);
-    }
-    return;
-  }
-
-  if (mode === 'occupancy') {
-    const busy = busyRackIds(s);
-    const training = new Set(s.jobs.flatMap((j) => (j.status === 'active' && j.assigned ? j.assigned : [])));
-    for (const b of s.buildings) {
-      if (b.kind !== 'rack') continue;
-      if (training.has(b.id) && isRackActive(b)) {
-        put(cell(b), TRAINING_RGB, 235);
-        continue;
+  switch (mode) {
+    case 'power': {
+      const load = s.power.capacityKW > 0 ? s.power.demandKW / s.power.capacityKW : 1;
+      const covered = backupCoverage(s);
+      for (const b of s.buildings) {
+        const i = cell(b);
+        if (b.status === 'construction') put(i, status('idle'), 140);
+        else if (b.status === 'failed' || b.status === 'repairing') put(i, status('failed'), 235);
+        else if (b.kind === 'pdu') put(i, load >= 1 ? status('shed') : load >= LOAD_WARN ? status('repairing') : status('busy'), 235);
+        else if (b.kind === 'ups' || b.kind === 'generator') put(i, COOL, 235);
+        else if (!b.powered) put(i, status('shed'), 235);
+        // Alimenté mais qui tomberait si le réseau électrique coupait : orange.
+        else put(i, covered && !covered.has(b.id) ? status('repairing') : status('busy'), 235);
       }
-      const name: StatusName =
-        b.status === 'failed' ? 'failed' : b.status === 'repairing' ? 'repairing' : b.status === 'construction' ? 'idle' : !b.powered ? 'shed' : busy.has(b.id) ? 'busy' : 'idle';
-      put(cell(b), status(name), b.status === 'construction' ? 120 : 235);
+      return;
     }
-    return;
-  }
-
-  if (mode === 'risk') {
-    for (const b of s.buildings) {
-      if (b.kind !== 'rack') continue;
-      if (isRackActive(b)) put(cell(b), riskToRgb(rackRiskPerMinute(s, b)), 235);
-      else put(cell(b), status(b.status === 'failed' ? 'failed' : 'idle'), 120);
+    case 'occupancy': {
+      const busy = busyRackIds(s);
+      const training = new Set(s.jobs.flatMap((j) => (j.status === 'active' && j.assigned ? j.assigned : [])));
+      for (const b of s.buildings) {
+        if (b.kind !== 'rack') continue;
+        if (training.has(b.id) && isRackActive(b)) {
+          put(cell(b), TRAINING_RGB, 235);
+          continue;
+        }
+        const name: StatusName =
+          b.status === 'failed' ? 'failed' : b.status === 'repairing' ? 'repairing' : b.status === 'construction' ? 'idle' : !b.powered ? 'shed' : busy.has(b.id) ? 'busy' : 'idle';
+        put(cell(b), status(name), b.status === 'construction' ? 120 : 235);
+      }
+      return;
     }
-    return;
+    case 'risk':
+      for (const b of s.buildings) {
+        if (b.kind !== 'rack') continue;
+        if (isRackActive(b)) put(cell(b), riskToRgb(rackRiskPerMinute(s, b)), 235);
+        else put(cell(b), status(b.status === 'failed' ? 'failed' : 'idle'), 120);
+      }
+      return;
+    case 'cooling':
+      paintCooling(s, put, cell);
+      return;
+    case 'network':
+      paintNetwork(s, put, cell);
+      return;
+    default: {
+      const unknown: never = mode;
+      throw new Error(`Calque inconnu : ${String(unknown)}`);
+    }
   }
+}
 
-  // Refroidissement : chaque case prend la meilleure marge parmi les CRAC qui la couvrent.
+type Put = (i: number, rgb: Rgb, a: number) => void;
+
+/** Refroidissement : chaque case prend la meilleure marge parmi les CRAC qui la couvrent. */
+function paintCooling(s: GameState, put: Put, cell: (b: Building) => number): void {
   const cracs = s.buildings.filter((b) => b.kind === 'crac' && b.status === 'ok' && b.powered);
   const best = new Float32Array(s.temp.length).fill(-Infinity);
   for (const c of cracs) {
@@ -222,6 +257,22 @@ export function paintOverlay(mode: OverlayMode, s: GameState, out: Uint8Array): 
 }
 
 /**
+ * Réseau : portée des switchs qui ont encore un port libre, cases câblées (plus opaques quand
+ * elles portent plusieurs câbles), racks reliés ou non, switchs libres ou pleins. Le câble d'un
+ * rack est physique : un rack en panne reste relié.
+ */
+function paintNetwork(s: GameState, put: Put, cell: (b: Building) => number): void {
+  const layout = cableLayout(s);
+  for (const i of openReach(s, layout)) put(i, mix(DIM, SWITCH_RGB, 0.35), 150);
+  for (const [i, n] of layout.cells) put(i, FIBER, 150 + 15 * Math.min(n, 6));
+  const linked = new Set(layout.view.cables.map((c) => c.rack));
+  for (const b of s.buildings) {
+    if (b.kind === 'rack' && b.status !== 'construction') put(cell(b), status(linked.has(b.id) ? 'busy' : 'failed'), 235);
+    else if (b.kind === 'switch') put(cell(b), (layout.view.ports.get(b.id) ?? 0) >= NETWORK.ports ? SWITCH_FULL : SWITCH_RGB, 240);
+  }
+}
+
+/**
  * Équipements qui tiendraient une coupure : servis dans l'ordre (CRAC puis racks) avec la
  * puissance des groupes et des onduleurs construits. null quand les coupures ne concernent
  * pas la partie (partie rapide, palier trop bas) : le calque n'affiche alors pas ce critère.
@@ -238,4 +289,13 @@ export function powerLoadLabel(s: GameState): string {
   const base = `${Math.round(s.power.demandKW)} / ${Math.round(s.power.capacityKW)} kW demandés · ${pdus} PDU`;
   if (!outagesActive(s)) return base;
   return `${base} · secours ${plannedGeneratorKW(s) + plannedUpsKW(s)} kW`;
+}
+
+/** Câblage en une ligne, sous la légende du calque réseau. */
+export function networkLoadLabel(s: GameState): string {
+  const layout = cableLayout(s);
+  const racks = s.buildings.filter((b) => b.kind === 'rack' && b.status !== 'construction').length;
+  const linked = layout.view.cables.filter((c) => s.buildings.find((b) => b.id === c.rack)?.status !== 'construction').length;
+  const free = s.buildings.filter((b) => b.kind === 'switch').reduce((n, b) => n + NETWORK.ports - (layout.view.ports.get(b.id) ?? 0), 0);
+  return `${linked} / ${racks} racks reliés · ${free} ports libres`;
 }

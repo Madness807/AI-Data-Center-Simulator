@@ -4,7 +4,7 @@ import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, buildingById, idx, notify, type GameState, type Speed } from '../sim/state';
 import { siteProgress } from '../sim/stats';
 import { cableReach } from '../sim/network';
-import { cableLayout } from '../render/cable-paths';
+import { cableLayout, type CablePreview } from '../render/cable-paths';
 import type { OverlayMode } from '../render/overlay-colors';
 import { tempCss } from './color';
 import { AlertFeed } from './components/alert-feed';
@@ -32,7 +32,7 @@ import { SelectionPanel } from './components/selection-panel';
 import { buildingName } from './catalog';
 import { Tooltip } from './components/tooltip';
 import { el, icon, setHidden } from './dom';
-import { celsius, money, moneyRate, percent, seconds, signedMoney } from './format';
+import { celsius, money, moneyRate, percent, plural, seconds, signedMoney } from './format';
 import { GameHistory, LedgerHistory, TemperatureHistory } from './metrics';
 import type { ThumbnailKey } from '../render/thumbnails';
 
@@ -90,6 +90,8 @@ export interface HudView {
   overlay: OverlayMode | null;
   edgePan: boolean;
   hover: Cell | null;
+  /** Ce que la construction visée changerait au réseau (outil en main sur une case valide). */
+  preview?: CablePreview | null;
   selected: ReadonlySet<number>;
   /** Équipement inspecté (id), ou null. */
   inspected: number | null;
@@ -447,7 +449,7 @@ export class Hud {
     if (lost) this.defeat.update(s);
     setHidden(this.overlay, this.phase !== 'title' && !this.victoryOpen && !this.tierOpen && !lost);
     this.overlay.classList.toggle('dim', this.phase !== 'title');
-    this.updateWorldTip(s, view.hover);
+    this.updateWorldTip(s, view.hover, view.preview ?? null);
     // Les refus vont près du curseur ; le reste rejoint l'historique des alertes.
     for (const e of s.events) {
       if (e.code === 'refused') this.flash.show(e.message);
@@ -455,7 +457,7 @@ export class Hud {
     }
   }
 
-  private updateWorldTip(s: GameState, cell: Cell | null): void {
+  private updateWorldTip(s: GameState, cell: Cell | null, preview: CablePreview | null): void {
     if (!cell) {
       this.tooltip.setWorld('', null);
       return;
@@ -468,13 +470,26 @@ export class Hud {
     const cables = b ? 0 : (net.cells.get(idx(s, x, y)) ?? 0);
     const link = b?.kind === 'rack' && s.rules.network ? net.view.cables.find((c) => c.rack === b.id) : undefined;
     const ports = b?.kind === 'switch' ? (net.view.ports.get(b.id) ?? 0) : 0;
-    const key = `${x},${y}|${b?.id}|${b?.status}|${b?.powered}|${t.toFixed(1)}|${b ? Math.ceil(b.workLeft) : ''}|${cables}|${link?.sw ?? ''}|${ports}`;
+    const plan = preview ? `${preview.kind}:${preview.cables.length}:${preview.cut.length}` : '';
+    const key = `${x},${y}|${b?.id}|${b?.status}|${b?.powered}|${t.toFixed(1)}|${b ? Math.ceil(b.workLeft) : ''}|${cables}|${link?.sw ?? ''}|${ports}|${plan}`;
     this.tooltip.setWorld(key, () => {
       const rows: [string, Node | string][] = [['Température', tempValue(t)]];
       if (cables) rows.push(['Câbles réseau', `${cables} au plafond`]);
       if (b?.kind === 'rack' && s.rules.network) rows.push(['Réseau', link ? `switch ${link.switchCell.x},${link.switchCell.y}` : 'non relié']);
       if (b?.kind === 'switch') rows.push(['Ports', `${ports} / ${NETWORK.ports}`]);
-      if (!b) return tip(`Case ${x},${y}`, rows);
+      if (!b) {
+        let hint: string | undefined;
+        if (preview?.kind === 'switch') {
+          rows.push(['Racks reliés ici', `${preview.cables.length} / ${NETWORK.ports}`]);
+          hint = `Portée : ${cableReach(s)} cases de câble par les allées (zone mauve).`;
+        }
+        if (preview?.cut.length) {
+          const n = preview.cut.length;
+          const busy = s.jobs.filter((j) => j.status === 'active' && j.assigned?.some((id) => preview.cut.includes(id))).length;
+          hint = `Construire ici couperait le câble de ${n} ${plural(n, 'rack')}${busy ? `, et ${busy} ${plural(busy, 'entraînement')} reculerai${busy > 1 ? 'en' : ''}t` : ''}.`;
+        }
+        return tip(`Case ${x},${y}`, rows, hint);
+      }
       let chip: HTMLElement;
       let hint: string | undefined;
       if (b.status === 'construction') {

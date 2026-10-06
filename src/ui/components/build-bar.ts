@@ -4,7 +4,7 @@ import { canHire } from '../../sim/stats';
 import { toolBuild, type Tool } from '../../input/build';
 import { actionKey, HELP_CHAR } from '../../input/keymap';
 import type { GameState } from '../../sim/state';
-import { OVERLAY_MODES, type OverlayMode } from '../../render/overlay-colors';
+import { OVERLAY_MODES, overlayAvailable, type OverlayMode } from '../../render/overlay-colors';
 import { KIND_INFO, shortName } from '../catalog';
 import { el, icon, setText } from '../dom';
 import { money } from '../format';
@@ -260,6 +260,7 @@ export class BuildBar {
       c.root.disabled = !locked && tool !== 'demolish' && s.money < toolCost(tool);
     }
     this.hireCard.disabled = !canHire(s);
+    for (const [mode, item] of this.overlayItems) item.hidden = mode !== null && !overlayAvailable(mode, s);
     if (view.overlay !== this.shownOverlay) {
       this.shownOverlay = view.overlay;
       const info = view.overlay ? OVERLAY_INFO[view.overlay] : { short: 'Calques', icon: 'layers' as IconName };

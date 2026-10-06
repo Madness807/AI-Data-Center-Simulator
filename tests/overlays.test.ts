@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { setColorblind, statusColor, type StatusName } from '../src/render/assets/status-colors';
-import { backupCoverage, cracHeadroom, paintOverlay, riskToRgb, type OverlayMode } from '../src/render/overlay-colors';
+import { backupCoverage, cracHeadroom, overlayAvailable, overlayLegend, paintOverlay, riskToRgb, type OverlayMode } from '../src/render/overlay-colors';
+import { PALETTE } from '../src/render/assets/palette';
+import { updateNetwork } from '../src/sim/network';
+import { room } from './helpers';
 import { GRID_H, GRID_W, OUTAGE, UPS } from '../src/sim/balance';
 import { addBuilding, createEmptyState, idx, type GameState } from '../src/sim/state';
 import { updateJobs } from '../src/sim/systems/jobs';
@@ -66,6 +69,35 @@ describe('calques', () => {
     const at = paint('power', s);
     expect(colorOf(at(2, 4))).toEqual(status('busy'));
     expect(colorOf(at(5, 4))).toEqual(status('repairing'));
+  });
+
+  it('réseau : racks reliés ou non, câbles, switchs libres ou pleins ; seulement en carrière, switch débloqué', () => {
+    const s = room(3, { tier: 2, pdus: 4 });
+    expect(overlayAvailable('network', s)).toBe(false);
+    expect(overlayAvailable('network', createEmptyState(1))).toBe(false);
+    s.research.done.push('switches');
+    expect(overlayAvailable('network', s)).toBe(true);
+    addBuilding(s, 'switch', 5, 10);
+    for (const x of [6, 7]) addBuilding(s, 'rack', x, 10);
+    addBuilding(s, 'rack', 20, 3); // trop loin
+    updatePower(s);
+    updateNetwork(s);
+    for (const colorblind of [false, true]) {
+      setColorblind(colorblind);
+      const at = paint('network', s);
+      expect(colorOf(at(6, 10))).toEqual(status('busy'));
+      expect(colorOf(at(20, 3))).toEqual(status('failed'));
+      expect(colorOf(at(6, 11))).toEqual(rgb(PALETTE.fiber)); // l'allée qu'emprunte le câble du rack (7,10)
+      expect(colorOf(at(5, 10))).toEqual(rgb(PALETTE.switchAccent)); // 2 ports pris sur 8
+      // Les couleurs de la légende restent bien distinctes, en mode daltonien aussi.
+      const items = overlayLegend('network').items.map((i) => i.rgb);
+      for (let a = 0; a < items.length; a++) {
+        for (let b = a + 1; b < items.length; b++) expect(Math.hypot(...items[a].map((v, k) => v - items[b][k]))).toBeGreaterThan(60);
+      }
+    }
+    for (let x = 8; x < 14; x++) addBuilding(s, 'rack', x, 10);
+    updateNetwork(s);
+    expect(colorOf(paint('network', s)(5, 10))).toEqual(rgb(PALETTE.overlay.switchFull));
   });
 
   it('occupation : racks qui calculent et racks inactifs', () => {

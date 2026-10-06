@@ -13,6 +13,7 @@ import {
   Keyboard,
   Map as MapIcon,
   Move,
+  Cable,
   Network,
   Pause,
   Play,
@@ -114,6 +115,7 @@ export const ICONS = {
   rotate: RotateCw,
   weather: ThermometerSun,
   switch: Network,
+  cable: Cable,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;

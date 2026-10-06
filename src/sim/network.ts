@@ -1,7 +1,7 @@
 import { NETWORK, OPTICAL } from './balance';
 import type { Building, Cell } from './entities';
 import { DIRS4, manhattan } from './math';
-import { modifiers } from './progression';
+import { isUnlocked, modifiers } from './progression';
 import { idx, inBounds, notify, type GameState } from './state';
 
 /**
@@ -45,6 +45,11 @@ export interface NetworkPlanOptions {
 /** Le réseau compte-t-il pour l'entraînement (carrière, à partir du palier NETWORK.minTier) ? */
 export function networkActive(s: GameState): boolean {
   return s.rules.network && s.career.tier >= NETWORK.minTier;
+}
+
+/** Le réseau a-t-il sa place à l'écran (calque, aperçus) : carrière, switch débloqué ou déjà posé. */
+export function networkVisible(s: GameState): boolean {
+  return s.rules.network && (isUnlocked(s, 'switch') || s.buildings.some((b) => b.kind === 'switch'));
 }
 
 /** Longueur de câble maximale : plus longue avec l'interconnexion optique. */

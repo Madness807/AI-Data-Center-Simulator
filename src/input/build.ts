@@ -5,6 +5,7 @@ import type { BuildingKind, Facing, Gen } from '../sim/entities';
 import { buildingAt, type GameState } from '../sim/state';
 import { createBuildGhost, createRangeRing } from '../render/assets';
 import { cellCenter } from '../render/grid';
+import { cablePreview, type CablePreview } from '../render/cable-paths';
 import { pickGroundCell, rayFromScreen, type Cell } from './picking';
 
 export type Tool = BuildingKind | 'rack2' | 'rack3' | 'demolish' | null;
@@ -24,6 +25,8 @@ export class BuildController {
   tool: Tool = null;
   /** Orientation des racks posés (carrière) : F la fait tourner d'un quart de tour. */
   facing: Facing = 0;
+  /** Ce que la construction visée changerait au réseau (portée et câbles d'un switch, câbles coupés). */
+  preview: CablePreview | null = null;
   private groundHover: Cell | null = null;
   private buildingHover: Cell | null = null;
   private painting = false;
@@ -115,6 +118,7 @@ export class BuildController {
     this.hoverRing.visible = !this.tool && hovered?.kind === 'crac';
     if (hovered && this.hoverRing.visible) cellCenter(hovered.x, hovered.y, this.hoverRing.position).setY(0.03);
 
+    this.preview = null;
     if (!this.tool || !cell) {
       this.ghost.root.visible = false;
       return;
@@ -124,7 +128,10 @@ export class BuildController {
     if (this.tool === 'demolish') this.ghost.set('demolish', hovered !== undefined);
     else {
       const { kind, gen } = toolBuild(this.tool);
-      this.ghost.set(kind, canBuild(s, kind, cell.x, cell.y, gen) === null, s.rules.aisles && kind === 'rack' ? this.facing : undefined);
+      const valid = canBuild(s, kind, cell.x, cell.y, gen) === null;
+      this.preview = valid ? cablePreview(s, kind, cell) : null;
+      // Ambre : possible, mais des racks perdraient leur câble réseau.
+      this.ghost.set(kind, valid, s.rules.aisles && kind === 'rack' ? this.facing : undefined, (this.preview?.cut.length ?? 0) > 0);
     }
   }
 }

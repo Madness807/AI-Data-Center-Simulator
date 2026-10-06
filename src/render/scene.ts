@@ -34,7 +34,7 @@ import {
 } from './assets';
 import { cellCenter } from './grid';
 import { CableView } from './cable-view';
-import type { CableLayout } from './cable-paths';
+import type { CableLayout, CablePreview } from './cable-paths';
 import { FloorOverlay } from './overlays';
 import { hotAisleCells } from '../sim/climate';
 import { FACING_ANGLE } from './assets/fx/build-ghost';
@@ -320,11 +320,14 @@ export class SceneView {
     alpha: number,
     selected: ReadonlySet<number>,
     inspected: Building | null = null,
+    preview: CablePreview | null = null,
   ): void {
     this.syncInspected(inspected, realTime);
     this.syncRacks(s, realTime);
     this.syncContainment(s);
     this.syncOthers(s, realTime, realDt, this.cables.sync(s));
+    this.cables.setTraysVisible(this.overlay.mode !== 'network');
+    this.cables.syncOverlay(s, preview, inspected);
     this.syncTechs(s, realTime, alpha, selected);
     this.updatePings(realDt);
     this.overlay.update(s);

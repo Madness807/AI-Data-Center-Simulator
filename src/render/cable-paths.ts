@@ -1,4 +1,6 @@
-import { cableReach, networkView, switchUp, type NetworkView } from '../sim/network';
+import { NETWORK } from '../sim/balance';
+import type { BuildingKind, Cell } from '../sim/entities';
+import { cableReach, networkView, planLinks, switchReach, switchUp, type Cable, type NetworkView } from '../sim/network';
 import { idx, type GameState } from '../sim/state';
 
 /**
@@ -72,4 +74,55 @@ export function cableLayout(s: GameState): CableLayout {
   const layout = { view, ...trayGraph(s, view) };
   cached = { key, layout };
   return layout;
+}
+
+/** Ce que changerait une construction pour le réseau (fantôme, infobulle, aperçu en 3D). */
+export interface CablePreview {
+  kind: BuildingKind;
+  cell: Cell;
+  /** Racks câblés aujourd'hui qui perdraient leur câble (la construction fermerait leur seul chemin). */
+  cut: number[];
+  /** Switch : cases à portée de câble, et les câbles qu'il recevrait. */
+  reach: number[];
+  cables: Cable[];
+}
+
+let previewCache: { key: string; preview: CablePreview | null } | null = null;
+
+/**
+ * Aperçu d'une construction de `kind` sur la case libre `cell` ; null quand le réseau n'est pas
+ * en jeu ou que la case est prise. Recalculé seulement quand la case, l'outil ou le câblage change.
+ */
+export function cablePreview(s: GameState, kind: BuildingKind, cell: Cell): CablePreview | null {
+  if (!s.rules.network || s.occupant[idx(s, cell.x, cell.y)] >= 0) return null;
+  const layout = cableLayout(s);
+  const key = `${kind}|${cell.x},${cell.y}|${signature(s)}`;
+  if (previewCache?.key === key) return previewCache.preview;
+  const linked = layout.view.cables.map((c) => c.rack);
+  let preview: CablePreview;
+  if (kind === 'switch') {
+    const view = networkView(s, { addSwitch: cell });
+    const after = new Set(view.cables.map((c) => c.rack));
+    preview = { kind, cell, cut: linked.filter((id) => !after.has(id)), reach: switchReach(s, cell), cables: view.cables.filter((c) => c.sw === s.nextId) };
+  } else {
+    const after = planLinks(s, { block: cell });
+    preview = { kind, cell, cut: linked.filter((id) => !after.has(id)), reach: [], cables: [] };
+  }
+  previewCache = { key, preview };
+  return preview;
+}
+
+const reachCache = new WeakMap<CableLayout, Set<number>>();
+
+/** Cases libres à portée d'un switch qui a encore un port libre (le calque Réseau les teinte). */
+export function openReach(s: GameState, layout: CableLayout): Set<number> {
+  let cells = reachCache.get(layout);
+  if (cells) return cells;
+  cells = new Set<number>();
+  for (const b of s.buildings) {
+    if (b.kind !== 'switch' || (layout.view.ports.get(b.id) ?? 0) >= NETWORK.ports) continue;
+    for (const i of switchReach(s, b)) cells.add(i);
+  }
+  reachCache.set(layout, cells);
+  return cells;
 }

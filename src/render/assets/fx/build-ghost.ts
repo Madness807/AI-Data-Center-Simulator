@@ -24,8 +24,9 @@ export interface BuildGhost {
    * Affiche l'aperçu de `kind`. Construction : vert si `valid`, rouge sinon.
    * Démolition : rouge si un équipement est visé (`valid`), gris sinon. Pour un rack en
    * carrière, `facing` oriente le fantôme et montre l'avant (air froid) et l'arrière (air chaud).
+   * `warn` : possible, mais la construction couperait des câbles réseau (ambre).
    */
-  set(kind: GhostKind, valid: boolean, facing?: Facing): void;
+  set(kind: GhostKind, valid: boolean, facing?: Facing, warn?: boolean): void;
 }
 
 /** Repère d'allée au sol, juste au-delà du bord de la case (devant ou derrière). */
@@ -61,7 +62,7 @@ export function createBuildGhost(): BuildGhost {
 
   return {
     root,
-    set(kind, valid, facing) {
+    set(kind, valid, facing, warn = false) {
       for (const [k, mesh] of Object.entries(shapes)) mesh.visible = k === kind;
       ring.visible = kind === 'crac';
       cduRing.visible = kind === 'cdu';
@@ -69,7 +70,7 @@ export function createBuildGhost(): BuildGhost {
       body.rotation.y = kind === 'rack' && facing !== undefined ? FACING_ANGLE[facing] : 0;
       front.visible = back.visible = kind === 'rack' && facing !== undefined;
       if (kind === 'demolish') material.color.set(valid ? PALETTE.ghostBad : PALETTE.ghostNeutral);
-      else material.color.set(valid ? PALETTE.ghostOk : PALETTE.ghostBad);
+      else material.color.set(valid ? (warn ? PALETTE.ghostWarn : PALETTE.ghostOk) : PALETTE.ghostBad);
     },
   };
 }

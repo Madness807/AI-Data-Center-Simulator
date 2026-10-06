@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { PROP_MODELS } from '../src/render/assets';
-import { cableLayout, trayGraph } from '../src/render/cable-paths';
+import { cableLayout, cablePreview, trayGraph } from '../src/render/cable-paths';
 import { CableView } from '../src/render/cable-view';
 import { networkView, updateNetwork } from '../src/sim/network';
 import { addBuilding, idx, type GameState } from '../src/sim/state';
@@ -53,7 +53,7 @@ describe('chemins de câbles', () => {
     const s = wired();
     const view = new CableView(s.w, s.h);
     view.sync(s);
-    const counts = (view.root.children as THREE.InstancedMesh[]).map((m) => m.count);
+    const counts = (view.root.children[0].children as THREE.InstancedMesh[]).map((m) => m.count);
     // 7 tronçons ; descentes : 3 racks, et 2 arrivées au switch (dessous et côté).
     expect(counts).toEqual([7, 7, 5]);
   });
@@ -66,6 +66,51 @@ describe('chemins de câbles', () => {
     expect([lit.visible, boxes(lit), boxes(dark)]).toEqual([true, 6, 10]); // dessus et façade
     model.update({ time: 0, dt: 0, speed: 1, powered: false, progress: 1, ports: 3 });
     expect([lit.visible, boxes(dark)]).toEqual([false, 16]);
+  });
+});
+
+describe('aperçus de construction', () => {
+  it('un switch à poser : sa portée et les racks qu’il relierait', () => {
+    const s = room(9, { tier: 2, pdus: 4 });
+    for (const x of [6, 7, 8]) addBuilding(s, 'rack', x, 10);
+    const p = cablePreview(s, 'switch', { x: 5, y: 10 })!;
+    expect(p.cables.map((c) => c.rackCell.x).sort()).toEqual([6, 7, 8]);
+    expect(p.reach).toContain(idx(s, 5, 11));
+    expect(p.cut).toEqual([]);
+    expect(cablePreview(s, 'switch', { x: 5, y: 10 })).toBe(p); // même objet tant que rien ne change
+    expect(cablePreview(s, 'switch', { x: 6, y: 10 })).toBeNull(); // case prise
+  });
+
+  it('une construction qui fermerait le seul chemin d’un câble le signale ; un détour possible, non', () => {
+    const s = room(9, { tier: 2, pdus: 4 });
+    addBuilding(s, 'switch', 5, 10);
+    const r = addBuilding(s, 'rack', 7, 10);
+    for (const [x, y] of [[8, 10], [7, 11], [7, 9]]) addBuilding(s, 'crac', x, y);
+    updatePower(s);
+    updateNetwork(s);
+    expect(cablePreview(s, 'crac', { x: 6, y: 10 })?.cut).toEqual([r.id]);
+    const t = room(9, { tier: 2, pdus: 4 });
+    addBuilding(t, 'switch', 5, 10);
+    addBuilding(t, 'rack', 7, 10);
+    updatePower(t);
+    updateNetwork(t);
+    expect(cablePreview(t, 'crac', { x: 6, y: 10 })?.cut).toEqual([]);
+  });
+
+  it('la vue 3D montre la portée et les câbles fantômes d’un switch à poser, ou les câbles de l’équipement inspecté', () => {
+    const s = wired();
+    const view = new CableView(s.w, s.h);
+    view.sync(s);
+    const [, ghostBundles, , reach] = view.root.children as THREE.InstancedMesh[];
+    addBuilding(s, 'rack', 6, 12);
+    view.syncOverlay(s, cablePreview(s, 'switch', { x: 7, y: 12 }), null);
+    expect(reach.count).toBeGreaterThan(10);
+    expect(ghostBundles.count).toBeGreaterThan(0);
+    const sw = s.buildings.find((b) => b.kind === 'switch')!;
+    view.syncOverlay(s, null, sw);
+    expect(ghostBundles.count).toBe(7); // tous les câbles du switch
+    view.syncOverlay(s, null, null);
+    expect([ghostBundles.count, reach.count]).toEqual([0, 0]);
   });
 });
 

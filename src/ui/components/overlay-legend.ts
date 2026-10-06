@@ -1,7 +1,7 @@
 import { FAILURE } from '../../sim/balance';
 import type { GameState } from '../../sim/state';
 import { statusVersion } from '../../render/assets/status-colors';
-import { HEAT_STOPS, overlayLegend, powerLoadLabel, type OverlayMode } from '../../render/overlay-colors';
+import { HEAT_STOPS, networkLoadLabel, overlayLegend, powerLoadLabel, type OverlayMode } from '../../render/overlay-colors';
 import { rgbCss } from '../color';
 import { el, icon, setText } from '../dom';
 import type { IconName } from '../icons';
@@ -13,6 +13,7 @@ export const OVERLAY_INFO: Record<OverlayMode, { label: string; short: string; i
   cooling: { label: 'Couverture des CRAC', short: 'Froid', icon: 'crac' },
   occupancy: { label: 'Activité des racks', short: 'Activité', icon: 'compute' },
   risk: { label: 'Risque de panne', short: 'Risque', icon: 'alert' },
+  network: { label: 'Réseau (câblage)', short: 'Réseau', icon: 'cable' },
 };
 
 /** Rampe des températures, avec le seuil au-delà duquel les pannes se multiplient. */
@@ -74,7 +75,9 @@ export class OverlayLegend {
         );
       }
     }
-    this.note.hidden = mode !== 'power';
-    if (mode === 'power') setText(this.note, powerLoadLabel(s));
+    // Une ligne de chiffres sous la légende : charge électrique, ou câblage.
+    const note = mode === 'power' ? powerLoadLabel(s) : mode === 'network' ? networkLoadLabel(s) : null;
+    this.note.hidden = note === null;
+    if (note !== null) setText(this.note, note);
   }
 }

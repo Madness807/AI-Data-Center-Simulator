@@ -9,7 +9,7 @@ import { processCommands, type Command } from './sim/commands';
 import { step } from './sim/sim';
 import { buildingAt, buildingById, createInitialState, notify, type GameEvent, type GameState, type Speed } from './sim/state';
 import { SceneView } from './render/scene';
-import { OVERLAY_MODES, type OverlayMode } from './render/overlay-colors';
+import { OVERLAY_MODES, overlayAvailable, type OverlayMode } from './render/overlay-colors';
 import { renderThumbnails, type ThumbnailKey } from './render/thumbnails';
 import { BuildController } from './input/build';
 import { loadKeyboardLayout, matches, type KeyAction } from './input/keymap';
@@ -121,9 +121,9 @@ const setSpeed = (speed: Speed) => {
   enqueue({ type: 'setSpeed', speed });
 };
 const setOverlay = (mode: OverlayMode | null) => (view.overlay.mode = mode);
-/** H : calque suivant (Maj : précédent), en passant par « aucun ». */
+/** H : calque suivant (Maj : précédent), en passant par « aucun ». Seuls les calques de la partie défilent. */
 const cycleOverlay = (dir: 1 | -1) => {
-  const order: (OverlayMode | null)[] = [null, ...OVERLAY_MODES];
+  const order: (OverlayMode | null)[] = [null, ...OVERLAY_MODES.filter((m) => overlayAvailable(m, state))];
   view.overlay.mode = order[(order.indexOf(view.overlay.mode) + dir + order.length) % order.length];
 };
 /** Panneau Équipe : sélection des techniciens et caméra sur le premier. */
@@ -141,6 +141,8 @@ const rejectJob = (id: number) => enqueue({ type: 'rejectJob', id });
 const loadState = (next: GameState) => {
   Object.assign(state, next);
   lastSpeed = 1;
+  // Le calque réseau n'a pas de sens dans une partie qui n'en a pas.
+  if (view.overlay.mode && !overlayAvailable(view.overlay.mode, state)) view.overlay.mode = null;
   build.setTool(null);
   selection.clear();
   hud.reset();
@@ -383,7 +385,7 @@ function frame(now: number) {
   selection.prune(state);
   build.update();
   const inspected = selection.inspected === null ? null : (buildingById(state, selection.inspected) ?? null);
-  view.render(state, now / 1000, realDt, acc / DT, selection.selected, inspected);
+  view.render(state, now / 1000, realDt, acc / DT, selection.selected, inspected, build.preview);
   // Son : événements et transitions de la partie, ambiance qui suit l'activité et la chaleur.
   if (phase === 'playing') {
     director.onEvents(state.events);
@@ -402,6 +404,7 @@ function frame(now: number) {
       overlay: view.overlay.mode,
       edgePan: view.rts.edgePan,
       hover: build.hover,
+      preview: build.preview,
       selected: selection.selected,
       inspected: selection.inspected,
     },
