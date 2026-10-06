@@ -1,6 +1,6 @@
-import { buildCost, CRAC, GENERATOR, GPU, RACK, TECH, TICK_HZ, UPS, WEATHER } from '../src/sim/balance';
+import { buildCost, CRAC, GENERATOR, GPU, NETWORK, RACK, TECH, TICK_HZ, UPS, WEATHER } from '../src/sim/balance';
 import { rackTemp } from '../src/sim/climate';
-import { largestFreeCluster } from '../src/sim/clusters';
+import { freeBlocks } from '../src/sim/clusters';
 import { canBuild, upgradeBlocker } from '../src/sim/commands';
 import { isRackActive, type Building, type BuildingKind, type Facing, type Gen, type Technician } from '../src/sim/entities';
 import { step } from '../src/sim/sim';
@@ -27,12 +27,14 @@ export interface BotProfile {
   noBackup?: boolean;
   /** Carrière : il ne fait aucune recherche (tout le calcul va aux contrats). */
   noResearch?: boolean;
+  /** Carrière : il ignore le réseau (ni recherche, ni switchs). */
+  noNetwork?: boolean;
 }
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
 export const RESEARCH_ORDER = [
   'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'switches', 'spare-parts', 'containment', 'planned-maintenance', 'gpu-g2',
-  'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3',
+  'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'fabric', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3',
   'specialties', 'switchover-2n', 'predictive', 'heat-reuse', 'optical',
 ];
 export const CAREER_RESEARCH_SHARE = 0.2;
@@ -40,7 +42,7 @@ export const CAREER_RESEARCH_SHARE = 0.2;
 export const COMPETENT: BotProfile = { cooling: true, contracts: true, maxRacks: 14, reserve: 4000 };
 
 /** Réglages de la stratégie du bot (l'équilibrage du jeu, lui, est dans src/sim/balance.ts). */
-const BOT = {
+export const BOT = {
   /** Avant la météo, le froid prévu des CRAC doit couvrir la chaleur prévue avec cette marge. */
   coolingMargin: 0.85,
   /** Usure (%) à partir de laquelle il envoie un entretien manuel. */
@@ -132,11 +134,21 @@ export const BACKUP_SPOTS = [
   ...[4, 6, 8, 10, 12, 14, 16, 18, 20, 22].map((x) => ({ x, y: 3 })),
 ];
 
+/**
+ * Switchs au bout des rangées, hors de toute allée : (5,10) relie les racks 6 à 13 de la rangée
+ * du bas, (22,10) les racks 14 à 21, (5,6) ceux de la rangée du haut.
+ */
+export const NETWORK_SPOTS = [
+  { x: 5, y: 10 },
+  { x: 22, y: 10 },
+  { x: 5, y: 6 },
+];
+
 /** PDU le long du mur du fond, une case sur deux. */
 export const PDU_SPOTS: Item[] = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21].map((x) => ({ kind: 'pdu', x, y: 1 }));
 
 
-const kw = (kind: BuildingKind, gen: Gen = 1) => (kind === 'rack' ? GPU[gen].powerKW : kind === 'crac' ? CRAC.powerKW : 0);
+const kw = (kind: BuildingKind, gen: Gen = 1) => (kind === 'rack' ? GPU[gen].powerKW : kind === 'crac' ? CRAC.powerKW : kind === 'switch' ? NETWORK.powerKW : 0);
 
 function plannedPower(s: GameState): { demand: number; capacity: number } {
   let demand = 0;
@@ -170,6 +182,7 @@ class Bot {
     this.contracts(s);
     if (this.profile.career && this.addPdu(s)) return;
     if (this.profile.career && !this.profile.noBackup && this.backup(s)) return;
+    if (this.profile.career && !this.profile.noNetwork && this.network(s)) return;
     if (this.profile.career && this.retrofit(s)) return;
     this.expand(s);
     this.hire(s);
@@ -186,8 +199,9 @@ class Bot {
       return;
     }
     if (s.research.current) return;
-    const order = this.profile.noBackup ? RESEARCH_ORDER.filter((id) => !['ups', 'generators', 'switchover-2n'].includes(id)) : RESEARCH_ORDER;
-    const next = order.find((id) => open.includes(id)) ?? open.find((id) => !this.profile.noBackup || !['ups', 'generators'].includes(id));
+    // Les profils privés d'une compétence n'en étudient pas les nœuds.
+    const skip = [...(this.profile.noBackup ? ['ups', 'generators', 'switchover-2n'] : []), ...(this.profile.noNetwork ? ['switches', 'fabric', 'optical'] : [])];
+    const next = RESEARCH_ORDER.find((id) => open.includes(id) && !skip.includes(id)) ?? open.find((id) => !skip.includes(id));
     if (next) s.commands.push({ type: 'startResearch', id: next });
   }
 
@@ -209,6 +223,19 @@ class Bot {
     const spot = BACKUP_SPOTS.find((p) => canBuild(s, kind, p.x, p.y) === null);
     if (!spot) return false;
     this.build(s, { kind, ...spot });
+    return true;
+  }
+
+  /** Réseau (carrière) : un switch au bout d'une rangée dès qu'un rack attend son câble. */
+  private network(s: GameState): boolean {
+    if (!isUnlocked(s, 'switch')) return false;
+    if (!s.buildings.some((b) => b.kind === 'rack' && b.link === undefined)) return false;
+    if (s.buildings.some((b) => b.kind === 'switch' && b.status === 'construction')) return false;
+    if (s.buildings.filter((b) => b.status === 'construction').length >= s.techs.length) return false;
+    if (s.money < buildCost('switch') + this.profile.reserve) return false;
+    const spot = NETWORK_SPOTS.find((p) => canBuild(s, 'switch', p.x, p.y) === null);
+    if (!spot) return false;
+    this.build(s, { kind: 'switch', ...spot });
     return true;
   }
 
@@ -244,7 +271,10 @@ class Bot {
       if (!this.profile.contracts) s.commands.push({ type: 'rejectJob', id: j.id });
       else if (j.kind === 'training') {
         const taken = new Set(s.jobs.flatMap((o) => (o.status === 'active' && o.assigned ? o.assigned : [])));
-        if (!training && largestFreeCluster(s, j.minGen ?? 1, taken) >= (j.cluster ?? 1) && free >= j.rateCU) {
+        // Seulement à pleine vitesse : un bloc sur un seul switch, ou à cheval avec la Fabric.
+        const blocks = freeBlocks(s, j.minGen ?? 1, taken);
+        const size = modifiers(s).fabric ? blocks.linked : blocks.oneSwitch;
+        if (!training && size >= (j.cluster ?? 1) && free >= j.rateCU) {
           s.commands.push({ type: 'acceptJob', id: j.id });
           free -= j.rateCU;
           training = true;

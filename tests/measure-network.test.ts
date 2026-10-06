@@ -32,6 +32,7 @@ describe.runIf(env.MEASURE === '1')('mesure de la carrière', () => {
     const profiles: [string, BotProfile, number[]][] = [
       ['soigné', { ...COMPETENT, career: true }, [1, 2, 3, 4]],
       ['sans secours', { ...COMPETENT, career: true, noBackup: true }, [1, 2, 3]],
+      ['sans réseau', { ...COMPETENT, career: true, noNetwork: true }, [1, 2, 3, 4]],
     ];
     const lines: string[] = [];
     for (const [label, profile, seeds] of profiles) for (const seed of seeds) lines.push(line(`${label} g${seed}`, playBot(seed, profile, 130 * 60)));

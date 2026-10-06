@@ -36,6 +36,17 @@ describe('conseils de carrière', () => {
     expect(dueTip(s, CAREER_TIPS.map((t) => t.id))).toBeNull();
   });
 
+  it('réseau : dès la recherche des switchs, après le conseil d’entraînement', () => {
+    const s = createInitialState(1, 'career');
+    s.time = 10;
+    expect(dueTip(s, ['career'])).toBeNull();
+    s.research.done.push('switches');
+    expect(dueTip(s, ['career'])?.id).toBe('network');
+    s.jobs[0].kind = 'training';
+    expect(dueTip(s, ['career'])?.id).toBe('training');
+    expect(dueTip(s, ['career', 'training'])?.id).toBe('network');
+  });
+
   it('les conseils vus sont gardés dans les options, sans doublon ni valeur étrangère', () => {
     expect(sanitizeSettings({}).tipsSeen).toEqual([]);
     expect(sanitizeSettings({ tipsSeen: ['outage', 3, 'outage', null, 'g3'] }).tipsSeen).toEqual(['outage', 'g3']);

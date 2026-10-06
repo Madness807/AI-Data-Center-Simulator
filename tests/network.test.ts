@@ -1,14 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { BUILD_COST, CRAC, DT, GRID_H, GRID_W, NETWORK, RACK } from '../src/sim/balance';
+import { BUILD_COST, CRAC, DT, GRID_H, GRID_W, NETWORK, RACK, TRAINING } from '../src/sim/balance';
 import { canBuild, processCommands } from '../src/sim/commands';
 import { isUnlocked } from '../src/sim/progression';
 import { BRANCHES, RESEARCH } from '../src/sim/research';
+import { deserialize, serialize } from '../src/save';
+import { clusterSpeed, findCluster, freeBlocks } from '../src/sim/clusters';
+import type { Job } from '../src/sim/entities';
 import { activeLinks, networkView, planLinks, switchReach, updateNetwork } from '../src/sim/network';
+import { step } from '../src/sim/sim';
+import { updateJobs } from '../src/sim/systems/jobs';
+import { predictCompletion } from '../src/sim/systems/alerts';
 import { addBuilding, createEmptyState, createInitialState, idx, removeBuilding, type GameState } from '../src/sim/state';
 import { pue } from '../src/sim/stats';
 import { updateHeat } from '../src/sim/systems/heat';
 import { serviceOrder, updatePower } from '../src/sim/systems/power';
-import { room } from './helpers';
+import { room, testJob } from './helpers';
 
 describe('switch réseau', () => {
   it('se débloque par la recherche de la branche Réseau, en carrière seulement', () => {
@@ -225,5 +231,102 @@ describe('câblage', () => {
     wire(early);
     expect(r.link).toBe(sw.id);
     expect(activeLinks(early)).toBeNull();
+  });
+});
+
+/** Entraînement en cours, de `size` racks, assez long pour ne pas finir pendant le test. */
+const training = (id: number, size: number): Job =>
+  testJob({ id, kind: 'training', cluster: size, minGen: 1, rateCU: size * RACK.computeCU, work: 1e6, deadline: 1e6, deadlineInS: 1e6 });
+
+/**
+ * Une rangée de 6 racks entre deux switchs : (5,10) relie les racks 6 à 8, (12,10) les racks
+ * 9 à 11. Les racks sont construits dans le désordre (8, 9, 10, 6, 7, 11) : un simple parcours
+ * depuis le premier rack formerait un bloc à cheval.
+ */
+function twoSwitches(): GameState {
+  const s = career();
+  addBuilding(s, 'switch', 5, 10);
+  addBuilding(s, 'switch', 12, 10);
+  for (const x of [8, 9, 10, 6, 7, 11]) addBuilding(s, 'rack', x, 10);
+  wire(s);
+  return s;
+}
+const xs = (s: GameState, ids: readonly number[] | undefined) => (ids ?? []).map((id) => s.buildings.find((b) => b.id === id)!.x);
+
+describe('entraînement relié', () => {
+  it('au Labo d’IA, pas de switch, pas de bloc ; avant, les racks côte à côte suffisent', () => {
+    const s = career();
+    for (const x of [6, 7, 8]) addBuilding(s, 'rack', x, 10);
+    wire(s);
+    expect(findCluster(s, 3, 1, new Set())).toBeNull();
+    expect(freeBlocks(s, 1)).toEqual({ contiguous: 3, linked: 0, oneSwitch: 0 });
+    const early = career(1);
+    for (const x of [6, 7, 8]) addBuilding(early, 'rack', x, 10);
+    wire(early);
+    expect(findCluster(early, 3, 1, new Set())).toHaveLength(3);
+    addBuilding(s, 'switch', 5, 10);
+    wire(s);
+    expect(xs(s, findCluster(s, 3, 1, new Set()) ?? undefined).sort()).toEqual([6, 7, 8]);
+  });
+
+  it('un bloc sur un seul switch passe avant un bloc à cheval', () => {
+    const s = twoSwitches();
+    expect(freeBlocks(s, 1)).toEqual({ contiguous: 6, linked: 6, oneSwitch: 3 });
+    expect(xs(s, findCluster(s, 3, 1, new Set()) ?? undefined)).toEqual([8, 7, 6]);
+  });
+
+  it(`à cheval sur deux switchs, le bloc avance à ${NETWORK.crossSwitch * 100} % mais reste réservé ; la Fabric lui rend sa vitesse`, () => {
+    for (const fabric of [false, true]) {
+      const s = twoSwitches();
+      if (fabric) s.research.done.push('switches', 'fabric');
+      const j = training(1, 6);
+      s.jobs = [j];
+      updateJobs(s, DT);
+      expect(j.assigned).toHaveLength(6);
+      expect(clusterSpeed(s, j.assigned!)).toBe(fabric ? 1 : NETWORK.crossSwitch);
+      expect(j.allocated).toBeCloseTo(6 * RACK.computeCU * (fabric ? 1 : NETWORK.crossSwitch));
+      expect(s.compute.used).toBe(6 * RACK.computeCU);
+    }
+  });
+
+  it('une liaison perdue rompt le bloc : il recule, et le message cite le réseau', () => {
+    const s = twoSwitches();
+    const j = training(1, 3);
+    s.jobs = [j];
+    updateJobs(s, DT);
+    expect(xs(s, j.assigned)).toEqual([8, 7, 6]);
+    j.progress = 500_000;
+    removeBuilding(s, s.buildings.find((b) => b.kind === 'switch' && b.x === 5)!);
+    wire(s);
+    s.events = [];
+    updateJobs(s, DT);
+    expect(j.progress).toBeLessThan(500_000 - j.work * TRAINING.rollback + 1e-6 + j.allocated * DT);
+    expect(s.events.find((e) => e.code === 'trainingBroken')?.message).toMatch(/\(réseau\)/);
+  });
+
+  it('les prévisions de retard comptent tout le bloc réservé, même ralenti par le réseau', () => {
+    const s = twoSwitches();
+    const inference = testJob({ id: 2, rateCU: RACK.computeCU, work: 1000, deadline: 1e6 });
+    s.jobs = [training(1, 6), inference];
+    updateJobs(s, DT);
+    // Les 6 racks sont pris par le bloc (à 70 %) : il ne reste rien pour l'inférence.
+    expect(predictCompletion(s).get(inference.id)).toBe(Infinity);
+  });
+
+  it('une carrière câblée, avec un entraînement en cours, se sauvegarde et continue à l’identique', () => {
+    const s = twoSwitches();
+    s.jobs = [training(s.nextJobId++, 3)];
+    for (let i = 0; i < 50; i++) step(s);
+    expect(s.jobs[0].assigned).toHaveLength(3);
+    const loaded = deserialize(serialize(s, 'test'));
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    const strip = (g: GameState) => JSON.parse(JSON.stringify({ ...g, commands: [], events: [] }));
+    for (let i = 0; i < 600; i++) {
+      step(s);
+      step(loaded.state);
+      s.events.length = loaded.state.events.length = 0;
+    }
+    expect(strip(loaded.state)).toEqual(strip(s));
   });
 });

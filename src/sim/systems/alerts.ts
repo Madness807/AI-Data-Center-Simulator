@@ -6,6 +6,7 @@ import { inferencePool } from './jobs';
 import { upsAutonomy } from './power';
 import { isTaskAssigned } from './technicians';
 import { rackTemp } from '../climate';
+import { clusterRate } from '../clusters';
 import { notify, type GameState } from '../state';
 
 export function updateAlerts(s: GameState): void {
@@ -106,7 +107,8 @@ export function predictCompletion(s: GameState): Map<number, number> {
     .sort((a, b) => a.deadline - b.deadline)
     .map((j) => ({ id: j.id, rate: j.rateCU, work: j.work - j.progress }));
   let t = s.time;
-  const training = s.jobs.reduce((sum, j) => sum + (j.status === 'active' && j.kind === 'training' ? j.allocated : 0), 0);
+  // Le calcul réservé aux entraînements est celui de leurs blocs entiers, même ralentis par le réseau.
+  const training = s.jobs.reduce((sum, j) => sum + (j.status === 'active' && j.kind === 'training' && j.assigned ? clusterRate(s, j.assigned) : 0), 0);
   const free = inferencePool(s, s.compute.total, training);
   // Chaque tour termine au moins un contrat ; la garde couvre les arrondis.
   for (let guard = 0; left.length && guard <= s.jobs.length; guard++) {

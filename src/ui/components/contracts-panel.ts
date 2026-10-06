@@ -1,7 +1,9 @@
-import { RACK } from '../../sim/balance';
+import { NETWORK, RACK } from '../../sim/balance';
 import type { Job } from '../../sim/entities';
 import { freeCapacity } from '../../sim/stats';
-import { largestFreeCluster } from '../../sim/clusters';
+import { clusterSpeed, freeBlocks } from '../../sim/clusters';
+import { modifiers } from '../../sim/progression';
+import { networkActive } from '../../sim/network';
 import type { GameState } from '../../sim/state';
 import { el, icon, setStyle, setText } from '../dom';
 import { percent, plural, seconds, signedMoney } from '../format';
@@ -150,19 +152,28 @@ export class ContractsPanel {
     return { root, status: 'active', timer, bar, pct, rate, rateLed };
   }
 
-  /** Entraînement : existe-t-il un bloc libre de racks contigus assez grand ? */
+  /**
+   * Entraînement : existe-t-il un bloc libre assez grand ? Des racks côte à côte, et reliés à un
+   * switch quand le réseau compte (Labo d'IA) ; à cheval sur plusieurs switchs, il irait moins vite.
+   */
   private fillCluster(slot: HTMLElement, job: Job, s: GameState): void {
     const taken = new Set(s.jobs.flatMap((j) => (j.status === 'active' && j.assigned ? j.assigned : [])));
-    const largest = largestFreeCluster(s, job.minGen ?? 1, taken);
-    const ok = largest >= (job.cluster ?? 1);
-    const key = `cluster:${largest}:${ok}`;
+    const size = job.cluster ?? 1;
+    const blocks = freeBlocks(s, job.minGen ?? 1, taken);
+    const net = networkActive(s);
+    const split = net && !modifiers(s).fabric && blocks.linked >= size && blocks.oneSwitch < size;
+    const key = `cluster:${blocks.contiguous}:${blocks.linked}:${split}:${net}`;
     if (slot.dataset.key === key) return;
     slot.dataset.key = key;
-    slot.replaceChildren(
-      ok
-        ? el('span', 'chip ok', icon('done', 12), `plus grand bloc libre : ${largest} racks`)
-        : el('span', 'chip warn', icon('alert', 12), `plus grand bloc libre : ${largest} ${plural(largest, 'rack')} (racks côte à côte)`),
-    );
+    const largest = blocks.linked;
+    const what = net ? 'plus grand bloc relié' : 'plus grand bloc libre';
+    const chips =
+      largest >= size
+        ? [el('span', 'chip ok', icon('done', 12), `${what} : ${largest} racks`)]
+        : [el('span', 'chip warn', icon('alert', 12), `${what} : ${largest} ${plural(largest, 'rack')} (${net ? 'côte à côte et reliés' : 'racks côte à côte'})`)];
+    if (net && largest < size && blocks.contiguous >= size) chips.push(el('span', 'chip warn', icon('switch', 12), 'racks non reliés : posez un switch'));
+    if (split) chips.push(el('span', 'chip warn', icon('switch', 12), `à cheval sur 2 switchs : vitesse ${percent(NETWORK.crossSwitch)}`));
+    slot.replaceChildren(...chips);
   }
 
   /** Peut-on honorer l'offre avec le calcul encore libre ? Sinon, combien de racks manque-t-il ? */
@@ -199,9 +210,14 @@ export class ContractsPanel {
     setText(card.pct!, percent(done));
     const starved = job.allocated < job.rateCU - 1e-6;
     if (job.kind === 'training') {
-      setText(card.rate!, job.assigned ? `bloc de ${job.assigned.length} racks · ${Math.round(job.allocated)} CU/s` : 'en attente d’un bloc libre');
-      card.rate!.className = job.assigned ? 'ok' : 'warn';
-      card.rateLed!.className = `led ${job.assigned ? 'ok' : 'warn'}`;
+      // À cheval sur plusieurs switchs sans la Fabric, le bloc tourne au ralenti.
+      const speed = job.assigned ? clusterSpeed(s, job.assigned) : 1;
+      const net = speed < 1 ? ` · réseau ${percent(speed)}` : '';
+      const waiting = networkActive(s) ? 'en attente d’un bloc relié' : 'en attente d’un bloc libre';
+      setText(card.rate!, job.assigned ? `bloc de ${job.assigned.length} · ${Math.round(job.allocated)} CU/s${net}` : waiting);
+      const tone = job.assigned && speed === 1 ? 'ok' : 'warn';
+      card.rate!.className = tone;
+      card.rateLed!.className = `led ${tone}`;
       return;
     }
     setText(card.rate!, `${Math.round(job.allocated)} / ${job.rateCU} CU/s${job.sla && (job.shortS ?? 0) > 0 ? ` · SLA ${Math.round(job.shortS ?? 0)} s manquées` : ''}`);

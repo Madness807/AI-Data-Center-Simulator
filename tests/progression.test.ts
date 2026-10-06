@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { deserialize, serialize } from '../src/save';
-import { BUILD_COST, ECONOMY, RACK } from '../src/sim/balance';
+import { BUILD_COST, ECONOMY, NETWORK, RACK } from '../src/sim/balance';
 import { processCommands } from '../src/sim/commands';
 import type { Job } from '../src/sim/entities';
 import { deliveryReputation, gainReputation, modifiers, promote, researchBlocker, TIERS } from '../src/sim/progression';
+import { researchById } from '../src/sim/research';
 import { addBuilding, addTech, createInitialState, idx, type GameState } from '../src/sim/state';
 import { freeCapacity } from '../src/sim/stats';
 import { updateEconomy } from '../src/sim/systems/economy';
@@ -217,6 +218,17 @@ describe('modes et sauvegarde', () => {
     expect(r.state.mode).toBe('quick');
     expect(r.state.rules.progression).toBe(false);
     expect(r.state.research.done).toEqual([]);
+  });
+
+  it('branche Réseau : la Fabric après les switchs, l’optique après la Fabric ; le Labo d’IA annonce la règle', () => {
+    expect(researchById('fabric')).toMatchObject({ branch: 'network', level: 3, requires: ['switches'] });
+    expect(researchById('optical')).toMatchObject({ branch: 'network', level: 4, requires: ['fabric'] });
+    const s = career();
+    expect(modifiers(s).fabric).toBe(false);
+    s.research.done.push('switches', 'fabric');
+    expect(modifiers(s).fabric).toBe(true);
+    expect(TIERS[1].perks.join(' ')).toMatch(/switchs réseau/);
+    expect(TIERS[NETWORK.minTier].perks.join(' ')).toMatch(/câblé à un switch/);
   });
 
   it('la carrière démarre comme la partie rapide, recherche comprise à zéro', () => {

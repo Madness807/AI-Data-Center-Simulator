@@ -1,4 +1,4 @@
-import { CRAC, GENERATOR, OUTAGE, PDU, REPAIR, REPUTATION, RESEARCH_RATE, SLA, SPARE_PARTS, TECH, TIER_LEVELS, TRAINING, UPS, WEAR, WEATHER } from './balance';
+import { CRAC, GENERATOR, NETWORK, OUTAGE, PDU, REPAIR, REPUTATION, RESEARCH_RATE, SLA, SPARE_PARTS, TECH, TIER_LEVELS, TRAINING, UPS, WEAR, WEATHER } from './balance';
 import type { BuildingKind, Gen, Job } from './entities';
 import { RESEARCH, researchById } from './research';
 import { notify, type GameState } from './state';
@@ -40,6 +40,7 @@ function perksFor(tier: number): string[] {
   if (tier === OUTAGE.minTier) out.push('Attention : le réseau électrique peut désormais être coupé');
   if (tier === WEATHER.minTier) out.push('Attention : la météo compte désormais, et les canicules affaiblissent les CRAC');
   if (tier === WEAR.minTier) out.push('Les racks s’usent : un entretien (clic droit sur un rack) évite bien des pannes');
+  if (tier === NETWORK.minTier) out.push('Attention : chaque rack d’un bloc d’entraînement doit être câblé à un switch');
   return out;
 }
 
@@ -104,6 +105,7 @@ export interface Modifiers {
   maxGen: Gen;
   retrofit: boolean;
   checkpoints: boolean;
+  fabric: boolean;
   optical: boolean;
   autoMaintain: boolean;
   specialties: boolean;
@@ -130,6 +132,7 @@ const BASE: Modifiers = {
   maxGen: 1,
   retrofit: false,
   checkpoints: false,
+  fabric: false,
   optical: false,
   autoMaintain: false,
   specialties: false,
@@ -166,6 +169,7 @@ export function modifiers(s: GameState): Modifiers {
     if (e.gen && e.gen > m.maxGen) m.maxGen = e.gen;
     if (e.retrofit) m.retrofit = true;
     if (e.checkpoints) m.checkpoints = true;
+    if (e.fabric) m.fabric = true;
     if (e.optical) m.optical = true;
     if (e.autoMaintain) m.autoMaintain = true;
     if (e.specialties) m.specialties = true;

@@ -1,5 +1,6 @@
-import { CDU, GPU, TRAINING, WEATHER } from '../sim/balance';
-import { modifiers } from '../sim/progression';
+import { CDU, GPU, NETWORK, TRAINING, WEATHER } from '../sim/balance';
+import { networkActive } from '../sim/network';
+import { isUnlocked, modifiers } from '../sim/progression';
 import { wearActive } from '../sim/systems/failures';
 import type { GameState } from '../sim/state';
 import type { IconName } from './icons';
@@ -52,8 +53,15 @@ export const CAREER_TIPS: readonly CareerTip[] = [
     id: 'training',
     icon: 'compute',
     title: 'Contrat d’entraînement',
-    text: `Il occupe un bloc de racks voisins du début à la fin ; sa carte affiche le plus grand bloc libre. Si un rack du bloc s’arrête, l’entraînement recule de ${pct(TRAINING.rollback)} (${pct(TRAINING.rollbackCheckpoints)} avec les points de contrôle).`,
+    text: `Il occupe un bloc de racks voisins, câblés à un switch, du début à la fin ; sa carte affiche le plus grand bloc libre. Si un rack du bloc s’arrête, l’entraînement recule de ${pct(TRAINING.rollback)} (${pct(TRAINING.rollbackCheckpoints)} avec les points de contrôle).`,
     when: (s) => s.jobs.some((j) => j.kind === 'training'),
+  },
+  {
+    id: 'network',
+    icon: 'switch',
+    title: 'Réseau de calcul',
+    text: `Chaque rack se câble seul au switch le plus proche, par les allées libres (${NETWORK.reach} cases au plus, ${NETWORK.ports} racks par switch) : posez-en un au bout de chaque rangée. Un bloc d’entraînement doit être entièrement relié ; à cheval sur deux switchs, il ne tourne qu’à ${pct(NETWORK.crossSwitch)}, sauf avec la Fabric.`,
+    when: (s) => s.rules.network && (isUnlocked(s, 'switch') || (networkActive(s) && s.jobs.some((j) => j.kind === 'training'))),
   },
   {
     id: 'g3',

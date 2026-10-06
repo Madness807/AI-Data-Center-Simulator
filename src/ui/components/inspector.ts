@@ -8,6 +8,7 @@ import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad, redundancy, siteProgress } from '../../sim/stats';
 import { upsAutonomy } from '../../sim/systems/power';
 import { cableReach, networkActive } from '../../sim/network';
+import { clusterSpeed, clusterSwitches } from '../../sim/clusters';
 import { cableLayout } from '../../render/cable-paths';
 import { cableText, unlinkedAdvice, unlinkedLabel } from '../network-text';
 import { isTaskAssigned } from '../../sim/systems/technicians';
@@ -363,7 +364,8 @@ export class Inspector {
 
     const busy = busyRackIds(s).has(b.id);
     const training = s.jobs.find((j) => j.status === 'active' && j.assigned?.includes(b.id));
-    const use = training ? `entraînement (bloc de ${training.assigned!.length})` : busy ? 'en calcul' : 'disponible';
+    const speed = training ? clusterSpeed(s, training.assigned!) : 1;
+    const use = training ? `entraînement (bloc de ${training.assigned!.length}${speed < 1 ? `, réseau ${percent(speed)}` : ''})` : busy ? 'en calcul' : 'disponible';
     this.compute.set(running ? `${spec.computeCU} CU/s · ${use}` : '0 CU/s', running ? (busy ? 'ok' : '') : 'danger');
     this.failures.set(String(b.failures), b.failures ? 'warn' : '');
 
@@ -473,6 +475,16 @@ export class Inspector {
     this.ports.set(`${used} / ${NETWORK.ports} racks reliés${span}`, used >= NETWORK.ports && waiting ? 'warn' : '');
     this.coverage.show(true);
     this.coverage.set(`${cableReach(s)} cases de câble, par les allées`);
+    // Blocs d'entraînement qui passent par ce switch, et leur vitesse.
+    const mine = new Set(view.cables.filter((c) => c.sw === b.id).map((c) => c.rack));
+    const blocks = s.jobs.filter((j) => j.status === 'active' && j.assigned?.some((id) => mine.has(id)));
+    this.compute.show(blocks.length > 0);
+    if (blocks.length) {
+      const split = blocks.filter((j) => clusterSwitches(s, j.assigned!) > 1);
+      const slow = split.some((j) => clusterSpeed(s, j.assigned!) < 1);
+      const text = `${blocks.length} ${plural(blocks.length, 'bloc')} d’entraînement${split.length ? ` · ${split.length} à cheval${slow ? `, ${percent(NETWORK.crossSwitch)}` : ''}` : ''}`;
+      this.compute.set(text, slow ? 'warn' : 'ok');
+    }
     if (!b.powered) return 'Sans courant, le switch coupe ses racks du réseau.';
     if (!used) return 'Aucun rack câblé : posez le switch au bout d’une rangée, les câbles passent par les allées libres.';
     return used >= NETWORK.ports && waiting ? 'Ports pleins : des racks à portée attendent un autre switch.' : '';

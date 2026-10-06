@@ -34,6 +34,8 @@ export interface ResearchEffect {
   gen?: Gen;
   retrofit?: true;
   checkpoints?: true;
+  /** Switchs reliés entre eux : un bloc à cheval garde sa vitesse. */
+  fabric?: true;
   optical?: true;
   autoMaintain?: true;
   spareParts?: true;
@@ -120,16 +122,6 @@ const NODES: readonly NodeSpec[] = [
     effect: { gen: 3 },
   },
   {
-    id: 'optical',
-    branch: 'compute',
-    level: 4,
-    name: 'Interconnexion optique',
-    description: `Les blocs d’entraînement peuvent enjamber une allée : des racks à ${OPTICAL.reach} cases comptent comme voisins.`,
-    cost: 2500,
-    requires: ['checkpoints'],
-    effect: { optical: true },
-  },
-  {
     id: 'switches',
     branch: 'network',
     level: 2,
@@ -138,6 +130,26 @@ const NODES: readonly NodeSpec[] = [
     cost: 600,
     requires: [],
     effect: { unlocks: ['switch'] },
+  },
+  {
+    id: 'fabric',
+    branch: 'network',
+    level: 3,
+    name: 'Fabric spine-leaf',
+    description: `Les switchs se relient entre eux : un bloc d’entraînement à cheval sur plusieurs switchs garde toute sa vitesse, au lieu de ${pct(NETWORK.crossSwitch)}.`,
+    cost: 1000,
+    requires: ['switches'],
+    effect: { fabric: true },
+  },
+  {
+    id: 'optical',
+    branch: 'network',
+    level: 4,
+    name: 'Interconnexion optique',
+    description: `Les blocs d’entraînement peuvent enjamber une allée : des racks à ${OPTICAL.reach} cases comptent comme voisins. Un câble porte jusqu’à ${OPTICAL.cableReach} cases.`,
+    cost: 2500,
+    requires: ['fabric'],
+    effect: { optical: true },
   },
   {
     id: 'crac-he',

@@ -1,5 +1,5 @@
 import { JOBS, RACK, rackSpec, REPUTATION, SLA, TRAINING } from '../balance';
-import { clusterIntact, clusterRate, findCluster } from '../clusters';
+import { clusterFault, clusterRate, clusterSpeed, findCluster } from '../clusters';
 import { isRackActive, type Job } from '../entities';
 import { lerp, roundTo10 } from '../math';
 import { nextRandom } from '../rng';
@@ -99,11 +99,13 @@ function allocateTraining(s: GameState, active: Job[], dt: number): number {
   for (const j of active) {
     if (j.kind !== 'training') continue;
     const minGen = j.minGen ?? 1;
-    if (j.assigned && !clusterIntact(s, j.assigned, minGen, taken)) {
+    const fault = j.assigned ? clusterFault(s, j.assigned, minGen, taken) : null;
+    if (fault) {
       const share = modifiers(s).checkpoints ? TRAINING.rollbackCheckpoints : TRAINING.rollback;
       j.progress = Math.max(0, j.progress - j.work * share);
       j.assigned = undefined;
-      notify(s, 'warning', `Entraînement interrompu : ${j.name} recule de ${Math.round(share * 100)} %`, { code: 'trainingBroken' });
+      const cause = fault === 'link' ? ' (réseau)' : '';
+      notify(s, 'warning', `Entraînement interrompu${cause} : ${j.name} recule de ${Math.round(share * 100)} %`, { code: 'trainingBroken' });
     }
     if (!j.assigned) j.assigned = findCluster(s, j.cluster ?? 1, minGen, taken) ?? undefined;
     if (!j.assigned) {
@@ -112,7 +114,8 @@ function allocateTraining(s: GameState, active: Job[], dt: number): number {
     }
     for (const id of j.assigned) taken.add(id);
     const capacity = clusterRate(s, j.assigned);
-    const rate = Math.min(capacity, (j.work - j.progress) / dt);
+    // À cheval sur plusieurs switchs, le bloc reste entièrement réservé mais avance moins vite.
+    const rate = Math.min(capacity * clusterSpeed(s, j.assigned), (j.work - j.progress) / dt);
     j.allocated = rate;
     j.progress += rate * dt;
     used += capacity;
