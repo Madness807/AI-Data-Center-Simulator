@@ -33,6 +33,8 @@ import {
   type StatusName,
 } from './assets';
 import { cellCenter } from './grid';
+import { CableView } from './cable-view';
+import type { CableLayout } from './cable-paths';
 import { FloorOverlay } from './overlays';
 import { hotAisleCells } from '../sim/climate';
 import { FACING_ANGLE } from './assets/fx/build-ghost';
@@ -225,6 +227,8 @@ export class SceneView {
   private readonly crowns = createRackCrowns();
   /** Confinement d'allée chaude (recherche) : toit vitré au-dessus de chaque case où soufflent des racks. */
   private readonly containment: THREE.InstancedMesh;
+  /** Chemins de câbles du réseau, au plafond. */
+  private readonly cables: CableView;
   private readonly walls: WallsModel;
   private readonly others = new Map<number, PlacedModel>();
   /** Case du bâtiment de chaque instance de rack, pour le picking. */
@@ -261,6 +265,7 @@ export class SceneView {
     this.overlay = new FloorOverlay(w, h);
     this.racks = createRackInstances(RACK_CAPACITY);
     this.containment = createContainmentPanels(w * h);
+    this.cables = new CableView(w, h);
     this.inspectRange.visible = false;
     this.scene.add(
       this.walls.root,
@@ -272,6 +277,7 @@ export class SceneView {
       this.crowns[2],
       this.crowns[3],
       this.containment,
+      this.cables.root,
       this.inspectBrackets,
       this.inspectRange,
     );
@@ -318,7 +324,7 @@ export class SceneView {
     this.syncInspected(inspected, realTime);
     this.syncRacks(s, realTime);
     this.syncContainment(s);
-    this.syncOthers(s, realTime, realDt);
+    this.syncOthers(s, realTime, realDt, this.cables.sync(s));
     this.syncTechs(s, realTime, alpha, selected);
     this.updatePings(realDt);
     this.overlay.update(s);
@@ -479,8 +485,14 @@ export class SceneView {
   }
 
   /** CRAC, PDU et tous les chantiers (les racks terminés sont instanciés à part). */
-  private syncOthers(s: GameState, realTime: number, realDt: number): void {
+  private syncOthers(s: GameState, realTime: number, realDt: number, cables: CableLayout): void {
     const seen = new Set<number>();
+    // Switchs dont un rack câblé calcule : leurs voyants papillotent.
+    const traffic = new Set<number>();
+    if (cables.view.cables.length) {
+      const busy = busyRackIds(s);
+      for (const c of cables.view.cables) if (busy.has(c.rack)) traffic.add(c.sw);
+    }
     for (const b of s.buildings) {
       const site = b.status === 'construction';
       if (b.kind === 'rack' && !site) continue;
@@ -511,6 +523,8 @@ export class SceneView {
         discharging: b.kind === 'ups' && !s.power.grid && s.power.upsKW > 0,
         starting: b.kind === 'generator' && b.warmup !== undefined && b.warmup > 0,
         running: b.kind === 'generator' && b.warmup !== undefined && b.warmup <= 0,
+        ports: b.kind === 'switch' ? (cables.view.ports.get(b.id) ?? 0) : undefined,
+        traffic: traffic.has(b.id),
       });
     }
     for (const [id, placed] of this.others) {

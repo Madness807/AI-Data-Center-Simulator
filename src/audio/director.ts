@@ -64,6 +64,7 @@ export function soundForEvent(code: EventCode | undefined): SoundId | null {
     case 'lateRisk':
     case 'cashLow':
     case 'unattended':
+    case 'linkLost':
       return 'caution';
     case 'tierUp':
       return 'tierUp';

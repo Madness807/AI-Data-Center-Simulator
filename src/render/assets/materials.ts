@@ -50,6 +50,8 @@ export const MATERIALS = {
   switchLedOn: glow(PALETTE.switchLedLink),
   switchLedDim: glow(PALETTE.switchLedDim),
   switchLedOff: standard(PALETTE.upsLedOff, { roughness: 0.4 }),
+  /** Fibre des câbles réseau : un léger éclat pour rester lisible au plafond. */
+  fiber: standard(PALETTE.fiber, { roughness: 0.5, emissive: PALETTE.fiber, emissiveIntensity: 0.25 }),
 
   scaffold: standard(PALETTE.scaffold, { roughness: 0.5, metalness: 0.2 }),
   blueprint: standard(PALETTE.blueprint, {

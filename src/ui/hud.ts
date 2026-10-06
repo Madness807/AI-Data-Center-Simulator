@@ -3,6 +3,8 @@ import type { Cell, Gen, Specialty } from '../sim/entities';
 import { availableResearch, modifiers, unlockedBy } from '../sim/progression';
 import { buildingAt, buildingById, idx, notify, type GameState, type Speed } from '../sim/state';
 import { siteProgress } from '../sim/stats';
+import { cableReach } from '../sim/network';
+import { cableLayout } from '../render/cable-paths';
 import type { OverlayMode } from '../render/overlay-colors';
 import { tempCss } from './color';
 import { AlertFeed } from './components/alert-feed';
@@ -461,9 +463,17 @@ export class Hud {
     const { x, y } = cell;
     const b = buildingAt(s, x, y);
     const t = s.temp[idx(s, x, y)];
-    const key = `${x},${y}|${b?.id}|${b?.status}|${b?.powered}|${t.toFixed(1)}|${b ? Math.ceil(b.workLeft) : ''}`;
+    // Réseau : câbles de la case, switch d'un rack, ports d'un switch (carrière).
+    const net = cableLayout(s);
+    const cables = b ? 0 : (net.cells.get(idx(s, x, y)) ?? 0);
+    const link = b?.kind === 'rack' && s.rules.network ? net.view.cables.find((c) => c.rack === b.id) : undefined;
+    const ports = b?.kind === 'switch' ? (net.view.ports.get(b.id) ?? 0) : 0;
+    const key = `${x},${y}|${b?.id}|${b?.status}|${b?.powered}|${t.toFixed(1)}|${b ? Math.ceil(b.workLeft) : ''}|${cables}|${link?.sw ?? ''}|${ports}`;
     this.tooltip.setWorld(key, () => {
       const rows: [string, Node | string][] = [['Température', tempValue(t)]];
+      if (cables) rows.push(['Câbles réseau', `${cables} au plafond`]);
+      if (b?.kind === 'rack' && s.rules.network) rows.push(['Réseau', link ? `switch ${link.switchCell.x},${link.switchCell.y}` : 'non relié']);
+      if (b?.kind === 'switch') rows.push(['Ports', `${ports} / ${NETWORK.ports}`]);
       if (!b) return tip(`Case ${x},${y}`, rows);
       let chip: HTMLElement;
       let hint: string | undefined;
@@ -477,7 +487,7 @@ export class Hud {
       } else if (b.status === 'repairing') {
         chip = el('span', 'chip warn', `réparation ${seconds(b.workLeft)}`);
       } else if (b.kind === 'pdu' || b.powered) {
-        chip = el('span', 'chip ok', b.kind === 'pdu' ? 'en service' : 'alimenté');
+        chip = el('span', 'chip ok', b.kind === 'pdu' || b.kind === 'switch' ? 'en service' : 'alimenté');
       } else {
         chip = el('span', 'chip danger', 'délesté');
         hint = 'Pas assez de capacité électrique : ajoutez un PDU';
@@ -565,7 +575,7 @@ export class Hud {
       switch: () =>
         tip(`${buildingName('switch')} · ${money(BUILD_COST.switch)}`, [
           ['Ports', `${NETWORK.ports} racks`],
-          ['Câbles', `${NETWORK.reach} cases au plus, par les allées`],
+          ['Câbles', `${this.state ? cableReach(this.state) : NETWORK.reach} cases au plus, par les allées`],
           ['Consommation', `${NETWORK.powerKW} kW`],
           ['Chantier', `${BUILD_TIME.switch} s`],
         ], 'Chaque rack se relie seul au switch libre le plus proche. Un bloc d’entraînement doit être entièrement relié.'),

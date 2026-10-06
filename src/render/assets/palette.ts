@@ -90,6 +90,7 @@ export const PALETTE = {
   switchLedDim: 0x1f8f5a,
   patchBlue: 0x3a7bd5,
   fiber: 0xffd83a,
+  trayFrame: 0x6b7585,
 
   // Technicien
   techVest: 0xff7a1a,

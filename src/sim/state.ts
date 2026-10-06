@@ -100,7 +100,9 @@ export type EventCode =
   | 'trainingBroken'
   | 'slaBreach'
   | 'maintained'
-  | 'wearRisk';
+  | 'wearRisk'
+  // Réseau de calcul.
+  | 'linkLost';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';

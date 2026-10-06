@@ -25,6 +25,7 @@ export { createContainmentPanels, createShedMarkers, createStatusMarkers } from 
 export { isColorblind, setColorblind, statusColor, statusVersion, type StatusName } from './status-colors';
 export { createPing, createRangeRing, createSelectionBrackets, createSelectionRing, type Ping, type PingKind } from './fx/rings';
 export { createBuildGhost, FACING_ANGLE, type BuildGhost, type GhostKind } from './fx/build-ghost';
+export { bundleThickness, createCableTrays, TRAY_Y, type CableTrays } from './fx/cable-trays';
 export { createConstructionSite };
 
 /**

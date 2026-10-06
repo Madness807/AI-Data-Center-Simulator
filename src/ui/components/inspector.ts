@@ -7,6 +7,9 @@ import { modifiers } from '../../sim/progression';
 import { idx, type GameState } from '../../sim/state';
 import { busyRackIds, coolersCovering, cracHeatLoad, redundancy, siteProgress } from '../../sim/stats';
 import { upsAutonomy } from '../../sim/systems/power';
+import { cableReach, networkActive } from '../../sim/network';
+import { cableLayout } from '../../render/cable-paths';
+import { cableText, unlinkedAdvice, unlinkedLabel } from '../network-text';
 import { isTaskAssigned } from '../../sim/systems/technicians';
 import { tempCss } from '../color';
 import { buildingName, KIND_INFO } from '../catalog';
@@ -118,6 +121,7 @@ export class Inspector {
   private readonly power = new Row('Énergie', 'power');
   private readonly shedOrder = new Row('Ordre de délestage', 'power');
   private readonly compute = new Row('Calcul', 'compute');
+  private readonly netRow = new Row('Réseau', 'switch');
   private readonly coverage = new Row('Portée', 'target');
   private readonly distribution = new Row('Distribution', 'pdu');
   private readonly ports = new Row('Ports', 'switch');
@@ -195,6 +199,7 @@ export class Inspector {
           this.power,
           this.shedOrder,
           this.compute,
+          this.netRow,
           this.coverage,
           this.ports,
           this.distribution,
@@ -317,8 +322,10 @@ export class Inspector {
     for (const row of [this.risk, this.cooling, this.power, this.shedOrder, this.compute, this.failures]) row.show(on);
     this.intake.show(on && s.rules.aisles);
     this.exhaust.show(on && s.rules.aisles);
+    this.netRow.show(on && s.rules.network);
     if (!on) return '';
     const running = isRackActive(b);
+    const netHint = s.rules.network ? this.renderRackNetwork(s, b) : '';
     // En carrière, le risque se lit sur l'air aspiré (devant le rack), pas sur sa case.
     const intakeTemp = rackTemp(s, b);
     // Risque réel : air aspiré, puis usure et âge (carrière).
@@ -368,7 +375,23 @@ export class Inspector {
     if (!coolers.length && temp >= FAILURE.thresholdC) return `Au-delà de ${FAILURE.thresholdC} °C les pannes se multiplient : posez un CRAC à portée.`;
     if (b.status === 'ok' && !b.powered) return 'Capacité électrique insuffisante : ajoutez un PDU.';
     if (b.status === 'failed') return 'Un technicien doit venir le réparer ; les pièces sont payées à son arrivée.';
-    return '';
+    return netHint;
+  }
+
+  /** Ligne Réseau d'un rack : son switch et son câble, ou pourquoi il n'est pas relié. Renvoie l'astuce éventuelle. */
+  private renderRackNetwork(s: GameState, b: Building): string {
+    const view = cableLayout(s).view;
+    const cable = view.cables.find((c) => c.rack === b.id);
+    if (cable) {
+      const where = `switch ${cable.switchCell.x},${cable.switchCell.y} · ${cableText(cable.length)}`;
+      this.netRow.set(cable.up ? where : `${where} · switch hors service`, cable.up ? '' : 'warn');
+      return '';
+    }
+    const reason = view.unlinked.get(b.id) ?? 'noSwitch';
+    const active = networkActive(s);
+    this.netRow.set(`non relié · ${unlinkedLabel(reason, cableReach(s))}`, active && reason !== 'pending' ? 'warn' : '');
+    const advice = unlinkedAdvice(reason);
+    return active && advice ? `Non relié au réseau, il ne peut pas entraîner : ${advice}` : '';
   }
 
   private renderCrac(s: GameState, b: Building, on: boolean): string {
@@ -442,11 +465,17 @@ export class Inspector {
   private renderSwitch(s: GameState, b: Building, on: boolean): string {
     this.ports.show(on);
     if (!on) return '';
-    const linked = s.buildings.filter((r) => r.kind === 'rack' && r.link === b.id).length;
-    this.ports.set(`${linked} / ${NETWORK.ports} ${plural(NETWORK.ports, 'rack')} reliés`, linked >= NETWORK.ports ? 'warn' : '');
+    const view = cableLayout(s).view;
+    const lengths = view.cables.filter((c) => c.sw === b.id).map((c) => c.length);
+    const used = lengths.length;
+    const span = used ? ` · câbles de ${Math.min(...lengths)} à ${Math.max(...lengths)} cases` : '';
+    const waiting = [...view.unlinked.values()].some((r) => r === 'portsFull');
+    this.ports.set(`${used} / ${NETWORK.ports} racks reliés${span}`, used >= NETWORK.ports && waiting ? 'warn' : '');
     this.coverage.show(true);
-    this.coverage.set(`${NETWORK.reach} cases de câble, par les allées`);
-    return b.powered ? '' : 'Sans courant, le switch coupe ses racks du réseau.';
+    this.coverage.set(`${cableReach(s)} cases de câble, par les allées`);
+    if (!b.powered) return 'Sans courant, le switch coupe ses racks du réseau.';
+    if (!used) return 'Aucun rack câblé : posez le switch au bout d’une rangée, les câbles passent par les allées libres.';
+    return used >= NETWORK.ports && waiting ? 'Ports pleins : des racks à portée attendent un autre switch.' : '';
   }
 
   /** Bouton Moderniser (carrière, recherche faite) : génération suivante, prix, raison d'un refus. */
