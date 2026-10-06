@@ -103,7 +103,7 @@ Le jeu a été vérifié sous Chrome. Sur Firefox et sur Safari, une partie rapi
 
 - [ ] L'écran titre s'affiche, avec la salle en 3D qui tourne lentement.
 - [ ] Le tutoriel va de l'étape 1 à l'étape 9.
-- [ ] En carrière, un conseil s'affiche après quelques secondes et « Compris » le range ; une recherche se lance (U) et avance ; le passage d'un palier ouvre sa fenêtre.
+- [ ] En carrière, un conseil s'affiche après quelques secondes et « Compris » le range ; une recherche se lance (U, puis double-clic ou « Lancer la recherche ») et avance, et les liens de l'arbre restent posés sur les tuiles ; le passage d'un palier ouvre sa fenêtre.
 - [ ] Le son se lance après le premier clic, et les curseurs de volume agissent.
 - [ ] Sauvegarde dans l'emplacement 1, rechargement de la page, puis « Continuer » : on retrouve la même partie.
 - [ ] Un export suivi d'un import redonne la partie.

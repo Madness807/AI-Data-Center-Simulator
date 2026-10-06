@@ -392,8 +392,9 @@
 
 /* ───────────── Écrans étroits ───────────── */
 /*
- * Disposition selon la largeur « effective » (fenêtre ÷ taille d'interface) : main.ts pose
- * les classes lt-1520 / lt-1320 / lt-1100 sur #hud. Une simple media query ignorerait le zoom.
+ * Disposition selon la largeur « effective » (fenêtre ÷ taille d'interface) : layout.ts pose
+ * les classes lt-1520 / lt-1320 / lt-1200 (panneau Recherche) / lt-1100 sur #hud. Une simple
+ * media query ignorerait le zoom.
  */
 /* La barre du haut fait environ 1 000 px : sous 1 520 px, les contrats passent dessous. */
 #hud.lt-1520 .region-top { right: var(--edge); }
@@ -428,36 +429,156 @@
 #hud.lt-1100 .tutorial { width: 360px; }
 
 /* ───────────── Recherche ───────────── */
-.research { width: min(1180px, calc(100% - 32px)); height: min(640px, calc(var(--vh-ui) - 48px)); padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
-.research .menu-head { gap: 10px; margin-bottom: 0; }
-.research .menu-head .kbd { margin-left: auto; }
-.research-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.research-share { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
-.research-slider { width: 180px; accent-color: var(--accent); }
-.research-share-value { min-width: 40px; }
-.research-note { font-size: 11.5px; color: var(--text-dim); }
-.research-current { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); }
-.research-current-head { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
-.research-current-head .btn { margin-left: auto; padding: 4px 9px; font-size: 11.5px; gap: 5px; }
-/* Une colonne par branche de l'arbre (research.ts › BRANCHES), quel que soit leur nombre. */
-.research-tree { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
-.research-branch { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.research-branch-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); padding-bottom: 4px; border-bottom: 1px solid var(--line); }
-.research-level { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
-.research-node { display: flex; flex-direction: column; gap: 5px; padding: 9px 10px; border-radius: var(--radius-m); border: 1px solid var(--line); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
-.research-node p { margin: 0; font-size: 11.5px; line-height: 1.4; color: var(--text-dim); }
-.research-node-head { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; }
-.research-cost { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
-.research-node .meter { height: 4px; }
-.research-status { font-size: 11px; color: var(--text-dim); }
-.research-node.available:hover { border-color: var(--glass-edge); background: var(--surface-hover); }
-.research-node.available .research-status { color: var(--accent); }
-.research-node.current { border-color: var(--glass-edge); box-shadow: inset 0 0 0 1px var(--accent-soft); cursor: default; }
-.research-node.current .research-status { color: var(--accent); }
-.research-node.done { opacity: 0.75; cursor: default; }
-.research-node.done .research-status { color: var(--ok); }
-.research-node.locked { opacity: 0.55; cursor: not-allowed; }
-#hud.lt-1100 .research-tree { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/*
+ * Arbre technologique (research-panel.ts) : niveaux en lignes, branches en colonnes, fiche à
+ * droite. Chaque élément reçoit la couleur de sa branche par --b / --b-rgb (posées en TS) : ce
+ * fichier ne nomme aucune branche. Les tuiles n'emploient jamais --ok, --warn ni --danger, qui
+ * changent en mode daltonien et se confondraient avec les branches.
+ */
+.research {
+  --rt-head-w: 72px;
+  --rt-gutter: 16px;
+  --rt-detail-w: 240px;
+  --rt-tile-h: 52px;
+  --rt-slot-gap: 10px;
+  --rt-row-gap: 14px;
+  width: min(1180px, calc(100% - 32px)); height: min(640px, calc(var(--vh-ui) - 48px));
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+}
+.rt-head { gap: 12px; margin-bottom: 0; min-height: 30px; }
+.rt-head .panel-title { white-space: nowrap; }
+.rt-share { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.rt-slider { width: 150px; accent-color: var(--accent); }
+.rt-share-value { min-width: 34px; color: var(--text); }
+.rt-share-note { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-head .kbd { margin-left: auto; }
+
+/* Bandeau de la recherche en cours. */
+.rt-strip { display: flex; align-items: center; flex: none; min-height: 38px; padding: 0 10px 0 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--b, var(--line)); }
+.rt-strip-busy { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; }
+.rt-strip-icon { display: grid; color: var(--b); }
+.rt-strip-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.rt-strip-name { all: unset; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.rt-strip-name:hover { text-decoration: underline; }
+.rt-strip-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.rt-strip-meter { flex: 1; min-width: 60px; height: 6px; border-radius: 3px; background: rgba(var(--b-rgb), 0.16); overflow: hidden; }
+.rt-strip-fill { height: 100%; width: 0; background: var(--b); border-radius: inherit; }
+.rt-strip-info { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+.rt-strip .btn { padding: 4px 9px; font-size: 11.5px; gap: 5px; }
+.rt-strip-idle { font-size: 12px; color: var(--text-dim); }
+
+/* Corps : l'arbre et sa légende à gauche, la fiche à droite. */
+.rt-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) var(--rt-detail-w); gap: 16px; }
+.rt-tree-wrap { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.research-tree { position: relative; isolation: isolate; display: grid; column-gap: var(--rt-gutter); row-gap: var(--rt-row-gap); align-content: start; }
+.rt-links { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
+.rt-corner { grid-row: 1; grid-column: 1; align-self: end; padding-bottom: 6px; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.rt-branch { grid-row: 1; z-index: 2; display: flex; align-items: center; gap: 6px; height: 24px; min-width: 0; border-bottom: 2px solid rgba(var(--b-rgb), 0.7); font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.rt-branch svg { flex: none; color: var(--b); }
+/* Bandeau d'un niveau : hachuré tant que son palier n'est pas atteint. */
+.rt-band { grid-column: 1 / -1; z-index: 0; margin: -5px -6px; border-radius: var(--radius-m); background: rgba(255, 255, 255, 0.02); }
+.rt-band.closed { background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 6px, transparent 6px 12px); }
+.rt-level { z-index: 2; display: flex; flex-direction: column; gap: 2px; padding-top: 3px; min-width: 0; }
+.rt-level-n { display: flex; align-items: center; gap: 4px; white-space: nowrap; font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.rt-level-tier { font-size: 12px; font-weight: 600; line-height: 1.15; }
+.rt-level-lock { display: none; }
+.rt-level.closed .rt-level-lock { display: flex; }
+.rt-level.closed .rt-level-tier { color: var(--text-dim); }
+.rt-cell { z-index: 2; display: flex; flex-direction: column; gap: var(--rt-slot-gap); min-width: 0; }
+
+/* Tuile : liseré et icône de la branche ; l'état se lit au pictogramme et à la bordure. Hauteur fixe : les liens en dépendent. */
+.rt-tile {
+  position: relative; height: var(--rt-tile-h); display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; column-gap: 6px; row-gap: 2px;
+  padding: 5px 7px 6px; border: 1px solid rgba(255, 255, 255, 0.12); border-left: 3px solid var(--b); border-radius: var(--radius-s);
+  background: linear-gradient(var(--surface), var(--surface)), var(--glass-strong); color: var(--text); font: inherit; text-align: left; cursor: pointer; overflow: hidden;
+  transition: background 0.12s, border-color 0.12s, opacity 0.2s;
+}
+.rt-tile-icon { display: grid; place-items: center; color: var(--b); }
+.rt-tile-name { align-self: center; font-size: 11.5px; font-weight: 600; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.rt-tile-meta { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; font: 10.5px var(--font-mono); color: var(--text-dim); white-space: nowrap; overflow: hidden; }
+.rt-glyph { display: grid; color: var(--text-dim); }
+.rt-tile-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(var(--b-rgb), 0.14); }
+.rt-tile-fill { display: block; height: 100%; width: 0; background: var(--b); }
+.rt-tile.available { border-color: rgba(255, 255, 255, 0.22); border-left-color: var(--b); }
+.rt-tile.available .rt-glyph { color: var(--text); }
+.rt-tile.available .rt-tile-fill { opacity: 0.5; }
+.rt-tile.available:hover, .rt-tile.shown { background: linear-gradient(var(--surface-hover), var(--surface-hover)), var(--glass-strong); }
+.rt-tile.available:hover { border-color: rgba(255, 255, 255, 0.36); border-left-color: var(--b); }
+.rt-tile.done { background: linear-gradient(rgba(var(--b-rgb), 0.16), rgba(var(--b-rgb), 0.16)), var(--glass-strong); border-color: rgba(var(--b-rgb), 0.5); border-left-color: var(--b); }
+.rt-tile.done .rt-glyph { color: var(--b); }
+.rt-tile.current { border-color: var(--b); animation: rt-pulse 2.4s ease-in-out infinite alternate; }
+.rt-tile.current .rt-glyph { color: var(--b); }
+.rt-tile.current .rt-glyph svg { animation: rt-spin 2.4s linear infinite; }
+.rt-tile.locked, .rt-tile.tier { border-style: dashed; border-left-style: solid; }
+.rt-tile.locked { opacity: 0.62; }
+.rt-tile.tier { opacity: 0.42; }
+/* Prérequis et débouchés de la tuile montrée. */
+.rt-tile.rel { border-color: rgba(255, 255, 255, 0.5); border-left-color: var(--b); }
+.rt-tile[aria-pressed='true'] { outline: 2px solid var(--text); outline-offset: 2px; }
+.rt-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@keyframes rt-pulse { from { box-shadow: 0 0 0 1px var(--b), 0 0 6px rgba(var(--b-rgb), 0.2); } to { box-shadow: 0 0 0 1px var(--b), 0 0 16px rgba(var(--b-rgb), 0.5); } }
+@keyframes rt-spin { to { transform: rotate(360deg); } }
+
+/* Liens de prérequis : pleins quand le prérequis est fait, en tirets sinon ; épaissis autour de la tuile montrée. */
+.rt-link .rt-line { fill: none; stroke: var(--b); stroke-width: 1.75; }
+.rt-link .rt-arrow { fill: var(--b); }
+.rt-link .rt-halo { fill: none; stroke: var(--glass-strong); stroke-width: 6; }
+.rt-link.pending .rt-line { stroke-dasharray: 3 4; opacity: 0.45; }
+.rt-link.pending .rt-arrow { opacity: 0.45; }
+.rt-link.done { opacity: 0.6; }
+.rt-link.tier { opacity: 0.25; }
+.rt-link.hl { opacity: 1; }
+.rt-link.hl .rt-line { stroke-width: 2.75; opacity: 1; }
+.rt-link.hl .rt-arrow { opacity: 1; }
+
+.rt-legend { display: flex; align-items: center; gap: 12px; font-size: 10.5px; color: var(--text-faint); white-space: nowrap; overflow: hidden; }
+.rt-legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.rt-legend-dash { width: 18px; border-top: 2px dashed var(--text-faint); }
+.rt-legend-keys { margin-left: auto; }
+
+/* Fiche de la recherche montrée (tirets en haut : simple aperçu au survol). */
+.rt-detail { display: flex; flex-direction: column; gap: 10px; min-height: 0; padding: 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--b); overflow: hidden; }
+.rt-detail.preview { border-top-style: dashed; }
+.rt-d-head { display: flex; align-items: center; gap: 10px; }
+.rt-d-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-m); color: var(--b); background: rgba(var(--b-rgb), 0.16); box-shadow: inset 0 0 0 1px rgba(var(--b-rgb), 0.35); }
+.rt-d-title { min-width: 0; }
+.rt-d-name { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.2; }
+.rt-d-where { margin-top: 2px; font-size: 11px; color: var(--text-dim); }
+.rt-d-state { align-self: flex-start; gap: 5px; }
+.rt-d-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.rt-d-desc { margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+.rt-d-section { display: flex; flex-direction: column; gap: 4px; }
+.rt-d-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.rt-d-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.rt-d-item svg { flex: none; }
+.rt-d-item.ok svg { color: var(--b); }
+.rt-d-item.missing { color: var(--text-dim); }
+.rt-d-branch { margin-left: auto; font-size: 10.5px; color: var(--text-faint); }
+.rt-d-cost { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.rt-d-timing { font-size: 11.5px; color: var(--text-dim); }
+.rt-d-progress { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); }
+.rt-d-meter { flex: 1; height: 5px; border-radius: 3px; background: rgba(var(--b-rgb), 0.16); overflow: hidden; }
+.rt-d-progress-fill { height: 100%; width: 0; background: var(--b); }
+.rt-d-tier-progress { font-size: 11px; color: var(--text-dim); }
+.rt-d-actions { display: flex; flex-direction: column; gap: 6px; }
+.rt-d-buttons { display: flex; gap: 6px; }
+.rt-launch { flex: 1; justify-content: center; gap: 6px; padding: 8px 10px; font-size: 12.5px; }
+.rt-launch[aria-disabled='true'] { opacity: 0.6; cursor: default; }
+.rt-d-note { margin: 0; font-size: 11px; line-height: 1.35; color: var(--text-dim); }
+.rt-d-note.flash { animation: rt-note 0.6s ease-out 2; }
+@keyframes rt-note { 50% { color: var(--warn-text); } }
+.rt-d-hint { margin: 0; font-size: 11.5px; color: var(--text-faint); text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .research *, .research *::before { animation: none !important; transition: none !important; }
+}
+
+/* Écrans plus étroits que le panneau : tuiles sans icône, fiche plus fine, puis marges resserrées. */
+#hud.lt-1200 .research { --rt-detail-w: 224px; }
+#hud.lt-1200 .rt-tile-icon { display: none; }
+#hud.lt-1100 .research { --rt-head-w: 64px; --rt-gutter: 12px; --rt-detail-w: 216px; }
+#hud.lt-1100 .rt-tile-name, #hud.lt-1100 .rt-branch { font-size: 11px; }
+#hud.lt-1100 .rt-legend-keys, #hud.lt-1100 .rt-share > span:first-child { display: none; }
 
 /* Bouton R&D de la barre : une part du calcul attend un nœud. */
 .toggle-group .btn.idle { border-color: rgba(var(--warn-rgb), 0.55); color: var(--warn); }

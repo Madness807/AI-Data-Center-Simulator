@@ -58,6 +58,7 @@ src/
     components/           barre du haut, construction, contrats, inspecteur, tableau de bord, panneaux…
     catalog.ts  tones.ts  layout.ts  format.ts  color.ts  confirm.ts   noms, teintes, disposition, formats
     network-text.ts       textes du réseau (raisons d'un rack non relié, câbles)
+    research-model.ts  research-links.ts   arbre de recherche : grille, liens, textes (données pures)
     tutorial/  styles/    partie guidée ; jetons de design (tokens.css) et feuilles de style
 tests/                    Vitest sur la simulation et les modules purs, plus les bots d'équilibrage (bot.ts)
 ```

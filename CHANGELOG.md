@@ -2,6 +2,28 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [1.1.1] — 2026-10-06
+
+L'arbre de recherche, redessiné.
+
+### Modifié
+
+- **Recherche (U)** : un vrai arbre technologique.
+  - une ligne par niveau, avec le palier qui l'ouvre, hachurée tant qu'il n'est pas atteint ;
+  - une colonne et une couleur par branche, lisibles en mode daltonien ;
+  - des tuiles compactes (icône, nom, coût ou avancement), dont l'état se lit sans la couleur : ✓ terminée, anneau et compteur pour celle en cours, ▶ disponible, ⏸ entamée, cadenas et tirets pour les verrouillées ;
+  - des liens qui montrent ce que chaque recherche débloque ;
+  - une fiche à droite : description, ce que la recherche débloque, ses prérequis et la progression vers son palier, son coût et son délai au rythme actuel, et le bouton « Lancer la recherche » ;
+  - survol pour prévisualiser, clic pour choisir, double-clic ou Entrée pour lancer, flèches pour parcourir ;
+  - tout tient sans défiler, de 1 280 × 720 à 2 560 × 1 440, aux trois tailles d'interface.
+
+### Interne
+
+- `src/ui/research-model.ts` et `src/ui/research-links.ts` : la grille, les liens et les textes en données pures, testés. Le panneau est construit une fois ; seule la recherche en cours bouge à chaque image.
+- Couleurs des branches dans la palette (`BRANCH_COLORS`), écrites en variables CSS par `theme.ts`.
+- Nouveau seuil de mise en page `lt-1200`.
+- Tests : 224.
+
 ## [1.1.0] — 2026-10-06
 
 Le réseau de calcul : en carrière, les blocs d'entraînement doivent être câblés à des switchs. Les câbles se posent seuls, par les allées libres, et courent au plafond.

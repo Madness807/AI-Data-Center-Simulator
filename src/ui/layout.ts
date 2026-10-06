@@ -11,8 +11,11 @@ export type UiScale = (typeof UI_SCALES)[number];
 /** Le HUD est conçu pour au moins cette surface, en px effectifs : le zoom est plafonné en conséquence. */
 export const MIN_HUD = { width: 1000, height: 680 };
 
-/** Largeurs effectives sous lesquelles la disposition se resserre (classes lt-1520, lt-1320, lt-1100). */
-export const BREAKPOINTS = [1520, 1320, 1100] as const;
+/**
+ * Largeurs effectives sous lesquelles la disposition se resserre (classes lt-1520, lt-1320,
+ * lt-1200, lt-1100). lt-1200 ne sert qu'au panneau Recherche, plus large que les autres.
+ */
+export const BREAKPOINTS = [1520, 1320, 1200, 1100] as const;
 
 /** Applique le zoom choisi (plafonné à ce que la fenêtre permet) et les classes de disposition. */
 export function applyLayout(hud: HTMLElement, uiScale: UiScale): void {

@@ -376,6 +376,11 @@ export class Hud {
         this.research.close();
         return true;
       }
+      // Recherche : flèches pour parcourir l'arbre, Entrée pour lancer.
+      if (this.research.isOpen && this.research.handleKey(e)) {
+        e.preventDefault();
+        return true;
+      }
       // Fenêtre ouverte : seules la pause et la vitesse passent au jeu.
       return !(['pause', 'speed1', 'speed2', 'speed4'] as const).some((action) => matches(action, e));
     }
@@ -388,6 +393,7 @@ export class Hud {
     this.alerts.clear();
     this.gameHistory.clear();
     this.team.reset();
+    this.research.reset();
     this.tips.hide();
     this.victorySeen = false;
     this.victoryOpen = false;
