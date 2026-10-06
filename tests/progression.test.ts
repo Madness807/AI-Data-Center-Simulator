@@ -73,6 +73,8 @@ describe('recherche', () => {
     expect(researchBlocker(s, 'auto-repair')).toMatch(/terminée/);
     expect(researchBlocker(s, 'fast-techs')).toBeNull();
     expect(researchBlocker(s, 'inconnu')).toMatch(/inconnue/);
+    // Un niveau pas encore ouvert : le palier qui l'ouvre (texte repris tel quel par le panneau R&D).
+    expect(researchBlocker(s, 'gpu-g2')).toBe('Palier Scale-up requis');
 
     const quick = createInitialState(3);
     quick.commands.push({ type: 'startResearch', id: 'auto-repair' });

@@ -5,6 +5,12 @@ const nf1 = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFr
 
 export const money = (n: number) => `${nf.format(Math.round(n))} $`;
 
+/** Entier avec l'espace des milliers : « 1 200 ». */
+export const integer = (n: number) => nf.format(Math.round(n));
+
+/** Points de recherche : « 1 200 pts ». */
+export const points = (n: number) => `${integer(n)} pts`;
+
 /** Montant signé, avec un vrai signe moins : « +6 000 $ », « −1 500 $ ». */
 export const signedMoney = (n: number) =>
   Math.round(n) === 0 ? '0 $' : `${n < 0 ? '−' : '+'}${nf.format(Math.abs(Math.round(n)))} $`;

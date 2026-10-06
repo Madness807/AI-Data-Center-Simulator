@@ -39,6 +39,7 @@
   --status-repairing: #ffa23b;
   /* Voile derrière les fenêtres et les écrans de fin. */
   --backdrop-rgb: 5, 8, 12;
+  /* Branches de la recherche (--branch-<id> et --branch-<id>-rgb) : écrites par theme.ts depuis la palette. */
 
   /* Plans d'empilement : élément mis en avant, menus, infobulle, messages près du curseur. */
   --z-raised: 2;

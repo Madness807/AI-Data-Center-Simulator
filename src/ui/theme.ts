@@ -1,4 +1,5 @@
 import { isColorblind, PALETTE, statusColor } from '../render/assets';
+import { BRANCH_COLORS } from '../render/assets/palette';
 import { hexCss as hex } from './color';
 
 const rgb = (n: number) => `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
@@ -19,6 +20,8 @@ export function applyTheme(root: HTMLElement = document.documentElement): void {
   };
   set('ok', statusColor('busy'));
   set('accent', PALETTE.blueprint);
+  // Branches de la recherche : une teinte chacune, qui ne change pas en mode daltonien.
+  for (const [id, color] of Object.entries(BRANCH_COLORS)) set(`branch-${id}`, color);
   root.style.setProperty('--status-repairing', hex(statusColor('repairing')));
   // En mode daltonien, les teintes « alerte » et « danger » et leurs textes suivent la palette adaptée.
   const adapted = ['warn', 'danger', 'ok-text', 'warn-text', 'danger-text'];

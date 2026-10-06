@@ -1,3 +1,5 @@
+import type { Branch } from '../../sim/research';
+
 /**
  * Toutes les couleurs de la direction artistique (low-poly stylisé). Aucun autre fichier
  * ne doit écrire une couleur en dur : on change le style ici, en un seul endroit.
@@ -139,6 +141,19 @@ export const PALETTE = {
   /** Calques au sol (render/overlay-colors.ts) : liquide, entraînement, sol assombri sous les équipements. */
   overlay: { liquid: 0x9678ff, training: 0xff6ec8, dim: 0x080c12, switchFull: 0xd9dee7 },
 } as const;
+
+/**
+ * Branches de la recherche (Okabe-Ito, lisibles par les daltoniens) : en-têtes, liseré des tuiles,
+ * liens du panneau R&D. Distinctes des couleurs d'état, qui changent en mode daltonien ; la
+ * branche Réseau porte le mauve des switchs, comme partout dans le jeu.
+ */
+export const BRANCH_COLORS: Readonly<Record<Branch, number>> = {
+  compute: 0x009e73,
+  network: PALETTE.switchAccent,
+  cooling: 0x56b4e9,
+  power: 0xf0e442,
+  ops: 0xe69f00,
+};
 
 export type Rgb = readonly [number, number, number];
 

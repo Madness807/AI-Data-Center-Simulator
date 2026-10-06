@@ -183,13 +183,23 @@ export function modifiers(s: GameState): Modifiers {
   return m;
 }
 
+/** Palier qui ouvre un niveau de recherche (le niveau n s'ouvre au palier d'indice n − 1). */
+export function levelTier(level: number): Tier {
+  return TIERS[level - 1];
+}
+
+/** Ce niveau de recherche est-il ouvert au palier atteint ? */
+export function levelOpen(s: GameState, level: number): boolean {
+  return level <= s.career.tier + 1;
+}
+
 /** Raison pour laquelle un nœud ne peut pas être lancé, ou null. */
 export function researchBlocker(s: GameState, id: string): string | null {
   const node = researchById(id);
   if (!node) return 'Recherche inconnue';
   if (!s.rules.progression) return 'Recherche réservée à la carrière';
   if (s.research.done.includes(id)) return 'Déjà terminée';
-  if (node.level > s.career.tier + 1) return `Palier ${TIERS[node.level - 1].name} requis`;
+  if (!levelOpen(s, node.level)) return `Palier ${levelTier(node.level).name} requis`;
   const missing = node.requires.filter((r) => !s.research.done.includes(r));
   if (missing.length) return `Nécessite : ${missing.map((r) => researchById(r)?.name ?? r).join(', ')}`;
   return null;

@@ -1,4 +1,5 @@
 import type { BuildingKind, Gen, Specialty } from '../sim/entities';
+import type { Branch } from '../sim/research';
 import type { IconName } from './icons';
 
 /**
@@ -24,6 +25,37 @@ export function buildingName(kind: BuildingKind, gen: Gen = 1): string {
 export function shortName(kind: BuildingKind, gen: Gen = 1): string {
   return kind === 'rack' && gen > 1 ? `Rack G${gen}` : KIND_INFO[kind].short;
 }
+
+/** Icône de chaque branche de la recherche. */
+export const BRANCH_ICON: Record<Branch, IconName> = { compute: 'compute', network: 'switch', cooling: 'crac', power: 'power', ops: 'team' };
+
+/** Icône de chaque nœud de recherche ; un nœud qui débloque un équipement reprend celle de l'équipement. */
+export const RESEARCH_ICON: Readonly<Record<string, IconName>> = {
+  opportunistic: 'recycle',
+  'gpu-g2': 'gpu',
+  retrofit: 'retrofit',
+  checkpoints: 'checkpoint',
+  'gpu-g3': 'chip',
+  switches: KIND_INFO.switch.icon,
+  fabric: 'fabric',
+  optical: 'cable',
+  'crac-he': 'airflow',
+  containment: 'containment',
+  'liquid-cooling': KIND_INFO.cdu.icon,
+  'free-cooling': 'wind',
+  'heat-reuse': 'heatReuse',
+  'pdu-hc': KIND_INFO.pdu.icon,
+  ups: KIND_INFO.ups.icon,
+  generators: KIND_INFO.generator.icon,
+  'green-power': 'green',
+  'switchover-2n': 'switchover',
+  'auto-repair': 'repair',
+  'fast-techs': 'fastTechs',
+  'planned-maintenance': 'planned',
+  'spare-parts': 'spareParts',
+  specialties: 'specialties',
+  predictive: 'predictive',
+};
 
 /** Libellé de chaque spécialité de technicien. */
 export const SPECIALTY_LABEL: Record<Specialty, string> = { electrician: 'électricien', hvac: 'frigoriste', it: 'informaticien' };
