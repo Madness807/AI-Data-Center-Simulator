@@ -143,13 +143,14 @@ export function overlayLegend(mode: Exclude<OverlayMode, 'heat'>): { title: stri
         ],
       };
     case 'network':
+      // Libellés courts : la légende tient dans la place prévue au-dessus de l'inspecteur.
       return {
-        title: 'Réseau · racks reliés aux switchs',
+        title: 'Réseau · câblage',
         items: [
-          { label: 'Rack relié', rgb: status('busy') },
-          { label: 'Rack non relié', rgb: status('failed') },
+          { label: 'Relié', rgb: status('busy') },
+          { label: 'Non relié', rgb: status('failed') },
           { label: 'Câbles', rgb: FIBER },
-          { label: 'Switch libre · portée', rgb: SWITCH_RGB },
+          { label: 'Switch libre', rgb: SWITCH_RGB },
           { label: 'Switch plein', rgb: SWITCH_FULL },
         ],
       };

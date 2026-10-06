@@ -1,8 +1,8 @@
-# Data Center IA — 1.0
+# Data Center IA — 1.1
 
 Jeu de stratégie en temps réel dans le navigateur : construisez et exploitez un data center d'IA. Il faut honorer les contrats de calcul, garder la salle au frais et réparer les pannes avant que la trésorerie ne passe dans le rouge.
 
-La version 1.0 ajoute le mode **Carrière** (une heure et demie environ) à la partie rapide de la bêta. **Vos retours décident de la suite.**
+La version 1.0 a ajouté le mode **Carrière** (une heure et demie environ) à la partie rapide de la bêta ; la 1.1 y ajoute le **réseau de calcul** : switchs, câbles qui courent au plafond, blocs d'entraînement reliés. **Vos retours décident de la suite.**
 
 ## Installer et lancer
 
@@ -33,8 +33,8 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
 - **Deux modes** :
   - **Carrière**, une heure et demie environ :
     - livrez à l'heure pour gagner de la réputation et gravir 4 paliers, de Start-up à Hyperscaler ; les deux derniers exigent aussi du calcul en service ;
-    - chaque palier amène de plus gros clients et de nouveaux défis : coupures de courant et usure des racks (Scale-up), météo, canicules, contrats d'entraînement et SLA (Labo d'IA) ;
-    - une part de votre calcul finance la recherche (touche U) : 22 nœuds, des onduleurs au refroidissement liquide et aux GPU de 3e génération ;
+    - chaque palier amène de plus gros clients et de nouveaux défis : coupures de courant et usure des racks (Scale-up), météo, canicules, contrats d'entraînement sur des blocs de racks câblés à un switch, et SLA (Labo d'IA) ;
+    - une part de votre calcul finance la recherche (touche U) : 24 nœuds, des onduleurs au refroidissement liquide, aux GPU de 3e génération et à la fabric réseau ;
     - un conseil s'affiche la première fois qu'une situation se présente.
   - **Partie rapide** : atteindre 100 000 $ de trésorerie, en une trentaine de minutes.
   - Dans les deux cas, la partie continue en mode libre après la victoire.
@@ -43,7 +43,8 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
   - acceptez des contrats que vos racks peuvent assurer ;
   - un rack chauffe : posez un CRAC à moins de 3 cases (un CRAC refroidit environ 3 racks) ;
   - au-delà de 35 °C, les pannes se multiplient ; envoyez un technicien réparer ;
-  - un PDU alimente 40 kW, soit 3 à 4 racks ; s'il en manque, les racks les plus récents sont délestés.
+  - un PDU alimente 40 kW, soit 3 à 4 racks ; s'il en manque, les racks les plus récents sont délestés ;
+  - en carrière, un switch relie 8 racks : chacun s'y câble seul par les allées libres (10 cases au plus). Un bloc d'entraînement doit être entièrement relié ; à cheval sur deux switchs, il ralentit.
 
 ### Commandes
 
@@ -53,12 +54,13 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
 | Sélectionner des techniciens | clic, ou glisser un rectangle (Maj pour ajouter) |
 | Ordonner : aller, construire, réparer, entretenir un rack usé (carrière) | clic droit (Maj + clic droit : mettre en file) |
 | Construire un rack, un CRAC, un PDU | R, C, P, puis clic (glisser pour enchaîner) ; réappuyer passe à la variante suivante (en carrière : racks G2 et G3, CDU, onduleur, groupe électrogène) |
+| Poser un switch réseau (carrière, après la recherche) | N, puis clic |
 | Pivoter un rack (carrière : avant = air aspiré, arrière = chaleur soufflée) | F |
 | Démolir | X |
 | Inspecter un équipement | clic sur l'équipement |
 | Embaucher un technicien | T |
 | Pause / vitesse ×1, ×2, ×4 | Espace / 1, 2, 3 |
-| Calques : chaleur, énergie, froid, occupation, risque | H (Maj+H : précédent) |
+| Calques : chaleur, énergie, froid, occupation, risque, réseau (carrière) | H (Maj+H : précédent) |
 | Tableau de bord / équipe / recherche (carrière) | Tab / G / U |
 | Défilement par les bords | B |
 | Menu (sauvegarde, options, bug) | Échap |
@@ -130,6 +132,7 @@ Attention : `docker compose --profile beta down` arrête **aussi** le serveur de
   - `src/audio/` : sons synthétisés.
 - **Où changer quoi** :
   - un réglage de jeu : `src/sim/balance.ts` ;
+  - le câblage du réseau : `src/sim/network.ts` ;
   - un nom affiché : `src/ui/catalog.ts` ;
   - une touche : `src/input/keymap.ts` ;
   - une couleur : `src/ui/styles/tokens.css` ou `src/render/assets/palette.ts` ;

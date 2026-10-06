@@ -416,6 +416,8 @@
 #hud.lt-1320 .region-top-left > .alerts { flex-shrink: 1; min-height: 0; }
 #hud.lt-1320:has(.legend:not([hidden])) .inspector { max-height: calc(var(--vh-ui) - 420px); }
 #hud.lt-1320:has(.inspector:not([hidden])) .alerts, #hud.lt-1320:has(.selection:not([hidden])) .alerts { display: none; }
+/* Avec une légende de calque, la colonne de gauche descend jusqu'à l'inspecteur dès lt-1520 : les alertes s'effacent aussi. */
+#hud.lt-1520:has(.legend:not([hidden])):has(.inspector:not([hidden])) .alerts, #hud.lt-1520:has(.legend:not([hidden])):has(.selection:not([hidden])) .alerts { display: none; }
 #hud.lt-1320:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1320:has(.selection:not([hidden])) .region-bottom { left: calc(50% + var(--inspector-w) / 2 + var(--gap)); }
 /* Barre décalée par l'inspecteur : des cartes plus étroites pour garder la famille Réseau sur la ligne. */
 #hud.lt-1320:has(.inspector:not([hidden])) .tool-card, #hud.lt-1320:has(.selection:not([hidden])) .tool-card { width: 70px; }

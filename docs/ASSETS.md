@@ -15,10 +15,10 @@ src/render/assets/
 ├─ textures.ts         textures générées en pur JS (DataTexture) : dalles, rayures, panneaux
 ├─ cache.ts            once / onceBy : créer une fois, partager ensuite
 ├─ dimensions.ts       BUILDING_SIZE, l'encombrement de chaque bâtiment
-├─ props/              équipements : rack (instancié), crac, pdu, ups (onduleur), generator, cdu
+├─ props/              équipements : rack (instancié), crac, pdu, ups (onduleur), generator, cdu, switch
 ├─ characters/         technicien et ses animations
 ├─ environment/        sol, murs, éclairage
-└─ fx/                 chantier, marqueurs d'état, anneaux, fantôme de construction
+└─ fx/                 chantier, marqueurs d'état, anneaux, fantôme de construction, chemins de câbles
 public/assets/
 ├─ models/             réservé aux futurs .glb
 └─ textures/           réservé aux futures images
@@ -85,6 +85,17 @@ Les racks ne suivent pas `AssetModel` : ils sont instanciés (`createRackInstanc
 3. Créer `props/<nom>.ts`, qui exporte une fabrique `createXxx(): AssetModel`.
 4. L'inscrire dans `PROP_MODELS` (`index.ts`).
 5. Lancer `docker compose exec app npx vitest run tests/assets.test.ts` : le test vérifie l'encombrement, la pose au sol, le budget et le partage.
+
+Le compilateur réclame aussi ses entrées dans `BUILD_COST` et `BUILD_TIME`, `DOMAIN` et les libellés des techniciens, le fantôme de construction (`fx/build-ghost.ts`), `TOOL_INFO` et l'infobulle de la barre de construction. Il ne voit pas, en revanche :
+- **simulation** : `loadKW` et `serviceOrder` s'il consomme (sinon il n'est jamais alimenté), sa chaleur (`systems/heat.ts`), le PUE (`stats.ts`), le nœud de recherche qui le débloque (`effect.unlocks`) et l'ordre de recherche du bot ;
+- **rendu** : sa vignette (`thumbnails.ts`), les champs de `ModelState` qu'il lit (remplis par `scene.ts`), sa couleur sur la mini-carte et sur le calque énergie ;
+- **interface** : sa famille dans la barre (`BUILD_FAMILIES`, `KEYS`, `FAMILY_KEYS`), la ligne d'aide, la pastille d'état et la section de l'inspecteur, l'infobulle de case.
+
+Exemple complet : le switch réseau (`props/switch.ts`). Ses voyants (un par port occupé) sont deux maillages dont la géométrie change selon le nombre de ports, plutôt qu'un maillage par voyant.
+
+## Chemins de câbles
+
+Les câbles du réseau courent au plafond (y = 1,86, au-dessus des racks, du confinement et des murs abaissés). `src/render/cable-paths.ts` calcule en données pures un tronçon par paire de cases empruntée, avec le nombre de câbles qu'il porte, et une descente vers chaque équipement ; `fx/cable-trays.ts` les dessine en trois maillages instanciés (chemins, faisceaux, descentes) ; `cable-view.ts` ne les reconstruit que lorsque le câblage change. Ils ne projettent pas d'ombre (elle tomberait loin d'eux et ressemblerait à un câble au sol) et se masquent quand le calque Réseau montre les câbles à leur vraie case.
 
 ## Remplacer un modèle par un fichier .glb
 

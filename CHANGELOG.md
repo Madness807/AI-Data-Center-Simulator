@@ -2,6 +2,52 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [1.1.0] — 2026-10-06
+
+Le réseau de calcul : en carrière, les blocs d'entraînement doivent être câblés à des switchs. Les câbles se posent seuls, par les allées libres, et courent au plafond.
+
+### Ajouté
+
+- **Switch réseau** (carrière, touche N) : 2 000 $, 8 ports, 1 kW. La recherche « Switchs réseau » le débloque (niveau 2, nouvelle branche Réseau).
+- **Câblage automatique** :
+  - chaque rack se relie seul au switch libre le plus proche, par les cases libres, à 10 cases de câble au plus ;
+  - les câbles les plus courts passent d'abord ;
+  - un câble posé reste tant que son chemin tient ;
+  - construire sur le seul chemin d'un câble le coupe ; s'il existe un détour, le câble le prend.
+- **Entraînement relié**, à partir du Labo d'IA :
+  - un bloc ne prend que des racks reliés, toujours côte à côte ;
+  - le jeu préfère un bloc sur un seul switch ; à cheval sur plusieurs, il avance à 70 %, sauf avec la recherche « Fabric spine-leaf » (niveau 3) ;
+  - un câble coupé rompt le bloc, qui recule comme après une panne.
+- **Chemins de câbles au plafond**, avec des faisceaux qui grossissent selon le nombre de câbles, et des voyants de ports sur les switchs.
+- **Calque Réseau** (H) : racks reliés ou non, câbles, switchs libres avec leur portée, switchs pleins.
+- **Aperçus** :
+  - avec l'outil switch, la portée en mauve et les câbles que le switch recevrait ;
+  - une construction qui couperait des câbles passe à l'ambre ;
+  - l'inspection surligne les câbles d'un switch ou d'un rack.
+- **Inspecteur, infobulles et contrats** : état réseau d'un rack, ports d'un switch, plus grand bloc relié, vitesse réseau d'un bloc.
+- Conseil de carrière « Réseau de calcul ». La salle de l'écran titre est câblée.
+
+### Modifié
+
+- L'interconnexion optique rejoint la branche Réseau, après la Fabric, et porte aussi un câble à 16 cases.
+- Recherche : 24 nœuds sur 5 colonnes.
+- Le mot « réseau » désigne désormais le réseau de calcul. Côté électrique, l'interface dit « charge électrique », « distribution », « sur le secteur » et « coupure de courant ».
+- Sauvegarde au format 9. Les carrières en cours passent au réseau ; au Labo d'IA et au-delà, leurs entraînements en cours attendent un bloc relié, sans perdre leur progression.
+
+### Corrigé
+
+- Les prévisions de retard comptaient le calcul produit par les blocs d'entraînement au lieu de celui qu'ils réservent.
+- F pivote aussi le fantôme d'un rack G2 ou G3 pendant la pose.
+
+### Interne
+
+- **`src/sim/network.ts`** : le câblage, avec un seul écrivain des liaisons, une passe par tick, et des fonctions pures pour les aperçus et le rendu.
+- **`paintOverlay`** : un `switch` exhaustif, un calque oublié ne compile plus.
+- **Bot** : switchs aux bouts de rangée, Fabric, entraînements acceptés seulement à pleine vitesse, nouveau profil « sans réseau ».
+- **Équilibrage** : le joueur soigné gagne en 82 à 87 min (32 à 40 entraînements livrés). Sans réseau, il gagne en 96 à 106 min sans aucun entraînement.
+- **Partie rapide** : identique au bit près, ce qu'une empreinte temporaire a vérifié à chaque lot.
+- **Tests** : 210.
+
 ## [1.0.1] — 2026-10-05
 
 Correctif : les 4 bugs de jeu relevés par l'audit de propreté du code, et l'audit lui-même (interne). L'équilibrage ne bouge pas : les parties de référence du bot (carrière, avec et sans secours) se jouent à l'identique.

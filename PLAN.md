@@ -45,9 +45,11 @@ src/
     systems/              power, heat, jobs, failures, technicians, economy, incidents, alerts
     career.ts  progression.ts  research.ts   modes, paliers, modificateurs, arbre de recherche
     climate.ts  clusters.ts  stats.ts  ledger.ts   allées et météo, blocs d'entraînement, indicateurs, grand livre
+    network.ts            réseau de calcul : câblage par les allées, liaisons des racks, aperçus
     pathfinding.ts  rng.ts  math.ts  names.ts  alert-memory.ts   A*, hasard à graine, petits calculs, prénoms
   render/                 Three.js : lit l'état sans le modifier
     scene.ts  overlays.ts  overlay-colors.ts  thumbnails.ts  grid.ts
+    cable-paths.ts  cable-view.ts   chemins de câbles au plafond (données pures, puis maillages)
     assets/               modèles low-poly procéduraux, palette, matériaux (voir docs/ASSETS.md)
   input/                  souris et clavier : build.ts, selection.ts, picking.ts, keymap.ts (table des raccourcis)
   audio/                  sons synthétisés (sfx.ts), moteur, chef d'orchestre (director.ts)
@@ -55,6 +57,7 @@ src/
     hud.ts                orchestrateur des composants
     components/           barre du haut, construction, contrats, inspecteur, tableau de bord, panneaux…
     catalog.ts  tones.ts  layout.ts  format.ts  color.ts  confirm.ts   noms, teintes, disposition, formats
+    network-text.ts       textes du réseau (raisons d'un rack non relié, câbles)
     tutorial/  styles/    partie guidée ; jetons de design (tokens.css) et feuilles de style
 tests/                    Vitest sur la simulation et les modules purs, plus les bots d'équilibrage (bot.ts)
 ```
@@ -224,9 +227,20 @@ Une carrière d'une heure et demie environ, en 4 paliers (réputation, puis calc
 
 **But** : une partie longue qui se renouvelle. Un joueur soigné atteint Hyperscaler en 75 à 120 minutes ; sans recherche, il plafonne au Labo d'IA.
 
+### v1.1 — Réseau ✅
+
+Le réseau de calcul de la carrière, en 7 lots (filet de sécurité, switch, câblage, blocs reliés, aperçus et calque, équilibrage, finitions).
+
+- **Switch réseau** (8 ports, 1 kW), débloqué par la nouvelle branche de recherche Réseau : Switchs (niveau 2), Fabric spine-leaf (niveau 3), interconnexion optique (niveau 4).
+- **Câblage automatique** par les cases libres, 10 cases au plus : les câbles les plus courts d'abord, un câble posé reste tant que son chemin tient. Chemins de câbles au plafond, calque Réseau, aperçus de construction.
+- **Entraînement relié** à partir du Labo d'IA : un bloc ne prend que des racks reliés ; à cheval sur plusieurs switchs, il avance à 70 % sauf avec la Fabric. L'inférence et les SLA n'en dépendent pas.
+
+Choix faits avec le joueur : le réseau ne compte que pour l'entraînement, le câblage est automatique, il s'ajoute à la règle des racks côte à côte, les switchs ne tombent pas en panne.
+
+**But** : donner un sens au plan de la salle (bouts de rangée, allées libres) au moment où les entraînements arrivent. Un joueur soigné gagne toujours en 75 à 120 minutes ; sans réseau, il ne livre aucun entraînement et gagne nettement plus tard.
+
 ### Suite
 
-- **Réseau** : switches et câblage ; un cluster mal relié voit ses performances baisser. Les allées libres entre les rangées de racks laissent la place au câblage.
 - **Extension** : achat de nouvelles salles, carte qui s'agrandit.
 - **Énergie** : prix variable de l'électricité (réseau, solaire, gaz), contrats d'approvisionnement, PDU à rayon local.
 - **Sécurité** : incendie, détection et extinction.

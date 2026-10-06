@@ -260,10 +260,10 @@ const upgradeBuilding = (id: number) => {
   enqueue({ type: 'upgrade', id, ...(tech ? { assign: [tech.id] } : {}) });
   view.ping(b, 'build');
 };
-/** F (carrière) : pivote le fantôme pendant la pose d'un rack, sinon le rack inspecté. */
+/** F (carrière) : pivote le fantôme pendant la pose d'un rack (toutes générations), sinon le rack inspecté. */
 const rotate = () => {
   if (!state.rules.aisles) return;
-  if (build.tool === 'rack') build.rotate();
+  if (build.tool === 'rack' || build.tool === 'rack2' || build.tool === 'rack3') build.rotate();
   else if (selection.inspected !== null) rotateBuilding(selection.inspected);
 };
 

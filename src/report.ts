@@ -31,7 +31,7 @@ export function buildReport(ctx: ReportContext, version: string, now = new Date(
         ? `Mode : carrière · palier ${s.career.tier} · réputation ${s.career.reputation} · recherche ${s.research.done.join(', ') || 'aucune'}${s.research.current ? ` (en cours : ${s.research.current}, part ${Math.round(s.research.share * 100)} %)` : ''}`
         : 'Mode : partie rapide',
       `Trésorerie : ${Math.round(s.money)} $ · vitesse ×${s.speed}`,
-      `Équipements : ${count('rack')} racks, ${count('crac')} CRAC, ${count('pdu')} PDU · ${s.techs.length} techniciens`,
+      `Équipements : ${count('rack')} racks, ${count('crac')} CRAC, ${count('pdu')} PDU${count('switch') ? `, ${count('switch')} switchs` : ''} · ${s.techs.length} techniciens`,
       `Énergie : ${s.power.loadKW}/${s.power.capacityKW} kW (${s.power.shedCount} délestés) · calcul ${s.compute.used}/${s.compute.total} CU/s`,
       s.cooling.outsideC === null ? 'Météo : sans effet' : `Météo : ${Math.round(s.cooling.outsideC)} °C dehors, CRAC à ${Math.round(s.cooling.cracFactor * 100)} %${s.incidents.heatwaveEndsAt !== null ? ' (canicule)' : ''}`,
       s.power.grid ? 'Réseau électrique : présent' : `Réseau électrique : COUPÉ (groupes ${s.power.generatorKW} kW, onduleurs ${Math.round(s.power.upsKW)} kW)`,
