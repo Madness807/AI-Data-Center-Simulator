@@ -2,6 +2,34 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [1.1.2] — 2026-10-06
+
+Correctif d'interface : plus aucun chevauchement dans le HUD, à toutes les tailles d'écran et d'interface, même avec les grands nombres de fin de carrière. La largeur « effective » est celle de la fenêtre divisée par la taille d'interface.
+
+### Corrigé
+
+- **Barre du haut entre 1 520 et 1 760 px effectifs** : elle débordait sur la mini-carte et sur les contrats.
+  - dès le début de partie jusqu'à 1 610 px environ, par exemple en 1 440 × 900 à 90 % ou en 1 600 × 900 ;
+  - au-delà, avec les grands nombres de fin de carrière (millions de dollars, milliers de kW et de CU/s), par exemple en 1 920 × 1 080 à 115 %.
+
+  Les contrats passent désormais sous la barre dès 1 760 px.
+- **Entre 1 320 et 1 420 px effectifs, par exemple en 1 366 × 768** :
+  - inspecteur ouvert, la barre de construction le chevauchait ;
+  - en fin de carrière, la barre du haut mordait sur la mini-carte et sortait de l'écran.
+
+  La colonne de gauche passe désormais sous la barre du haut dès 1 420 px, et la barre de construction se range à côté de l'inspecteur.
+- **Petites fenêtres** (par exemple une fenêtre en demi-écran) : en fin de carrière, la barre du haut sortait de l'écran. L'interface rapetisse désormais dès que la fenêtre ne lui laisse pas 1 080 px de large (1 000 auparavant), sans descendre sous 90 %.
+
+### Interne
+
+- Seuils de mise en page : `lt-1520` devient `lt-1760`, `lt-1320` devient `lt-1420`, et `MIN_HUD.width` passe de 1 000 à 1 080.
+- Vérifié dans le navigateur sans aucun chevauchement : 4 tailles d'écran × 3 tailles d'interface, plus 19 cas limites, avec 5 situations chacun :
+  - début de partie ;
+  - fin de carrière ;
+  - légende et inspecteur ;
+  - légende et sélection ;
+  - tous les bandeaux.
+
 ## [1.1.1] — 2026-10-06
 
 L'arbre de recherche, redessiné.

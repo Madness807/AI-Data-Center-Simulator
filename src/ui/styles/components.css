@@ -393,35 +393,39 @@
 /* ───────────── Écrans étroits ───────────── */
 /*
  * Disposition selon la largeur « effective » (fenêtre ÷ taille d'interface) : layout.ts pose
- * les classes lt-1520 / lt-1320 / lt-1200 (panneau Recherche) / lt-1100 sur #hud. Une simple
+ * les classes lt-1760 / lt-1420 / lt-1200 (panneau Recherche) / lt-1100 sur #hud. Une simple
  * media query ignorerait le zoom.
  */
-/* La barre du haut fait environ 1 000 px : sous 1 520 px, les contrats passent dessous. */
-#hud.lt-1520 .region-top { right: var(--edge); }
-#hud.lt-1520 .region-right { top: var(--top-bar-h); max-height: calc(var(--vh-ui) - 240px); width: var(--col-right-narrow); }
+/* La barre du haut fait 1 030 px environ, jusqu'à 1 130 px avec les grands nombres de fin de
+   carrière. Entre les deux colonnes, il reste la largeur moins 572 px : sous 1 760 px (avec de la
+   marge), les contrats passent sous la barre. */
+#hud.lt-1760 .region-top { right: var(--edge); }
+#hud.lt-1760 .region-right { top: var(--top-bar-h); max-height: calc(var(--vh-ui) - 240px); width: var(--col-right-narrow); }
 /* Ce qui s'empile sous la barre (bandeaux, tutoriel, conseils) reste dans l'allée centrale,
    entre les colonnes passées dessous : jusqu'à 296 px de chaque côté, plus l'écart. */
-#hud.lt-1520 .region-top .banner, #hud.lt-1520 .region-top > .tutorial { max-width: calc(100% - 2 * (var(--col-right-narrow) + 2 * var(--gap))); }
-#hud.lt-1520 .region-top .banner { text-align: center; border-radius: 16px; }
-/* Sous 1 320 px : la barre du haut prend toute la largeur et la colonne de gauche passe dessous.
-   Quand un panneau occupe le bas à gauche (inspecteur, sélection), les alertes s'effacent et la
-   barre de construction se décale vers la droite pour lui laisser la place. */
-#hud.lt-1320 .region-top { left: var(--edge); right: var(--edge); }
-#hud.lt-1320 .region-top-left { top: var(--top-bar-h); }
+#hud.lt-1760 .region-top .banner, #hud.lt-1760 .region-top > .tutorial { max-width: calc(100% - 2 * (var(--col-right-narrow) + 2 * var(--gap))); }
+#hud.lt-1760 .region-top .banner { text-align: center; border-radius: 16px; }
+/* Sous 1 420 px, la barre du haut ne tient plus à côté de la mini-carte (largeur moins 248 px) et
+   la barre de construction, centrée, toucherait l'inspecteur : la barre du haut prend toute la
+   largeur et la colonne de gauche passe dessous. Quand un panneau occupe le bas à gauche
+   (inspecteur, sélection), les alertes s'effacent et la barre de construction se décale vers la
+   droite pour lui laisser la place. */
+#hud.lt-1420 .region-top { left: var(--edge); right: var(--edge); }
+#hud.lt-1420 .region-top-left { top: var(--top-bar-h); }
 /* Sous la barre du haut : mini-carte puis légende de la heatmap, que l'inspecteur ne doit pas atteindre. */
-#hud.lt-1320 .inspector { max-height: calc(var(--vh-ui) - 380px); }
-#hud.lt-1320 .alerts { max-height: 200px; }
+#hud.lt-1420 .inspector { max-height: calc(var(--vh-ui) - 380px); }
+#hud.lt-1420 .alerts { max-height: 200px; }
 /* La colonne de gauche s'arrête au-dessus de la barre du bas : les alertes rétrécissent. */
-#hud.lt-1320 .region-top-left { max-height: calc(var(--vh-ui) - var(--top-bar-h) - var(--bottom-bar-h)); }
-#hud.lt-1320 .region-top-left > * { flex-shrink: 0; }
-#hud.lt-1320 .region-top-left > .alerts { flex-shrink: 1; min-height: 0; }
-#hud.lt-1320:has(.legend:not([hidden])) .inspector { max-height: calc(var(--vh-ui) - 420px); }
-#hud.lt-1320:has(.inspector:not([hidden])) .alerts, #hud.lt-1320:has(.selection:not([hidden])) .alerts { display: none; }
-/* Avec une légende de calque, la colonne de gauche descend jusqu'à l'inspecteur dès lt-1520 : les alertes s'effacent aussi. */
-#hud.lt-1520:has(.legend:not([hidden])):has(.inspector:not([hidden])) .alerts, #hud.lt-1520:has(.legend:not([hidden])):has(.selection:not([hidden])) .alerts { display: none; }
-#hud.lt-1320:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1320:has(.selection:not([hidden])) .region-bottom { left: calc(50% + var(--inspector-w) / 2 + var(--gap)); }
+#hud.lt-1420 .region-top-left { max-height: calc(var(--vh-ui) - var(--top-bar-h) - var(--bottom-bar-h)); }
+#hud.lt-1420 .region-top-left > * { flex-shrink: 0; }
+#hud.lt-1420 .region-top-left > .alerts { flex-shrink: 1; min-height: 0; }
+#hud.lt-1420:has(.legend:not([hidden])) .inspector { max-height: calc(var(--vh-ui) - 420px); }
+#hud.lt-1420:has(.inspector:not([hidden])) .alerts, #hud.lt-1420:has(.selection:not([hidden])) .alerts { display: none; }
+/* Avec une légende de calque, la colonne de gauche descend jusqu'à l'inspecteur dès lt-1760 : les alertes s'effacent aussi. */
+#hud.lt-1760:has(.legend:not([hidden])):has(.inspector:not([hidden])) .alerts, #hud.lt-1760:has(.legend:not([hidden])):has(.selection:not([hidden])) .alerts { display: none; }
+#hud.lt-1420:has(.inspector:not([hidden])) .region-bottom, #hud.lt-1420:has(.selection:not([hidden])) .region-bottom { left: calc(50% + var(--inspector-w) / 2 + var(--gap)); }
 /* Barre décalée par l'inspecteur : des cartes plus étroites pour garder la famille Réseau sur la ligne. */
-#hud.lt-1320:has(.inspector:not([hidden])) .tool-card, #hud.lt-1320:has(.selection:not([hidden])) .tool-card { width: 70px; }
+#hud.lt-1420:has(.inspector:not([hidden])) .tool-card, #hud.lt-1420:has(.selection:not([hidden])) .tool-card { width: 70px; }
 #hud.lt-1100 .res-label, #hud.lt-1100 .res .meter { display: none; }
 #hud.lt-1100 .res { padding: 2px 8px; }
 #hud.lt-1100 .tool-card { width: 70px; }
