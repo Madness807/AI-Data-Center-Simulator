@@ -68,60 +68,86 @@ interface Switch extends Cell {
 
 /** Le terrain du câblage : cases libres, switchs (réels, plus celui d'un aperçu), distances de câble. */
 interface Survey {
-  free: (x: number, y: number) => boolean;
+  /** 1 pour une case libre (hors cases supposées occupées par un aperçu). */
+  open: Uint8Array;
   switches: Switch[];
   reach: number;
   fields: Map<number, Int16Array>;
 }
 
 function survey(s: GameState, opts: NetworkPlanOptions): Survey {
-  const blocked = new Set<number>();
-  for (const c of [opts.block, opts.addSwitch]) if (c && inBounds(s, c.x, c.y)) blocked.add(idx(s, c.x, c.y));
-  const free = (x: number, y: number) => inBounds(s, x, y) && s.occupant[idx(s, x, y)] < 0 && !blocked.has(idx(s, x, y));
+  const open = new Uint8Array(s.w * s.h);
+  for (let i = 0; i < open.length; i++) open[i] = s.occupant[i] < 0 ? 1 : 0;
+  for (const c of [opts.block, opts.addSwitch]) if (c && inBounds(s, c.x, c.y)) open[idx(s, c.x, c.y)] = 0;
   const switches: Switch[] = s.buildings.filter((b) => b.kind === 'switch');
   // Le switch d'un aperçu prend l'id que la construction lui donnerait : il est le plus récent.
   if (opts.addSwitch) switches.push({ id: s.nextId, x: opts.addSwitch.x, y: opts.addSwitch.y });
   const reach = cableReach(s);
-  const fields = new Map(switches.map((w) => [w.id, cableField(s, w, free, reach)]));
-  return { free, switches, reach, fields };
+  const fields = new Map(switches.map((w) => [w.id, cableField(s, w, open, reach)]));
+  return { open, switches, reach, fields };
 }
 
+/** Case libre de la salle ? (le calcul du câblage tourne à chaque tick : accès direct au masque) */
+const isOpen = (s: GameState, open: Uint8Array, x: number, y: number) => x >= 0 && y >= 0 && x < s.w && y < s.h && open[y * s.w + x] === 1;
+
 /** Cases libres à portée de câble d'un switch : 1 pour ses voisines, puis une de plus par case libre. */
-function cableField(s: GameState, sw: Cell, free: Survey['free'], reach: number): Int16Array {
+function cableField(s: GameState, sw: Cell, open: Uint8Array, reach: number): Int16Array {
   const d = new Int16Array(s.w * s.h);
   const queue: number[] = [];
-  const visit = (x: number, y: number, dist: number) => {
-    if (!free(x, y) || d[idx(s, x, y)]) return;
-    d[idx(s, x, y)] = dist;
-    queue.push(idx(s, x, y));
-  };
-  for (const [dx, dy] of DIRS4) visit(sw.x + dx, sw.y + dy, 1);
+  for (const [dx, dy] of DIRS4) {
+    const x = sw.x + dx;
+    const y = sw.y + dy;
+    if (!isOpen(s, open, x, y) || d[y * s.w + x]) continue;
+    d[y * s.w + x] = 1;
+    queue.push(y * s.w + x);
+  }
   for (let head = 0; head < queue.length; head++) {
     const i = queue[head];
-    if (d[i] >= reach) continue;
+    const next = d[i] + 1;
+    if (next > reach) continue;
     const x = i % s.w;
     const y = (i - x) / s.w;
-    for (const [dx, dy] of DIRS4) visit(x + dx, y + dy, d[i] + 1);
+    for (const [dx, dy] of DIRS4) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (!isOpen(s, open, nx, ny)) continue;
+      const j = ny * s.w + nx;
+      if (d[j]) continue;
+      d[j] = next;
+      queue.push(j);
+    }
   }
   return d;
 }
 
-/** Case libre voisine du rack la plus proche du switch (à égalité, l'ordre de DIRS4), et sa distance. */
-function landing(s: GameState, rack: Cell, field: Int16Array, free: Survey['free']): { cell: Cell; d: number } | null {
-  let best: { cell: Cell; d: number } | null = null;
+/** Distance de câble par la meilleure case libre voisine du rack (Infinity sans case à portée). */
+function landingDistance(s: GameState, rack: Cell, field: Int16Array, open: Uint8Array): number {
+  let best = Infinity;
   for (const [dx, dy] of DIRS4) {
     const x = rack.x + dx;
     const y = rack.y + dy;
-    if (!free(x, y)) continue;
-    const d = field[idx(s, x, y)];
-    if (d > 0 && (!best || d < best.d)) best = { cell: { x, y }, d };
+    if (!isOpen(s, open, x, y)) continue;
+    const d = field[y * s.w + x];
+    if (d > 0 && d < best) best = d;
   }
   return best;
 }
 
+/** Cette case de départ (à égalité, l'ordre de DIRS4), pour tracer le chemin d'un câble. */
+function landing(s: GameState, rack: Cell, field: Int16Array, open: Uint8Array): { cell: Cell; d: number } | null {
+  const d = landingDistance(s, rack, field, open);
+  if (d === Infinity) return null;
+  for (const [dx, dy] of DIRS4) {
+    const x = rack.x + dx;
+    const y = rack.y + dy;
+    if (isOpen(s, open, x, y) && field[y * s.w + x] === d) return { cell: { x, y }, d };
+  }
+  return null;
+}
+
 function cableLength(s: GameState, rack: Cell, sw: Switch, sv: Survey): number {
   if (manhattan(rack, sw) === 1) return 0;
-  return landing(s, rack, sv.fields.get(sw.id)!, sv.free)?.d ?? Infinity;
+  return landingDistance(s, rack, sv.fields.get(sw.id)!, sv.open);
 }
 
 /** Attribution des ports : les câbles posés d'abord, puis les racks libres, les plus courts d'abord. */
@@ -197,12 +223,12 @@ export function activeLinks(s: GameState): Map<number, number> | null {
 function route(s: GameState, rack: Cell, sw: Switch, sv: Survey): Cell[] {
   if (manhattan(rack, sw) === 1) return [];
   const field = sv.fields.get(sw.id)!;
-  const start = landing(s, rack, field, sv.free);
+  const start = landing(s, rack, field, sv.open);
   if (!start) return [];
   const cells = [start.cell];
   let cur = start.cell;
   for (let d = start.d; d > 1; d--) {
-    const next = DIRS4.map(([dx, dy]) => ({ x: cur.x + dx, y: cur.y + dy })).find((c) => sv.free(c.x, c.y) && field[idx(s, c.x, c.y)] === d - 1);
+    const next = DIRS4.map(([dx, dy]) => ({ x: cur.x + dx, y: cur.y + dy })).find((c) => isOpen(s, sv.open, c.x, c.y) && field[idx(s, c.x, c.y)] === d - 1);
     if (!next) break;
     cells.push(next);
     cur = next;
@@ -242,8 +268,8 @@ function unlinkedReason(s: GameState, rack: Building, sv: Survey, links: Map<num
   if (!sv.switches.length) return 'noSwitch';
   const inReach = sv.switches.filter((w) => cableLength(s, rack, w, sv) <= sv.reach);
   if (!inReach.length) {
-    const open = DIRS4.some(([dx, dy]) => sv.free(rack.x + dx, rack.y + dy));
-    return open ? 'tooFar' : 'enclosed';
+    const room = DIRS4.some(([dx, dy]) => isOpen(s, sv.open, rack.x + dx, rack.y + dy));
+    return room ? 'tooFar' : 'enclosed';
   }
   const used = (w: Switch) => [...links.values()].filter((id) => id === w.id).length;
   return inReach.some((w) => used(w) < NETWORK.ports) ? 'pending' : 'portsFull';

@@ -75,6 +75,9 @@ describe('équilibrage', () => {
       expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeGreaterThanOrEqual(8);
       expect(minutes(run.tierAt[1] ?? null), `graine ${seed}`).toBeLessThanOrEqual(16);
       expect(run.researchAt.generators, `graine ${seed}`).toBeLessThan(run.tierAt[2] ?? Infinity);
+      // Le réseau est prêt pour les entraînements du Labo d'IA, et il sert.
+      expect(run.researchAt.switches, `graine ${seed}`).toBeLessThan(run.tierAt[2] ?? Infinity);
+      expect(run.trainingsDone, `graine ${seed}`).toBeGreaterThan(20);
       // Entraînements et SLA sont risqués par nature : des retards, mais peu.
       expect(run.state.economy.jobsFailed, `graine ${seed}`).toBeLessThanOrEqual(12);
       expect(run.maxIntake, `graine ${seed}`).toBeLessThan(30);
@@ -103,6 +106,16 @@ describe('équilibrage', () => {
       // Arrêts brutaux : les racks non secourus tombent en panne.
       expect(failures(reckless), `graine ${seed}`).toBeGreaterThan(failures(careful) + 8);
       expect(wonAt(reckless), `graine ${seed}`).toBeGreaterThan(wonAt(careful));
+    }
+  }, CAREER_TIMEOUT_MS);
+
+  it('carrière : sans réseau, aucun entraînement, et une victoire nettement plus tardive', () => {
+    for (const seed of SEEDS.slice(0, 3)) {
+      const careful = careerRun(seed);
+      const blind = playBot(seed, { ...COMPETENT, career: true, noNetwork: true }, CAREER_HORIZON_S);
+      expect(blind.lostAt, `graine ${seed}`).toBeNull();
+      expect(blind.trainingsDone, `graine ${seed}`).toBe(0);
+      expect(wonAt(blind), `graine ${seed}`).toBeGreaterThan(wonAt(careful) + 5);
     }
   }, CAREER_TIMEOUT_MS);
 
