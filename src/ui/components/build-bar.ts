@@ -2,15 +2,14 @@ import { buildCost, TECH } from '../../sim/balance';
 import { isUnlocked, modifiers, unlockedBy } from '../../sim/progression';
 import { canHire } from '../../sim/stats';
 import { toolBuild, type Tool } from '../../input/build';
-import { actionKey, HELP_CHAR } from '../../input/keymap';
+import { actionKey } from '../../input/keymap';
 import type { GameState } from '../../sim/state';
-import { OVERLAY_MODES, overlayAvailable, type OverlayMode } from '../../render/overlay-colors';
 import { KIND_INFO, shortName } from '../catalog';
 import { el, icon, setText } from '../dom';
 import { money } from '../format';
 import type { IconName } from '../icons';
+import { stripLeft, toolFigures } from '../tool-figures';
 import { nextVariant } from '../variant-cycle';
-import { OVERLAY_INFO } from './overlay-legend';
 
 export interface BuildBarActions {
   /** Outil réellement en main (pas celui de la dernière image : deux touches peuvent arriver entre deux images). */
@@ -18,21 +17,12 @@ export interface BuildBarActions {
   /** Prend exactement cet outil (null : aucun), sans effet de bascule. */
   selectTool: (tool: Tool) => void;
   hire: () => void;
-  setOverlay: (mode: OverlayMode | null) => void;
-  toggleEdgePan: () => void;
-  toggleHelp: () => void;
-  toggleResearch: () => void;
-  /** Famille entièrement verrouillée : le message à montrer (« Recherche requise : … »). */
+  /** Famille ou variante verrouillée : le message à montrer (« Recherche requise : … »). */
   locked: (message: string) => void;
 }
 
 export interface BuildBarView {
   tool: Tool;
-  overlay: OverlayMode | null;
-  edgePan: boolean;
-  helpOpen: boolean;
-  /** Carrière seulement : panneau de recherche ouvert, étude en cours. */
-  research: { open: boolean; active: boolean } | null;
 }
 
 export type BuildTool = Exclude<Tool, null>;
@@ -75,6 +65,13 @@ export const toolAvailable = (s: GameState, tool: BuildTool): boolean => {
   const { kind, gen } = toolBuild(tool);
   return isUnlocked(s, kind) && (gen === 1 || (s.rules.progression && modifiers(s).maxGen >= gen));
 };
+/**
+ * Variantes d'une famille qui existent dans cette partie : toutes en carrière (les verrouillées
+ * montrent la recherche à faire), seulement les disponibles en partie rapide.
+ */
+const modeVariants = (s: GameState | null, family: (typeof BUILD_FAMILIES)[number]): BuildTool[] =>
+  !s ? family.variants.slice(0, 1) : s.rules.progression ? family.variants : family.variants.filter((v) => toolAvailable(s, v));
+
 /** Pourquoi une variante n'est pas débloquée (« Recherche requise : … »). */
 function lockedMessage(s: GameState | null, tool: BuildTool): string {
   if (tool === 'demolish') return 'Indisponible';
@@ -95,7 +92,17 @@ interface FamilyCard {
   thumb: HTMLElement;
   name: HTMLElement;
   cost: HTMLElement;
-  dots: HTMLButtonElement[];
+  dots: HTMLElement[];
+}
+
+/** Tuile d'une variante dans le bandeau : vignette, nom, prix (ou recherche requise) et chiffres clés. */
+interface VariantTile {
+  root: HTMLButtonElement;
+  thumb: HTMLElement;
+  cost: HTMLElement;
+  figures: HTMLElement;
+  /** Vignette affichée (icône ou modèle 3D), pour ne pas reconstruire l'image à chaque image. */
+  shown: string;
 }
 
 function card(label: string, key: string, art: Node, cost?: string): { root: HTMLButtonElement; thumb: HTMLElement; name: HTMLElement; cost: HTMLElement } {
@@ -106,19 +113,25 @@ function card(label: string, key: string, art: Node, cost?: string): { root: HTM
   return { root, thumb, name, cost: costEl };
 }
 
-function toggle(name: IconName, label: string, key: string, onClick: () => void): HTMLButtonElement {
-  const b = el('button', 'btn', icon(name, 14), el('span', undefined, label), el('span', 'kbd', key));
-  b.onclick = onClick;
-  return b;
-}
-
-/** Barre de construction : équipements, démolition, embauche et bascules d'affichage. */
+/**
+ * Barre de construction : une carte par famille d'équipements, la démolition et l'embauche.
+ * Quand une famille à plusieurs variantes est en main, un bandeau au-dessus de sa carte montre
+ * toutes ses variantes côte à côte ; un clic en prend une.
+ */
 export class BuildBar {
   readonly root: HTMLElement;
-  /** Carte de chaque famille avec ses pastilles, pour l'infobulle. */
-  readonly familyCards = new Map<FamilyId, HTMLElement>();
+  /** Carte de chaque famille, pour l'infobulle. */
+  readonly familyCards = new Map<FamilyId, HTMLButtonElement>();
+  /** Tuile de chaque variante du bandeau, pour l'infobulle détaillée. */
+  readonly variantTiles = new Map<BuildTool, HTMLButtonElement>();
   readonly hireCard: HTMLButtonElement;
+  private readonly bar: HTMLElement;
+  private readonly strip: HTMLElement;
   private readonly cards = new Map<FamilyId, FamilyCard>();
+  private readonly tiles = new Map<BuildTool, VariantTile>();
+  /** Famille dont le bandeau est ouvert, et ses variantes affichées (clé de mise en page). */
+  private stripKey = '';
+  private stripFamily: FamilyId | null = null;
   /** Variante montrée par chaque famille : l'outil en main, sinon la dernière utilisée. */
   private readonly last = new Map<FamilyId, BuildTool>();
   /** Variante de départ du tour en cours de chaque famille : le tour rend la main avant d'y revenir. */
@@ -128,68 +141,37 @@ export class BuildBar {
   private readonly hireThumb: HTMLElement;
   private state: GameState | null = null;
   private tool: Tool = null;
-  private readonly overlayButton: HTMLButtonElement;
-  private readonly overlayIcon = el('span', 'overlay-icon');
-  private readonly overlayLabel = el('span');
-  private readonly overlayMenu: HTMLElement;
-  private readonly overlayItems = new Map<OverlayMode | null, HTMLButtonElement>();
-  private shownOverlay: OverlayMode | null | undefined;
-  private readonly edgeButton: HTMLButtonElement;
-  private readonly helpButton: HTMLButtonElement;
-  private readonly researchButton: HTMLButtonElement;
 
   constructor(private readonly actions: BuildBarActions) {
-    const bar = el('div', 'build-bar glass');
+    this.bar = el('div', 'build-bar glass');
+    this.strip = el('div', 'variant-strip glass');
+    this.strip.hidden = true;
     for (const family of BUILD_FAMILIES) {
       const first = family.variants[0];
       const info = TOOL_INFO[first];
       const c = card(info.label, family.key, icon(info.icon, 24), first === 'demolish' ? undefined : money(toolCost(first)));
-      // Les pastilles sont des boutons posés sur la carte, pas dedans : pas de bouton dans un
-      // bouton, et elles restent cliquables quand la carte est grisée faute d'argent.
-      const dots = family.variants.length > 1 ? family.variants.map((v) => this.dot(family.id, v)) : [];
-      const slot = el('div', 'tool-slot', c.root, dots.length ? el('div', 'variant-dots', ...dots) : null);
+      const dots = family.variants.length > 1 ? family.variants.map(() => el('span', 'variant-dot')) : [];
+      if (dots.length) c.root.append(el('span', 'variant-dots', ...dots));
       c.root.onclick = () => this.cycle(family.id);
       c.root.dataset.tool = first;
       c.root.dataset.family = family.id;
-      this.familyCards.set(family.id, slot);
+      this.familyCards.set(family.id, c.root);
       this.cards.set(family.id, { ...c, dots });
       this.last.set(family.id, first);
-      bar.append(slot);
+      if (family.variants.length > 1) for (const v of family.variants) this.tiles.set(v, this.tile(family.id, v));
+      this.bar.append(c.root);
     }
     const hire = card('Embaucher', actionKey('hire'), icon('hire', 24), money(TECH.hireCost));
     hire.root.onclick = actions.hire;
     this.hireCard = hire.root;
     this.hireThumb = hire.thumb;
-
-    // Calques : un bouton (H les fait défiler) et un menu pour choisir directement.
-    this.overlayButton = el('button', 'btn overlay-button', this.overlayIcon, this.overlayLabel, el('span', 'kbd', actionKey('overlay')));
-    this.overlayButton.dataset.toggle = 'overlay';
-    this.overlayMenu = el('div', 'overlay-menu glass');
-    this.overlayMenu.hidden = true;
-    for (const mode of [...OVERLAY_MODES, null]) {
-      const info = mode ? OVERLAY_INFO[mode] : { label: 'Aucun calque', icon: 'close' as IconName };
-      const item = el('button', 'btn overlay-item', icon(info.icon, 14), el('span', undefined, info.label));
-      item.onclick = () => {
-        actions.setOverlay(mode);
-        this.overlayMenu.hidden = true;
-      };
-      this.overlayItems.set(mode, item);
-      this.overlayMenu.append(item);
-    }
-    this.overlayButton.onclick = () => (this.overlayMenu.hidden = !this.overlayMenu.hidden);
-    document.addEventListener('pointerdown', (e) => {
-      const target = e.target as Node;
-      if (!this.overlayMenu.hidden && !this.overlayMenu.contains(target) && !this.overlayButton.contains(target)) this.overlayMenu.hidden = true;
-    });
-    this.edgeButton = toggle('edgePan', 'Bords', actionKey('edgePan'), actions.toggleEdgePan);
-    this.helpButton = toggle('help', 'Aide', HELP_CHAR, actions.toggleHelp);
-    this.researchButton = toggle('research', 'R&D', actionKey('research'), actions.toggleResearch);
-    this.researchButton.dataset.panel = 'research';
-    this.researchButton.hidden = true;
-    const overlays = el('div', 'overlay-picker', this.overlayButton, this.overlayMenu);
-    const toggles = el('div', 'toggle-group', overlays, this.edgeButton, this.helpButton, this.researchButton);
-    bar.append(el('div', 'build-sep'), hire.root, el('div', 'build-sep'), toggles);
-    this.root = bar;
+    this.bar.append(el('div', 'build-sep'), hire.root);
+    this.root = el('div', 'build-dock', this.strip, this.bar);
+    // Les cartes changent de largeur avec la mise en page (inspecteur ouvert, petit écran), et le
+    // bandeau passe en colonne sur les écrans étroits : on le recentre dans les deux cas.
+    const resize = new ResizeObserver(() => this.placeStrip());
+    resize.observe(this.bar);
+    resize.observe(this.strip);
   }
 
   /** Remplace l'icône d'une carte par la vignette du vrai modèle 3D. */
@@ -233,12 +215,22 @@ export class BuildBar {
     this.actions.selectTool(next);
   }
 
-  /** Pastille d'une variante : un clic la prend directement, ou dit quelle recherche il faut. */
-  private dot(id: FamilyId, tool: BuildTool): HTMLButtonElement {
-    const b = el('button', 'variant-dot');
-    b.setAttribute('aria-label', TOOL_INFO[tool].label);
-    b.onclick = () => this.pick(id, tool);
-    return b;
+  /** Tuile d'une variante : un clic la prend directement, ou dit quelle recherche il faut. */
+  private tile(id: FamilyId, tool: BuildTool): VariantTile {
+    const thumb = el('span', 'tile-thumb');
+    const cost = el('span', 'tile-cost mono');
+    const figures = el('span', 'tile-figures');
+    const root = el(
+      'button',
+      'variant-tile',
+      el('span', 'tool-lock', icon('lock', 12)),
+      thumb,
+      el('span', 'tile-text', el('b', 'tile-name', TOOL_INFO[tool].label), cost, figures),
+    );
+    root.dataset.variant = tool;
+    root.onclick = () => this.pick(id, tool);
+    this.variantTiles.set(tool, root);
+    return { root, thumb, cost, figures, shown: '' };
   }
 
   /** Prend exactement cette variante ; la touche de la famille fera le tour à partir d'elle. */
@@ -272,11 +264,12 @@ export class BuildBar {
         if (tool !== 'demolish') setText(c.cost, money(toolCost(tool)));
         c.root.dataset.tool = tool;
       }
+      const variants = modeVariants(s, family);
       family.variants.forEach((v, i) => {
         const dot = c.dots[i];
         if (!dot) return;
+        dot.hidden = variants.length < 2 || !variants.includes(v);
         dot.className = `variant-dot ${v === tool ? 'current' : ''} ${toolAvailable(s, v) ? '' : 'locked'}`;
-        dot.setAttribute('aria-pressed', String(v === view.tool));
       });
       c.root.hidden = family.visible ? !family.visible(s) : false;
       // Verrouillée, la carte reste survolable (son infobulle dit quelle recherche il faut).
@@ -284,23 +277,54 @@ export class BuildBar {
       c.root.classList.toggle('locked', locked);
       c.root.setAttribute('aria-disabled', String(locked));
       c.root.classList.toggle('active', owner?.id === family.id);
-      c.root.disabled = !locked && tool !== 'demolish' && s.money < toolCost(tool);
+      // Trop chère, la carte reste cliquable : son bandeau propose peut-être une variante moins chère.
+      c.root.classList.toggle('unaffordable', !locked && tool !== 'demolish' && s.money < toolCost(tool));
     }
     this.hireCard.disabled = !canHire(s);
-    for (const [mode, item] of this.overlayItems) item.hidden = mode !== null && !overlayAvailable(mode, s);
-    if (view.overlay !== this.shownOverlay) {
-      this.shownOverlay = view.overlay;
-      const info = view.overlay ? OVERLAY_INFO[view.overlay] : { short: 'Calques', icon: 'layers' as IconName };
-      this.overlayIcon.replaceChildren(icon(info.icon, 14));
-      setText(this.overlayLabel, info.short);
-      this.overlayButton.classList.toggle('active', view.overlay !== null);
-      for (const [mode, item] of this.overlayItems) item.classList.toggle('active', mode === view.overlay);
+    this.updateStrip(s, owner ?? null, view.tool);
+  }
+
+  /** Bandeau de la famille en main, s'il a au moins deux variantes dans cette partie. */
+  private updateStrip(s: GameState, owner: (typeof BUILD_FAMILIES)[number] | null, tool: Tool): void {
+    const variants = owner ? modeVariants(s, owner) : [];
+    const open = owner !== null && variants.length > 1;
+    const key = open ? `${owner.id}:${variants.join(',')}` : '';
+    if (key !== this.stripKey) {
+      this.stripKey = key;
+      this.stripFamily = open ? owner.id : null;
+      this.strip.replaceChildren(...(open ? variants.map((v) => this.tiles.get(v)!.root) : []));
+      this.strip.hidden = !open;
+      this.placeStrip();
     }
-    this.edgeButton.classList.toggle('active', view.edgePan);
-    this.helpButton.classList.toggle('active', view.helpOpen);
-    this.researchButton.hidden = view.research === null;
-    this.researchButton.classList.toggle('active', !!view.research?.open);
-    // Rien à l'étude : le bouton le signale, une part du calcul attend un nœud.
-    this.researchButton.classList.toggle('idle', view.research !== null && !view.research.active);
+    if (!open) return;
+    for (const v of variants) {
+      const t = this.tiles.get(v)!;
+      const available = toolAvailable(s, v);
+      const build = v as Exclude<BuildTool, 'demolish'>;
+      const url = this.urls.get(v);
+      const thumbKey = url ?? TOOL_INFO[v].icon;
+      if (t.shown !== thumbKey) {
+        t.shown = thumbKey;
+        t.thumb.replaceChildren(url ? Object.assign(document.createElement('img'), { src: url, alt: '' }) : icon(TOOL_INFO[v].icon, 22));
+      }
+      setText(t.cost, available ? money(toolCost(build)) : lockedMessage(s, v).replace('Recherche requise : ', 'Recherche : '));
+      const figures = available ? toolFigures(s, build) : [];
+      if (t.figures.dataset.key !== figures.join('|')) {
+        t.figures.dataset.key = figures.join('|');
+        t.figures.replaceChildren(...figures.map((f) => el('span', undefined, f)));
+      }
+      t.root.classList.toggle('current', v === tool);
+      t.root.classList.toggle('locked', !available);
+      t.root.classList.toggle('unaffordable', available && s.money < toolCost(build));
+      t.root.setAttribute('aria-pressed', String(v === tool));
+    }
+  }
+
+  /** Centre le bandeau sur la carte de sa famille, sans dépasser la barre. */
+  private placeStrip(): void {
+    if (!this.stripFamily) return;
+    const anchor = this.cards.get(this.stripFamily)!.root;
+    const left = stripLeft(anchor.offsetLeft + anchor.offsetWidth / 2, this.strip.offsetWidth, this.bar.offsetWidth);
+    this.strip.style.left = `${Math.round(left)}px`;
   }
 }

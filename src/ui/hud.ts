@@ -17,6 +17,7 @@ import { Dashboard, type DashboardTab } from './components/dashboard';
 import { OverlayLegend } from './components/overlay-legend';
 import { TeamPanel } from './components/team-panel';
 import { TipCard } from './components/tip-card';
+import { ToolRail } from './components/tool-rail';
 import { HelpOverlay } from './components/help-overlay';
 import { Inspector } from './components/inspector';
 import { Minimap, type MinimapCamera } from './components/minimap';
@@ -125,6 +126,7 @@ function tempValue(t: number): HTMLElement {
 export class Hud {
   private readonly resources: ResourceBar;
   private readonly build: BuildBar;
+  private readonly rail: ToolRail;
   private readonly contracts: ContractsPanel;
   private readonly selection = new SelectionPanel();
   private readonly legend = new OverlayLegend();
@@ -193,11 +195,12 @@ export class Hud {
         actions.showTitle();
       },
     });
-    this.build = new BuildBar({
-      ...actions,
+    this.build = new BuildBar({ ...actions, locked: (message) => this.flash.show(message) });
+    this.rail = new ToolRail({
+      setOverlay: actions.setOverlay,
+      toggleEdgePan: actions.toggleEdgePan,
       toggleHelp: () => this.help.toggle(),
       toggleResearch: () => this.togglePanel('research'),
-      locked: (message) => this.flash.show(message),
     });
     this.contracts = new ContractsPanel(actions);
     this.slots = new SaveSlots(actions.saves);
@@ -242,6 +245,7 @@ export class Hud {
       region('top-left', this.minimap.root, this.legend.root, this.alerts.root),
       region('right', this.contracts.root),
       region('bottom', this.build.root),
+      region('bottom-right', this.rail.root),
       region('bottom-left', this.inspector.root, this.selection.root),
       this.flash.root,
       this.overlay,
@@ -419,8 +423,8 @@ export class Hud {
     const balance = this.history.balance();
     this.resources.update(s, balance);
     this.minimap.update(s, view.overlay === 'heat', view.selected, now);
-    this.build.update(s, {
-      tool: view.tool,
+    this.build.update(s, { tool: view.tool });
+    this.rail.update(s, {
       overlay: view.overlay,
       edgePan: view.edgePan,
       helpOpen: this.help.isOpen,
@@ -628,12 +632,16 @@ export class Hud {
               el('span', 'mono', open ? money(toolCost(tool)) : s.rules.progression ? `recherche : ${need}` : 'carrière'),
             );
           });
-          const hint = family.variants.length > 1 ? el('div', 'tip-hint', `${family.key} : variante suivante · pastille : choix direct`) : null;
+          const hint = family.variants.length > 1 ? el('div', 'tip-hint', `${family.key} : variante suivante (choix direct au-dessus de la barre)`) : null;
           node.append(el('div', 'tip-variants', hint, ...rows));
         }
         return node;
       });
     }
+    // Bandeau de variantes : l'infobulle complète de chaque variante.
+    for (const [tool, tile] of this.build.variantTiles) this.tooltip.bind(tile, () => tips[tool]());
+    // Bloc d'outils : nom et touche.
+    for (const { button, label, key } of this.rail.buttons) this.tooltip.bind(button, () => tip(label(), [['Touche', key]]));
     this.tooltip.bind(this.build.hireCard, () =>
       tip(`Technicien · ${money(TECH.hireCost)}`, [
         ['Salaire', `${TECH.salaryPerS} $/s`],
