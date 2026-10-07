@@ -26,6 +26,8 @@ Ouvrez ensuite **http://localhost:8080**. La première construction prend quelqu
 | Changer de port (8080 déjà pris) | `BETA_PORT=8081 docker compose --profile beta up -d --build beta` |
 | Jouer depuis un autre appareil du réseau local | `BETA_HOST=0.0.0.0 docker compose --profile beta up -d --build beta` |
 
+**Application installable et hors ligne** : dans Chrome ou Edge, le bouton « Installer le jeu » de l'écran titre (ou l'icône d'installation de la barre d'adresse) l'ouvre dans sa propre fenêtre ; dans Safari, Fichier › Ajouter au Dock. Après une première visite, le jeu se lance aussi sans connexion ; en ligne, il prend toujours la dernière version. Il faut une adresse en HTTPS ou `localhost` (pas une IP du réseau local), et l'application reste liée à l'adresse depuis laquelle on l'a installée, comme les sauvegardes.
+
 ## Jouer
 
 Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du jeu (techniciens, racks, contrats, chaleur, refroidissement, réparation).

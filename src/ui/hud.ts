@@ -263,6 +263,11 @@ export class Hud {
     this.tutorial.stop();
   }
 
+  /** Bouton « Installer le jeu » de l'écran titre (null : l'installation n'est pas proposée). */
+  setInstall(install: (() => void) | null): void {
+    this.title.setInstall(install);
+  }
+
   /** Touche d'une famille de la barre (R, C, P, N, X) : variante suivante, puis aucun outil. */
   cycleBuild(id: FamilyId): void {
     this.build.cycle(id);

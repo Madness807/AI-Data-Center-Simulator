@@ -79,6 +79,8 @@ export class TitleScreen {
   private readonly continueButton: HTMLButtonElement;
   private readonly careerCard: HTMLButtonElement;
   private readonly loadButton: HTMLButtonElement;
+  private readonly installButton: HTMLButtonElement;
+  private install: (() => void) | null = null;
 
   constructor(start: (kind: NewGameKind) => void, showHelp: () => void, continueGame: () => void, openLoad: () => void) {
     this.continueButton = action('play', 'Continuer la partie', continueGame, true);
@@ -91,6 +93,8 @@ export class TitleScreen {
     );
     const quickCard = modeCard('trophy', 'Partie rapide', `Atteindre ${money(ECONOMY.goalMoney)} de trésorerie`, () => start('quick'));
     this.loadButton = action('load', 'Charger', openLoad);
+    this.installButton = action('download', 'Installer le jeu', () => this.install?.());
+    this.installButton.hidden = true;
     const about = credits();
     this.root = el(
       'div',
@@ -106,6 +110,7 @@ export class TitleScreen {
         action('target', 'Tutoriel', () => start('tutorial')),
         this.loadButton,
         action('keyboard', 'Commandes', showHelp, false, '?'),
+        this.installButton,
       ),
       el('div', 'title-foot mono', `version ${__APP_VERSION__} · `, about.toggle),
       about.panel,
@@ -121,6 +126,12 @@ export class TitleScreen {
     this.continueButton.hidden = !available;
     this.loadButton.hidden = !available;
     this.careerCard.classList.toggle('featured', !available);
+  }
+
+  /** « Installer le jeu » n'apparaît que lorsque le navigateur propose l'installation. */
+  setInstall(install: (() => void) | null): void {
+    this.install = install;
+    this.installButton.hidden = install === null;
   }
 
   /** Action de la touche Entrée : continuer s'il y a une sauvegarde, sinon la carrière. */

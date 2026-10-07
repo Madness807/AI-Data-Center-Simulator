@@ -29,6 +29,7 @@ import { SaveManager, deserialize, serialize, type SaveSlot } from './save';
 import { AudioEngine } from './audio/engine';
 import { ambienceOf, SoundDirector, type SoundId } from './audio/director';
 import { idleTechs } from './sim/stats';
+import { setupPwa } from './pwa/install';
 
 const settings = new SettingsStore();
 const hudRoot = document.getElementById('hud')!;
@@ -309,6 +310,8 @@ const hud = new Hud(
 );
 
 view.rts.inputBlocked = () => hud.blocksWorldInput();
+// Jeu installable et jouable hors ligne (build seulement).
+setupPwa((install) => hud.setInstall(install));
 
 hudRoot.addEventListener('pointerdown', (e) => {
   if ((e.target as Element).closest('button')) director.trigger('click');
