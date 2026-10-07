@@ -9,6 +9,7 @@ import { KIND_INFO, shortName } from '../catalog';
 import { el, icon, setText } from '../dom';
 import { money } from '../format';
 import type { IconName } from '../icons';
+import { nextVariant } from '../variant-cycle';
 import { OVERLAY_INFO } from './overlay-legend';
 
 export interface BuildBarActions {
@@ -74,11 +75,13 @@ export const toolAvailable = (s: GameState, tool: BuildTool): boolean => {
   const { kind, gen } = toolBuild(tool);
   return isUnlocked(s, kind) && (gen === 1 || (s.rules.progression && modifiers(s).maxGen >= gen));
 };
-/** Message d'une famille dont aucune variante n'est débloquée. */
-function lockedMessage(family: (typeof BUILD_FAMILIES)[number]): string {
-  const first = family.variants[0];
-  const node = first === 'demolish' ? undefined : unlockedBy(toolBuild(first).kind);
-  return node ? `Recherche requise : ${node.name}` : 'Indisponible';
+/** Pourquoi une variante n'est pas débloquée (« Recherche requise : … »). */
+function lockedMessage(s: GameState | null, tool: BuildTool): string {
+  if (tool === 'demolish') return 'Indisponible';
+  if (s && !s.rules.progression) return 'Disponible en carrière';
+  const { kind, gen } = toolBuild(tool);
+  const node = gen > 1 ? `GPU génération ${gen}` : unlockedBy(kind)?.name;
+  return node ? `Recherche requise : ${node}` : 'Indisponible';
 }
 
 /** Prix affiché d'un outil. */
@@ -92,7 +95,7 @@ interface FamilyCard {
   thumb: HTMLElement;
   name: HTMLElement;
   cost: HTMLElement;
-  dots: HTMLElement[];
+  dots: HTMLButtonElement[];
 }
 
 function card(label: string, key: string, art: Node, cost?: string): { root: HTMLButtonElement; thumb: HTMLElement; name: HTMLElement; cost: HTMLElement } {
@@ -112,12 +115,14 @@ function toggle(name: IconName, label: string, key: string, onClick: () => void)
 /** Barre de construction : équipements, démolition, embauche et bascules d'affichage. */
 export class BuildBar {
   readonly root: HTMLElement;
-  /** Carte de chaque famille, pour l'infobulle. */
-  readonly familyCards = new Map<FamilyId, HTMLButtonElement>();
+  /** Carte de chaque famille avec ses pastilles, pour l'infobulle. */
+  readonly familyCards = new Map<FamilyId, HTMLElement>();
   readonly hireCard: HTMLButtonElement;
   private readonly cards = new Map<FamilyId, FamilyCard>();
   /** Variante montrée par chaque famille : l'outil en main, sinon la dernière utilisée. */
   private readonly last = new Map<FamilyId, BuildTool>();
+  /** Variante de départ du tour en cours de chaque famille : le tour rend la main avant d'y revenir. */
+  private readonly start = new Map<FamilyId, BuildTool>();
   private readonly urls = new Map<string, string>();
   private readonly shown = new Map<FamilyId, string>();
   private readonly hireThumb: HTMLElement;
@@ -139,15 +144,17 @@ export class BuildBar {
       const first = family.variants[0];
       const info = TOOL_INFO[first];
       const c = card(info.label, family.key, icon(info.icon, 24), first === 'demolish' ? undefined : money(toolCost(first)));
-      const dots = family.variants.length > 1 ? family.variants.map(() => el('span', 'variant-dot')) : [];
-      if (dots.length) c.root.append(el('span', 'variant-dots', ...dots));
+      // Les pastilles sont des boutons posés sur la carte, pas dedans : pas de bouton dans un
+      // bouton, et elles restent cliquables quand la carte est grisée faute d'argent.
+      const dots = family.variants.length > 1 ? family.variants.map((v) => this.dot(family.id, v)) : [];
+      const slot = el('div', 'tool-slot', c.root, dots.length ? el('div', 'variant-dots', ...dots) : null);
       c.root.onclick = () => this.cycle(family.id);
       c.root.dataset.tool = first;
       c.root.dataset.family = family.id;
-      this.familyCards.set(family.id, c.root);
+      this.familyCards.set(family.id, slot);
       this.cards.set(family.id, { ...c, dots });
       this.last.set(family.id, first);
-      bar.append(c.root);
+      bar.append(slot);
     }
     const hire = card('Embaucher', actionKey('hire'), icon('hire', 24), money(TECH.hireCost));
     hire.root.onclick = actions.hire;
@@ -201,8 +208,9 @@ export class BuildBar {
   }
 
   /**
-   * Touche ou clic d'une famille : prend la variante montrée, puis passe à la suivante
-   * débloquée, puis rend la main (aucun outil). Les variantes verrouillées sont sautées ;
+   * Touche ou clic d'une famille : prend la variante montrée, puis fait le tour des autres
+   * variantes débloquées (en revenant au début de la liste, pour retrouver les anciennes
+   * générations), puis rend la main (aucun outil). Les variantes verrouillées sont sautées ;
    * une famille absente de la partie ne fait rien, une famille verrouillée le dit.
    */
   cycle(id: FamilyId): void {
@@ -211,21 +219,39 @@ export class BuildBar {
     if (s && family.visible && !family.visible(s)) return;
     const open = s ? family.variants.filter((v) => toolAvailable(s, v)) : family.variants.slice(0, 1);
     if (!open.length) {
-      this.actions.locked(lockedMessage(family));
+      this.actions.locked(lockedMessage(s, family.variants[0]));
       return;
     }
     const current = this.actions.currentTool();
-    let next: Tool;
-    if (current === null || !family.variants.includes(current)) {
-      const remembered = this.last.get(id);
-      next = remembered && open.includes(remembered) ? remembered : open[0];
-    } else {
-      const i = open.indexOf(current);
-      next = i >= 0 && i + 1 < open.length ? open[i + 1] : null;
+    const inFamily = current !== null && family.variants.includes(current);
+    const next = inFamily ? nextVariant(open, current, this.start.get(id) ?? current) : nextVariant(open, null, this.last.get(id));
+    if (next) {
+      this.last.set(id, next);
+      if (!inFamily) this.start.set(id, next);
     }
-    if (next) this.last.set(id, next);
     this.tool = next;
     this.actions.selectTool(next);
+  }
+
+  /** Pastille d'une variante : un clic la prend directement, ou dit quelle recherche il faut. */
+  private dot(id: FamilyId, tool: BuildTool): HTMLButtonElement {
+    const b = el('button', 'variant-dot');
+    b.setAttribute('aria-label', TOOL_INFO[tool].label);
+    b.onclick = () => this.pick(id, tool);
+    return b;
+  }
+
+  /** Prend exactement cette variante ; la touche de la famille fera le tour à partir d'elle. */
+  private pick(id: FamilyId, tool: BuildTool): void {
+    const s = this.state;
+    if (s && !toolAvailable(s, tool)) {
+      this.actions.locked(lockedMessage(s, tool));
+      return;
+    }
+    this.last.set(id, tool);
+    this.start.set(id, tool);
+    this.tool = tool;
+    this.actions.selectTool(tool);
   }
 
   update(s: GameState, view: BuildBarView): void {
@@ -250,6 +276,7 @@ export class BuildBar {
         const dot = c.dots[i];
         if (!dot) return;
         dot.className = `variant-dot ${v === tool ? 'current' : ''} ${toolAvailable(s, v) ? '' : 'locked'}`;
+        dot.setAttribute('aria-pressed', String(v === view.tool));
       });
       c.root.hidden = family.visible ? !family.visible(s) : false;
       // Verrouillée, la carte reste survolable (son infobulle dit quelle recherche il faut).

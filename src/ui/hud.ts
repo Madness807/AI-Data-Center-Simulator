@@ -623,7 +623,7 @@ export class Hud {
               el('span', 'mono', open ? money(toolCost(tool)) : s.rules.progression ? `recherche : ${need}` : 'carrière'),
             );
           });
-          const hint = family.variants.length > 1 ? el('div', 'tip-hint', `${family.key} : variante suivante`) : null;
+          const hint = family.variants.length > 1 ? el('div', 'tip-hint', `${family.key} : variante suivante · pastille : choix direct`) : null;
           node.append(el('div', 'tip-variants', hint, ...rows));
         }
         return node;
