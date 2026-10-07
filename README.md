@@ -30,7 +30,7 @@ Ouvrez ensuite **http://localhost:8080**. La première construction prend quelqu
 
 ## Jouer
 
-Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du jeu (techniciens, racks, contrats, chaleur, refroidissement, réparation).
+Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du jeu (techniciens, racks, contrats, chaleur, refroidissement, réparation). Le **guide du jeu** (lien « Guide » de l'écran titre, Échap › Guide du jeu, ou ?) explique ensuite chaque système en détail, avec les chiffres exacts.
 
 - **Deux modes** :
   - **Carrière**, une heure et demie environ :
@@ -66,7 +66,7 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
 | Tableau de bord / équipe / recherche (carrière) | Tab / G / U |
 | Défilement par les bords | B |
 | Menu (sauvegarde, options, bug) | Échap |
-| Aide des commandes | ? ou F1 |
+| Guide du jeu, chapitre Commandes | ? ou F1 |
 
 ### Sauvegardes et options
 

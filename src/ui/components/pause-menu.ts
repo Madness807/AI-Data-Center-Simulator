@@ -54,7 +54,7 @@ export class PauseMenu {
       item('play', 'Reprendre', () => actions.resume(), true),
       this.extra,
       item('settings', 'Options', () => this.show('options')),
-      item('keyboard', 'Commandes', () => actions.showHelp()),
+      item('book', 'Guide du jeu', () => actions.showHelp()),
       report,
       quit,
       this.note,

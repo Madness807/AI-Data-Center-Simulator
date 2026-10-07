@@ -18,7 +18,8 @@ import { OverlayLegend } from './components/overlay-legend';
 import { TeamPanel } from './components/team-panel';
 import { TipCard } from './components/tip-card';
 import { ToolRail } from './components/tool-rail';
-import { HelpOverlay } from './components/help-overlay';
+import { Guide } from './components/guide';
+import { guideChapters } from './guide';
 import { Inspector } from './components/inspector';
 import { Minimap, type MinimapCamera } from './components/minimap';
 import { PauseMenu } from './components/pause-menu';
@@ -136,7 +137,9 @@ export class Hud {
   private readonly tier: TierScreen;
   private tierOpen = false;
   private readonly gameHistory = new GameHistory();
-  private readonly help = new HelpOverlay();
+  private readonly guide = new Guide(guideChapters, () => this.guideClosed());
+  /** Vitesse à rendre quand le guide se ferme, s'il a mis la partie en pause. */
+  private speedBeforeGuide: Speed | null = null;
   private readonly alerts: AlertFeed;
   private readonly flash = new CursorFlash();
   private readonly minimap: Minimap;
@@ -188,7 +191,7 @@ export class Hud {
     });
     this.pause = new PauseMenu(settings, {
       resume: () => this.closePause(),
-      showHelp: () => this.help.toggle(),
+      showHelp: () => this.openGuide(),
       reportBug: actions.reportBug,
       mainMenu: () => {
         this.pause.close();
@@ -199,12 +202,12 @@ export class Hud {
     this.rail = new ToolRail({
       setOverlay: actions.setOverlay,
       toggleEdgePan: actions.toggleEdgePan,
-      toggleHelp: () => this.help.toggle(),
+      toggleHelp: () => this.toggleGuide(),
       toggleResearch: () => this.togglePanel('research'),
     });
     this.contracts = new ContractsPanel(actions);
     this.slots = new SaveSlots(actions.saves);
-    this.title = new TitleScreen(actions.newGame, () => this.help.toggle(), actions.continueGame, () => this.slots.open('load'));
+    this.title = new TitleScreen(actions.newGame, () => this.openGuide(), actions.continueGame, () => this.slots.open('load'));
     // « Nouvelle partie » depuis une fin de partie : même mode que la partie terminée.
     const again = () => actions.newGame(this.state?.mode === 'career' ? 'career' : 'quick');
     this.tutorial = new Tutorial({
@@ -254,7 +257,7 @@ export class Hud {
       this.research.root,
       this.pause.root,
       this.slots.root,
-      this.help.root,
+      this.guide.root,
       this.tooltip.root,
     );
   }
@@ -275,6 +278,28 @@ export class Hud {
   /** Touche d'une famille de la barre (R, C, P, N, X) : variante suivante, puis aucun outil. */
   cycleBuild(id: FamilyId): void {
     this.build.cycle(id);
+  }
+
+  /**
+   * Ouvre le guide (sur un chapitre, sinon le dernier lu). En pleine partie, il la met en pause
+   * le temps de la lecture ; la vitesse revient à la fermeture.
+   */
+  openGuide(chapterId?: string): void {
+    if (!this.guide.isOpen && this.phase === 'playing' && !this.pause.isOpen && this.state?.outcome === 'playing' && this.state.speed !== 0) {
+      this.speedBeforeGuide = this.state.speed;
+      this.actions.setSpeed(0);
+    }
+    this.guide.open(chapterId);
+  }
+
+  toggleGuide(): void {
+    if (this.guide.isOpen) this.guide.close();
+    else this.openGuide();
+  }
+
+  private guideClosed(): void {
+    if (this.speedBeforeGuide !== null) this.actions.setSpeed(this.speedBeforeGuide);
+    this.speedBeforeGuide = null;
   }
 
   /** Ouvre le menu pause et fige la partie (elle reprendra à sa vitesse d'avant). */
@@ -318,7 +343,7 @@ export class Hud {
   blocksWorldInput(): boolean {
     return (
       this.phase === 'title' ||
-      this.help.isOpen ||
+      this.guide.isOpen ||
       this.slots.isOpen ||
       this.pause.isOpen ||
       this.tierOpen ||
@@ -334,6 +359,7 @@ export class Hud {
     this.root.classList.toggle('phase-title', phase === 'title');
     this.slots.close();
     this.pause.close();
+    this.guide.close();
     this.dashboard.close();
     this.team.close();
     this.research.close();
@@ -346,13 +372,18 @@ export class Hud {
    * titre ou une fenêtre de fin, les raccourcis de jeu sont bloqués.
    */
   handleKey(e: KeyboardEvent): boolean {
-    if (e.key === HELP_CHAR || matches('help', e)) {
-      e.preventDefault();
-      this.help.toggle();
+    if (this.guide.isOpen) {
+      // Le guide garde le clavier : la recherche reçoit les lettres, Échap le ferme.
+      const typing = e.target instanceof HTMLInputElement;
+      if (matches('cancel', e) || (!typing && (e.key === HELP_CHAR || matches('help', e)))) {
+        e.preventDefault();
+        this.guide.close();
+      }
       return true;
     }
-    if (matches('cancel', e) && this.help.isOpen) {
-      this.help.close();
+    if (e.key === HELP_CHAR || matches('help', e)) {
+      e.preventDefault();
+      this.openGuide('commandes');
       return true;
     }
     if (this.slots.isOpen) {
@@ -427,7 +458,7 @@ export class Hud {
     this.rail.update(s, {
       overlay: view.overlay,
       edgePan: view.edgePan,
-      helpOpen: this.help.isOpen,
+      helpOpen: this.guide.isOpen,
       research: s.rules.progression ? { open: this.research.isOpen, active: s.research.current !== null || availableResearch(s).length === 0 } : null,
     });
     this.dashboard.update(s, this.gameHistory, balance, now);
@@ -586,7 +617,7 @@ export class Hud {
           ['Puissance', `${UPS.powerKW} kW`],
           ['Recharge', `${UPS.rechargeKW} kW sur le secteur`],
           ['Chantier', `${BUILD_TIME.ups} s`],
-        ], 'Prend le relais dès la première seconde d’une coupure, environ une minute.'),
+        ], `Prend le relais dès la première seconde d’une coupure, pendant ${seconds(UPS.storeKJ / UPS.powerKW)} à pleine charge.`),
       generator: () =>
         tip(`${buildingName('generator')} · ${money(BUILD_COST.generator)}`, [
           ['Puissance', `${GENERATOR.powerKW} kW`],

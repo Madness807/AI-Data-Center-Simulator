@@ -69,14 +69,14 @@ export class ToolRail {
       if (!this.overlayMenu.hidden && !this.overlayMenu.contains(target) && !this.overlayButton.contains(target)) this.overlayMenu.hidden = true;
     });
     this.edgeButton = railButton('edgePan', 'Défilement par les bords', actionKey('edgePan'), actions.toggleEdgePan);
-    this.helpButton = railButton('help', 'Aide', HELP_CHAR, actions.toggleHelp);
+    this.helpButton = railButton('book', 'Guide du jeu', HELP_CHAR, actions.toggleHelp);
     this.researchButton = railButton('research', 'Recherche (R&D)', actionKey('research'), actions.toggleResearch);
     this.researchButton.dataset.panel = 'research';
     this.researchButton.hidden = true;
     this.buttons.push(
       { button: this.overlayButton, label: () => this.overlayLabel, key: actionKey('overlay') },
       { button: this.edgeButton, label: () => 'Défilement par les bords', key: actionKey('edgePan') },
-      { button: this.helpButton, label: () => 'Aide', key: HELP_CHAR },
+      { button: this.helpButton, label: () => 'Guide du jeu', key: HELP_CHAR },
       { button: this.researchButton, label: () => 'Recherche (R&D)', key: actionKey('research') },
     );
     const overlays = el('div', 'overlay-picker', this.overlayButton, this.overlayMenu);

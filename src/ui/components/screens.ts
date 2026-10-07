@@ -109,7 +109,7 @@ export class TitleScreen {
         'title-links',
         action('target', 'Tutoriel', () => start('tutorial')),
         this.loadButton,
-        action('keyboard', 'Commandes', showHelp, false, '?'),
+        action('book', 'Guide', showHelp, false, '?'),
         this.installButton,
       ),
       el('div', 'title-foot mono', `version ${__APP_VERSION__} · `, about.toggle),

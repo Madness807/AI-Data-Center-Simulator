@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { precacheList } from './src/pwa/precache';
+import { precacheList } from './src/pwa/precache.ts';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
 

@@ -246,7 +246,7 @@ Choix faits avec le joueur : le réseau ne compte que pour l'entraînement, le c
 - **Énergie** : prix variable de l'électricité (réseau, solaire, gaz), contrats d'approvisionnement, PDU à rayon local.
 - **Sécurité** : incendie, détection et extinction.
 - **Personnel** : fatigue et équipes de nuit, compétences individuelles des techniciens.
-- **Interface** : historique des contrats, guide des règles.
+- **Interface** : historique des contrats.
 
 ## Vérification
 

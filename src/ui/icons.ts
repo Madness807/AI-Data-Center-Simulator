@@ -1,5 +1,6 @@
 import {
   Activity,
+  BookOpen,
   AirVent,
   ArrowRightLeft,
   CalendarCheck,
@@ -100,6 +101,7 @@ export const ICONS = {
   edgePan: Move,
   minimap: MapIcon,
   help: CircleQuestionMark,
+  book: BookOpen,
   keyboard: Keyboard,
   alert: TriangleAlert,
   repair: Wrench,
