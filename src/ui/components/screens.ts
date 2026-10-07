@@ -58,16 +58,38 @@ function credits(): { toggle: HTMLButtonElement; panel: HTMLElement } {
 
 export type NewGameKind = 'career' | 'quick' | 'tutorial';
 
-/** Écran titre, au-dessus de la salle de démonstration qui tourne lentement. */
+/** Carte d'un mode de jeu sur l'écran titre : icône, nom et règle du mode en une ligne. */
+function modeCard(name: IconName, label: string, rule: string, onClick: () => void): HTMLButtonElement {
+  const b = el(
+    'button',
+    'mode-card',
+    el('span', 'mode-icon', icon(name, 18)),
+    el('span', 'mode-text', el('b', undefined, label), el('span', undefined, rule)),
+  );
+  b.onclick = onClick;
+  return b;
+}
+
+/**
+ * Écran titre, au-dessus de la salle de démonstration qui tourne lentement : « Continuer »
+ * s'il existe une sauvegarde, les deux modes en cartes, puis les liens secondaires.
+ */
 export class TitleScreen {
   readonly root: HTMLElement;
   private readonly continueButton: HTMLButtonElement;
-  private readonly careerButton: HTMLButtonElement;
+  private readonly careerCard: HTMLButtonElement;
   private readonly loadButton: HTMLButtonElement;
 
   constructor(start: (kind: NewGameKind) => void, showHelp: () => void, continueGame: () => void, openLoad: () => void) {
-    this.continueButton = action('play', 'Continuer', continueGame, true);
-    this.careerButton = action('tier', 'Carrière', () => start('career'), true);
+    this.continueButton = action('play', 'Continuer la partie', continueGame, true);
+    this.continueButton.classList.add('title-continue');
+    this.careerCard = modeCard(
+      'tier',
+      'Carrière',
+      `${TIERS.length} paliers, de ${TIERS[0].name} à ${TIERS[TIERS.length - 1].name}`,
+      () => start('career'),
+    );
+    const quickCard = modeCard('trophy', 'Partie rapide', `Atteindre ${money(ECONOMY.goalMoney)} de trésorerie`, () => start('quick'));
     this.loadButton = action('load', 'Charger', openLoad);
     const about = credits();
     this.root = el(
@@ -75,23 +97,17 @@ export class TitleScreen {
       'screen title glass',
       el('div', 'logo', el('span', 'logo-mark', icon('rack', 26)), el('span', undefined, 'DATA CENTER ', el('em', undefined, 'IA'))),
       el('p', 'title-pitch', 'Construisez et exploitez un data center d’IA : honorez les contrats, gardez la salle au frais, réparez les pannes.'),
+      this.continueButton,
+      el('div', 'title-modes', this.careerCard, quickCard),
+      el('p', 'title-rule', icon('alert', 12), `Dans les deux modes : faillite après ${ECONOMY.bankruptcySeconds} s dans le rouge.`),
       el(
         'div',
-        'title-rules',
-        el('span', 'chip ok', icon('tier', 12), `Carrière : ${TIERS.length} paliers jusqu’à ${TIERS[TIERS.length - 1].name}`),
-        el('span', 'chip ok', icon('trophy', 12), `Partie rapide : ${money(ECONOMY.goalMoney)}`),
-        el('span', 'chip danger', icon('alert', 12), `Faillite après ${ECONOMY.bankruptcySeconds} s dans le rouge`),
-      ),
-      el('div', 'screen-actions', this.continueButton),
-      el('div', 'screen-actions', this.careerButton, action('restart', 'Partie rapide', () => start('quick'))),
-      el(
-        'div',
-        'screen-actions secondary',
+        'title-links',
         action('target', 'Tutoriel', () => start('tutorial')),
         this.loadButton,
         action('keyboard', 'Commandes', showHelp, false, '?'),
       ),
-      el('div', 'title-version mono', `version ${__APP_VERSION__} · `, about.toggle),
+      el('div', 'title-foot mono', `version ${__APP_VERSION__} · `, about.toggle),
       about.panel,
     );
     this.setSaves(false);
@@ -99,17 +115,17 @@ export class TitleScreen {
 
   /**
    * « Continuer » et « Charger » n'apparaissent que s'il existe une sauvegarde ; sinon la
-   * carrière devient l'action principale.
+   * carte Carrière est mise en avant comme action principale.
    */
   setSaves(available: boolean): void {
     this.continueButton.hidden = !available;
     this.loadButton.hidden = !available;
-    this.careerButton.classList.toggle('btn-primary', !available);
+    this.careerCard.classList.toggle('featured', !available);
   }
 
   /** Action de la touche Entrée : continuer s'il y a une sauvegarde, sinon la carrière. */
   primary(): void {
-    (this.continueButton.hidden ? this.careerButton : this.continueButton).click();
+    (this.continueButton.hidden ? this.careerCard : this.continueButton).click();
   }
 }
 

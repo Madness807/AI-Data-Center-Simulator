@@ -237,8 +237,6 @@
 .slots-status { min-height: 16px; font-size: 12px; color: var(--ok); }
 .slots-status.danger { color: var(--danger); }
 .slots-files { display: flex; gap: 6px; justify-content: flex-end; }
-.screen-actions.secondary { margin-top: 8px; }
-.screen-actions.secondary .btn { padding: 7px 14px; font-size: 12.5px; }
 
 /* ───────────── Tutoriel ───────────── */
 .tutorial { width: 400px; padding: 11px 14px 12px; display: flex; flex-direction: column; gap: 5px; border-color: rgba(var(--accent-rgb), 0.4); }
@@ -356,19 +354,43 @@
 .region-overlay { background: radial-gradient(ellipse at center, rgba(var(--backdrop-rgb), 0.15), rgba(var(--backdrop-rgb), 0.6)); }
 .region-overlay.dim { background: rgba(var(--backdrop-rgb), 0.6); }
 #hud.phase-title .region:not(.region-overlay), #hud.phase-title .tooltip, #hud.phase-title .cursor-flashes { display: none !important; }
-.screen.title { width: min(560px, calc(100% - 32px)); padding: 30px 32px 26px; }
+.screen.title { width: min(520px, calc(100% - 32px)); padding: 32px 30px 18px; background: var(--glass-strong); }
 .logo { display: inline-flex; align-items: center; gap: 12px; font-size: 34px; font-weight: 800; letter-spacing: 0.08em; margin-bottom: 10px; }
 .logo em { font-style: normal; color: var(--accent); text-shadow: 0 0 18px rgba(var(--accent-rgb), 0.55); }
 .logo-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--accent); background: var(--accent-soft); border: 1px solid rgba(var(--accent-rgb), 0.35); }
-.title-pitch { max-width: 440px; margin: 0 auto 14px !important; line-height: 1.55; }
-.title-version { margin-top: 16px; font-size: 10.5px; color: var(--text-faint); letter-spacing: 0.04em; }
+.screen .title-pitch { max-width: 400px; margin: 0 auto 24px; font-size: 13.5px; line-height: 1.55; }
+/* Reprise d'une sauvegarde : l'action principale, sur toute la largeur. */
+.screen .title-continue { width: 100%; margin-bottom: 10px; padding: 12px 16px; font-size: 14px; }
+/* Les deux modes en cartes : nom et règle du mode, la carrière mise en avant sans sauvegarde. */
+.title-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mode-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 14px;
+  font: inherit; color: var(--text); text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-m);
+  transition: background 0.12s, border-color 0.12s;
+}
+.mode-card:hover { background: var(--surface-hover); border-color: rgba(var(--accent-rgb), 0.45); }
+.mode-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mode-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius-m); color: var(--accent); background: var(--accent-soft); }
+.mode-text b { display: block; margin-bottom: 3px; font-size: 15px; font-weight: 700; }
+.mode-text span { display: block; font-size: 12px; line-height: 1.45; color: var(--text-dim); }
+.mode-card.featured { background: rgba(var(--ok-rgb), 0.08); border-color: rgba(var(--ok-rgb), 0.45); }
+.mode-card.featured:hover { background: rgba(var(--ok-rgb), 0.14); border-color: rgba(var(--ok-rgb), 0.7); }
+.mode-card.featured .mode-icon { color: var(--ok); background: rgba(var(--ok-rgb), 0.14); }
+.screen p.title-rule { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 12px 0 0; font-size: 11.5px; color: var(--text-faint); }
+.title-rule .icon { color: var(--danger); }
+/* Liens secondaires puis version, sous un filet. */
+.title-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.title-links .btn { background: none; border-color: transparent; color: var(--text-dim); }
+.title-links .btn:hover:not(:disabled) { background: var(--surface-hover); border-color: transparent; color: var(--text); }
+.title-foot { margin-top: 10px; font-size: 10.5px; color: var(--text-faint); letter-spacing: 0.04em; }
 .link-button { padding: 0; border: 0; background: none; font: inherit; color: var(--text-dim); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .link-button:hover, .link-button[aria-expanded='true'] { color: var(--accent); }
-.title-credits { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); font-size: 11.5px; line-height: 1.5; color: var(--text-dim); }
+.title-credits { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); font-size: 11.5px; line-height: 1.5; color: var(--text-dim); text-align: left; }
 .screen .title-credits p { margin: 0; }
 .screen .title-credits p + p { margin-top: 4px; }
 .title-credits a { color: var(--accent); }
-.title-rules { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+@media (max-width: 480px) { .title-modes { grid-template-columns: 1fr; } }
 .screen.victory .screen-icon { color: var(--warn); background: rgba(var(--warn-rgb), 0.14); box-shadow: 0 0 30px rgba(var(--warn-rgb), 0.25); }
 .screen.victory h1 { color: var(--warn); }
 .screen { width: min(460px, calc(100% - 32px)); padding: 26px 28px; text-align: center; }
