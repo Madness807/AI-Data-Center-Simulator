@@ -1,7 +1,7 @@
 import type { KeyValueStore } from './settings';
 import { emptyAlerts } from './sim/alert-memory';
-import { NETWORK } from './sim/balance';
-import { defaultPolicies, emptyCareer, emptyResearch, GAME_MODES, rulesFor } from './sim/career';
+import { COMMERCIAL, NETWORK } from './sim/balance';
+import { defaultCommercial, defaultPolicies, emptyCareer, emptyResearch, GAME_MODES, rulesFor } from './sim/career';
 import {
   BUILDING_KINDS,
   BUILDING_STATUSES,
@@ -18,7 +18,7 @@ import { TIERS } from './sim/progression';
 import { emptyCooling, emptyIncidents, emptyPower, OUTCOMES, SPEEDS, type GameState, type Outcome } from './sim/state';
 
 /** Format des fichiers de sauvegarde ; à incrémenter (avec une migration) s'il change. */
-export const SAVE_FORMAT = 9;
+export const SAVE_FORMAT = 10;
 /** Taille maximale d'une salle relue (garde-fou contre un fichier gonflé). */
 const MAX_CELLS = 10_000;
 
@@ -172,6 +172,10 @@ export const MIGRATIONS: Record<number, (state: RawState) => void> = {
     if (state.mode !== 'career' || tier < NETWORK.minTier || !Array.isArray(state.jobs)) return;
     for (const j of state.jobs) if (isObject(j) && j.kind === 'training') delete j.assigned;
   },
+  // 9 → 10 (1.3) : réglages du commercial automatique (sans effet tant que sa recherche n'est pas faite).
+  9: (state) => {
+    if (isObject(state.policies)) state.policies.commercial = defaultCommercial();
+  },
 };
 
 function migrate(file: RawState): void {
@@ -215,6 +219,18 @@ function checkState(s: unknown): asserts s is PersistedState {
   need(isObject(r) && isNum(r.share) && (r.current === null || typeof r.current === 'string'), 'recherche illisible');
   need(Array.isArray(r.done) && r.done.every((d) => typeof d === 'string') && isObject(r.progress) && isNum(r.ratePerS), 'recherche incomplète');
   need(isObject(s.policies) && typeof s.policies.autoRepair === 'boolean' && typeof s.policies.autoMaintain === 'boolean', 'réglages illisibles');
+  const com = s.policies.commercial;
+  need(
+    isObject(com) &&
+      ['enabled', 'inference', 'sla', 'training'].every((k) => typeof com[k] === 'boolean') &&
+      isNum(com.minPricePerCU) &&
+      com.minPricePerCU >= 0 &&
+      com.minPricePerCU <= COMMERCIAL.minPriceMax &&
+      isNum(com.margin) &&
+      com.margin >= 0 &&
+      com.margin < 1,
+    'réglages du commercial illisibles',
+  );
   const inc = s.incidents;
   const time = (v: unknown) => v === null || isNum(v);
   need(isObject(inc) && time(inc.outageEndsAt) && time(inc.nextOutageAt) && isInt(inc.outages), 'incidents illisibles');

@@ -138,6 +138,12 @@ export function specialOffersActive(s: GameState): boolean {
   return s.rules.progression && s.career.tier >= Math.min(TRAINING.minTier, SLA.minTier);
 }
 
+/** Une offre devient un contrat en cours : son échéance part de maintenant (joueur ou commercial automatique). */
+export function acceptOffer(s: GameState, job: Job): void {
+  job.status = 'active';
+  job.deadline = s.time + job.deadlineInS;
+}
+
 /** Taille calée sur le parc de racks, pour que l'offre reste à portée du joueur. */
 export function generateOffer(s: GameState): Job {
   const r = () => nextRandom(s);

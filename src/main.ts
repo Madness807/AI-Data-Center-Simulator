@@ -284,6 +284,7 @@ const hud = new Hud(
     setResearchShare: (share) => enqueue({ type: 'setResearchShare', share }),
     startResearch: (id) => enqueue({ type: 'startResearch', id }),
     setAutoRepair: (on) => enqueue({ type: 'setPolicy', autoRepair: on }),
+    setCommercial: (commercial) => enqueue({ type: 'setPolicy', commercial }),
     showTitle,
     resume,
     focusCell,

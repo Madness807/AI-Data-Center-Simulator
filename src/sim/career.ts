@@ -1,4 +1,4 @@
-import { RESEARCH_RATE } from './balance';
+import { COMMERCIAL, RESEARCH_RATE } from './balance';
 
 /** Partie rapide : les règles de la bêta, objectif d'argent. Carrière : paliers et recherche. */
 export const GAME_MODES = ['quick', 'career'] as const;
@@ -40,12 +40,28 @@ export interface ResearchState {
   ratePerS: number;
 }
 
+/** Réglages du commercial automatique : types de contrats pris, prix minimum par CU, marge de calcul gardée libre. */
+export interface CommercialPolicy {
+  enabled: boolean;
+  inference: boolean;
+  sla: boolean;
+  training: boolean;
+  minPricePerCU: number;
+  margin: number;
+}
+
 /** Réglages de conduite du joueur (débloqués par la recherche). */
 export interface Policies {
   /** Les techniciens libres partent d'eux-mêmes réparer les pannes. */
   autoRepair: boolean;
   /** Les techniciens libres entretiennent d'eux-mêmes les racks usés. */
   autoMaintain: boolean;
+  commercial: CommercialPolicy;
+}
+
+/** Le commercial démarre allumé, prudent, sur tous les types de contrats. */
+export function defaultCommercial(): CommercialPolicy {
+  return { enabled: true, inference: true, sla: true, training: true, minPricePerCU: 0, margin: COMMERCIAL.margin };
 }
 
 export function rulesFor(mode: GameMode): Rules {
@@ -62,5 +78,5 @@ export function emptyResearch(): ResearchState {
 }
 
 export function defaultPolicies(): Policies {
-  return { autoRepair: true, autoMaintain: true };
+  return { autoRepair: true, autoMaintain: true, commercial: defaultCommercial() };
 }

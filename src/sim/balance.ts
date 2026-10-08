@@ -243,6 +243,12 @@ export const TIER_LEVELS = [
   { reputation: 2000, computeCU: 400, maxUnits: 20, priceMult: 1.3 },
 ] as const;
 
+/**
+ * Commercial automatique (recherche) : réglages par défaut et bornes. La marge garde une part du
+ * calcul (hors recherche) libre de tout contrat ; un SLA, qui ne tolère aucun manque, en exige plus.
+ */
+export const COMMERCIAL = { margin: 0.2, margins: [0, 0.1, 0.2, 0.3] as const, slaExtraMargin: 0.1, minPriceMax: 1.5, minPriceStep: 0.1 };
+
 /** Réputation (carrière) : une livraison à l'heure rapporte delivery + 1 point par cuPerPoint CU/s ; un retard coûte late. */
 export const REPUTATION = { delivery: 10, cuPerPoint: 10, late: -25 };
 

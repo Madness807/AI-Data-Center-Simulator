@@ -3,8 +3,11 @@ import type { Building, BuildingKind, Facing, Gen, Specialty, TechTask } from '.
 import { keepsAccess } from './pathfinding';
 import { isUnlocked, modifiers, researchBlocker, unlockedBy } from './progression';
 import { refund, spend } from './ledger';
+import type { CommercialPolicy } from './career';
 import { addBuilding, addTech, buildingAt, buildingById, inBounds, isEntrance, notify, removeBuilding, type GameState, type Speed } from './state';
+import { sanitizeCommercial } from './systems/commercial';
 import { failRack } from './systems/failures';
+import { acceptOffer } from './systems/jobs';
 import { updatePower } from './systems/power';
 
 export type Command =
@@ -26,7 +29,7 @@ export type Command =
   /** Carrière : part du calcul consacrée à la R&D, nœud à étudier (null : aucun). */
   | { type: 'setResearchShare'; share: number }
   | { type: 'startResearch'; id: string | null }
-  | { type: 'setPolicy'; autoRepair?: boolean; autoMaintain?: boolean };
+  | { type: 'setPolicy'; autoRepair?: boolean; autoMaintain?: boolean; commercial?: Partial<CommercialPolicy> };
 
 /** Raison du refus, ou null si la construction est possible. */
 export function canBuild(s: GameState, kind: BuildingKind, x: number, y: number, gen: Gen = 1): string | null {
@@ -100,9 +103,7 @@ export function processCommands(s: GameState): void {
       }
       case 'acceptJob': {
         const job = s.jobs.find((j) => j.id === c.id && j.status === 'offer');
-        if (!job) break;
-        job.status = 'active';
-        job.deadline = s.time + job.deadlineInS;
+        if (job) acceptOffer(s, job);
         break;
       }
       case 'rejectJob':
@@ -153,6 +154,7 @@ export function processCommands(s: GameState): void {
       case 'setPolicy':
         if (c.autoRepair !== undefined) s.policies.autoRepair = c.autoRepair;
         if (c.autoMaintain !== undefined) s.policies.autoMaintain = c.autoMaintain;
+        if (c.commercial) s.policies.commercial = sanitizeCommercial({ ...s.policies.commercial, ...c.commercial });
         break;
     }
   }

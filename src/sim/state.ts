@@ -102,7 +102,9 @@ export type EventCode =
   | 'maintained'
   | 'wearRisk'
   // Réseau de calcul.
-  | 'linkLost';
+  | 'linkLost'
+  // Commercial automatique.
+  | 'autoAccepted';
 
 export interface GameEvent {
   type: 'error' | 'warning' | 'info' | 'success';

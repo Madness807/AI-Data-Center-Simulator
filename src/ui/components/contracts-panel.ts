@@ -1,4 +1,5 @@
-import { NETWORK, RACK } from '../../sim/balance';
+import { COMMERCIAL, NETWORK, RACK } from '../../sim/balance';
+import type { CommercialPolicy } from '../../sim/career';
 import type { Job } from '../../sim/entities';
 import { freeCapacity } from '../../sim/stats';
 import { clusterSpeed, freeBlocks } from '../../sim/clusters';
@@ -6,11 +7,97 @@ import { modifiers } from '../../sim/progression';
 import { networkActive } from '../../sim/network';
 import type { GameState } from '../../sim/state';
 import { el, icon, setStyle, setText } from '../dom';
-import { percent, plural, seconds, signedMoney } from '../format';
+import { decimal, percent, plural, seconds, signedMoney } from '../format';
 
 export interface ContractsActions {
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
+  setCommercial: (change: Partial<CommercialPolicy>) => void;
+}
+
+const TYPES = [
+  ['inference', 'Inférence'],
+  ['sla', 'SLA'],
+  ['training', 'Entraînement'],
+] as const;
+
+/** « inférence, SLA · dès 0,8 $/CU · marge 20 % » : les réglages du commercial en une ligne. */
+function commercialSummary(p: CommercialPolicy): string {
+  const types = TYPES.filter(([k]) => p[k]).map(([, label]) => label.toLowerCase().replace('sla', 'SLA'));
+  const parts = [types.length ? types.join(', ') : 'aucun type', p.minPricePerCU > 0 ? `dès ${decimal(p.minPricePerCU)} $/CU` : null, `marge ${percent(p.margin)}`];
+  return parts.filter(Boolean).join(' · ');
+}
+
+/**
+ * Rangée du commercial automatique (recherche Commercial) : interrupteur, résumé des réglages et
+ * encart pour les changer (types pris, prix minimum par CU, marge de calcul gardée libre).
+ */
+class CommercialRow {
+  readonly root: HTMLElement;
+  private readonly enabled = Object.assign(el('input'), { type: 'checkbox' });
+  private readonly summary = el('span', 'commercial-summary');
+  private readonly settings = el('div', 'commercial-settings');
+  private readonly types = new Map<(typeof TYPES)[number][0], HTMLInputElement>();
+  private readonly price = Object.assign(el('input', 'commercial-price'), { type: 'range', min: '0', max: String(COMMERCIAL.minPriceMax), step: String(COMMERCIAL.minPriceStep) });
+  private readonly priceLabel = el('b', 'mono');
+  private readonly margins = new Map<number, HTMLButtonElement>();
+
+  constructor(set: ContractsActions['setCommercial']) {
+    this.enabled.onchange = () => set({ enabled: this.enabled.checked });
+    const gear = el('button', 'btn btn-ghost btn-icon', icon('settings', 14));
+    gear.setAttribute('aria-label', 'Réglages du commercial');
+    gear.onclick = () => {
+      this.settings.hidden = !this.settings.hidden;
+      gear.classList.toggle('active', !this.settings.hidden);
+    };
+    const row = el('div', 'commercial-row', el('label', 'commercial-toggle', this.enabled, icon('autoCommercial', 14), el('span', undefined, 'Commercial automatique')), gear);
+    const typeBoxes = TYPES.map(([key, label]) => {
+      const box = Object.assign(el('input'), { type: 'checkbox' });
+      box.onchange = () => set({ [key]: box.checked });
+      this.types.set(key, box);
+      return el('label', 'team-policy', box, el('span', undefined, label));
+    });
+    this.price.oninput = () => setText(this.priceLabel, this.priceText(Number(this.price.value)));
+    this.price.onchange = () => {
+      set({ minPricePerCU: Number(this.price.value) });
+      this.price.blur(); // les flèches du clavier redeviennent celles de la caméra
+    };
+    const marginButtons = COMMERCIAL.margins.map((m) => {
+      const b = el('button', 'btn', percent(m));
+      b.onclick = () => set({ margin: m });
+      this.margins.set(m, b);
+      return b;
+    });
+    this.settings.append(
+      el('div', 'commercial-field', el('span', undefined, 'Contrats pris'), el('div', 'commercial-types', ...typeBoxes)),
+      el('div', 'commercial-field', el('span', undefined, 'Prix minimum'), el('div', 'commercial-range', this.price, this.priceLabel)),
+      el('div', 'commercial-field', el('span', undefined, 'Calcul gardé libre'), el('div', 'commercial-margins', ...marginButtons)),
+      el('p', 'commercial-note', 'Il ne prend que ce que le calcul libre couvre, marge déduite (plus large pour un SLA), et un entraînement seulement si un bloc libre existe.'),
+    );
+    this.settings.hidden = true;
+    this.root = el('div', 'commercial', row, this.summary, this.settings);
+    this.root.hidden = true;
+  }
+
+  private priceText(v: number): string {
+    return v > 0 ? `${decimal(v)} $/CU` : 'aucun';
+  }
+
+  update(s: GameState): void {
+    this.root.hidden = !(s.rules.progression && modifiers(s).autoAccept);
+    if (this.root.hidden) return;
+    const p = s.policies.commercial;
+    this.enabled.checked = p.enabled;
+    this.root.classList.toggle('off', !p.enabled);
+    setText(this.summary, p.enabled ? commercialSummary(p) : 'éteint : les offres attendent votre décision');
+    for (const [key, box] of this.types) box.checked = p[key];
+    // Pas pendant un glisser : la valeur affichée suivrait l'état avant le relâchement.
+    if (document.activeElement !== this.price) {
+      this.price.value = String(p.minPricePerCU);
+      setText(this.priceLabel, this.priceText(p.minPricePerCU));
+    }
+    for (const [m, b] of this.margins) b.classList.toggle('active', Math.abs(m - p.margin) < 1e-6);
+  }
 }
 
 /** Carte d'un contrat, créée une fois et mise à jour en place (recréer à chaque image casserait les clics). */
@@ -48,12 +135,14 @@ export class ContractsPanel {
   private readonly count = el('span', 'contracts-count');
   private readonly chevron = el('span', 'dim');
   private readonly cards = new Map<number, Card>();
+  private readonly commercial: CommercialRow;
   private collapsed = false;
 
   constructor(private readonly actions: ContractsActions) {
     const head = el('div', 'contracts-head', el('span', 'panel-title', icon('build', 14), 'Contrats'), el('span', 'dim', this.count, ' ', this.chevron));
     head.onclick = () => this.toggle();
-    this.root = el('div', 'contracts glass', head, this.list, this.empty);
+    this.commercial = new CommercialRow(actions.setCommercial);
+    this.root = el('div', 'contracts glass', head, this.commercial.root, this.list, this.empty);
     this.renderChevron();
   }
 
@@ -73,6 +162,7 @@ export class ContractsPanel {
   }
 
   update(s: GameState): void {
+    this.commercial.update(s);
     const seen = new Set<number>();
     const sorted = [...s.jobs].sort((a, b) =>
       a.status !== b.status ? (a.status === 'active' ? -1 : 1) : a.status === 'active' ? a.deadline - b.deadline : a.expiresAt - b.expiresAt,

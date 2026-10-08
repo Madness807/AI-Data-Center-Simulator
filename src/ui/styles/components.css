@@ -104,11 +104,28 @@
 .contracts { display: flex; flex-direction: column; min-height: 0; padding: 10px; gap: 8px; }
 .contracts-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer; }
 .contracts-count { font: 600 11px var(--font-mono); color: var(--text-dim); }
-.contracts.collapsed .contracts-list, .contracts.collapsed .contracts-empty { display: none; }
+.contracts.collapsed .contracts-list, .contracts.collapsed .contracts-empty, .contracts.collapsed .commercial { display: none; }
+/* Commercial automatique (recherche) : interrupteur, résumé, réglages repliables. */
+.commercial { display: flex; flex-direction: column; gap: 4px; padding: 7px 9px; border-radius: var(--radius-m); background: rgba(var(--branch-commercial-rgb), 0.07); border: 1px solid rgba(var(--branch-commercial-rgb), 0.28); }
+.commercial.off { background: var(--surface); border-color: var(--line); }
+.commercial-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.commercial-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.commercial-toggle input { accent-color: var(--accent); }
+.commercial-toggle .icon { color: var(--branch-commercial); }
+.commercial-summary { font-size: 11px; line-height: 1.4; color: var(--text-dim); }
+.commercial-settings { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
+.commercial-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-faint); }
+.commercial-types { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.commercial-range { display: flex; align-items: center; gap: 8px; }
+.commercial-price { flex: 1; accent-color: var(--accent); }
+.commercial-range b { min-width: 64px; font-size: 11px; color: var(--text); text-align: right; }
+.commercial-margins { display: flex; gap: 4px; }
+.commercial-margins .btn { flex: 1; padding: 4px 0; font: 600 11px var(--font-mono); }
+.commercial-note { margin: 0; font-size: 11px; line-height: 1.45; color: var(--text-faint); }
 .contracts-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding-right: 2px; }
 .contracts-empty { color: var(--text-faint); font-size: 12px; padding: 4px 2px; }
 .contract {
-  position: relative; display: flex; flex-direction: column; gap: 8px;
+  position: relative; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
   padding: 10px; border-radius: var(--radius-m); background: var(--surface); border: 1px solid var(--line); overflow: hidden;
 }
 .contract.offer { border-style: dashed; border-color: rgba(255, 255, 255, 0.12); }

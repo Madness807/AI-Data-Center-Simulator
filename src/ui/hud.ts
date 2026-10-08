@@ -25,6 +25,7 @@ import { Minimap, type MinimapCamera } from './components/minimap';
 import { PauseMenu } from './components/pause-menu';
 import { SaveSlots, type SaveSlotsActions } from './components/save-slots';
 import { Tutorial } from './tutorial/tutorial';
+import type { CommercialPolicy } from '../sim/career';
 import type { Command } from '../sim/commands';
 import type { SettingsStore } from '../settings';
 import { ResourceBar } from './components/resource-bar';
@@ -50,6 +51,8 @@ export interface HudActions {
   selectTechs: (ids: number[], focus: boolean) => void;
   acceptJob: (id: number) => void;
   rejectJob: (id: number) => void;
+  /** Commercial automatique : réglages modifiés (les autres restent). */
+  setCommercial: (change: Partial<CommercialPolicy>) => void;
   /** Lance une nouvelle partie : carrière, partie rapide ou tutoriel. */
   newGame: (kind: NewGameKind) => void;
   /** Carrière : part du calcul pour la R&D, nœud à étudier, réparations automatiques. */
