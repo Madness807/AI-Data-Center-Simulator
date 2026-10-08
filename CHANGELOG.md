@@ -2,6 +2,37 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [1.3.0] — 2026-10-08
+
+La branche de recherche Commercial : mieux vendre son calcul, puis laisser un commercial automatique prendre les contrats que la salle peut tenir.
+
+### Ajouté
+
+- **Branche Commercial** (6e colonne de la Recherche) :
+  - **Négociation** (niveau 2) : contrats payés 10 % de plus ;
+  - **Fidélisation** (niveau 2) : les offres restent deux fois plus longtemps, échéances 15 % plus souples ;
+  - **Commercial automatique** (niveau 3) ;
+  - **Grands comptes** (niveau 4) : offres jusqu'à 25 % plus grosses, et une offre de plus à la fois.
+- **Commercial automatique** : il accepte seul les offres les mieux payées que le calcul libre couvre, en gardant une marge (20 % par défaut, plus pour un SLA), et un entraînement seulement si un bloc libre l'attend ; rien pendant une coupure. Chaque contrat pris est annoncé. Réglages dans le panneau Contrats : interrupteur, types pris, prix minimum par CU, marge.
+- Conseil de carrière et section du guide (chapitre Contrats) sur le commercial.
+
+### Modifié
+
+- **Panneau Recherche** : 6 colonnes, plus large (1 320 px au plus) ; sur les écrans étroits, les icônes des tuiles s'effacent et les mots trop longs se coupent.
+
+### Corrigé
+
+- **Panneau Contrats** : quand il manquait de place, les cartes s'écrasaient (chiffres et boutons cachés) au lieu de défiler.
+
+### Interne
+
+- Sauvegarde au format 10 : les parties précédentes reçoivent les réglages par défaut du commercial.
+- Nouveaux tests :
+  - effets des recherches sur les offres (aucun en partie rapide) ;
+  - règles du commercial : marge, types, prix, SLA, entraînement, coupure ;
+  - bornage des réglages et sauvegarde ;
+  - cas d'équilibrage d'une carrière qui délègue au commercial.
+
 ## [1.2.0] — 2026-10-08
 
 Le jeu s'installe et se joue hors ligne, s'explique dans un guide complet, et sa barre de construction montre enfin toutes les variantes.

@@ -119,6 +119,18 @@ describe('équilibrage', () => {
     }
   }, CAREER_TIMEOUT_MS);
 
+  it('carrière : le commercial automatique tient la salle sans multiplier les retards', () => {
+    for (const seed of SEEDS.slice(0, 3)) {
+      const careful = careerRun(seed);
+      const delegated = playBot(seed, { ...COMPETENT, career: true, autoCommercial: true }, CAREER_HORIZON_S);
+      expect(delegated.lostAt, `graine ${seed}`).toBeNull();
+      expect(delegated.researchAt['auto-commercial'], `graine ${seed}`).toBeLessThan(delegated.wonAt ?? Infinity);
+      expect(delegated.trainingsDone, `graine ${seed}`).toBeGreaterThan(20);
+      expect(delegated.state.economy.jobsFailed, `graine ${seed}`).toBeLessThanOrEqual(Math.max(12, careful.state.economy.jobsFailed + 3));
+      expect(minutes(delegated.wonAt), `graine ${seed}`).toBeLessThanOrEqual(120);
+    }
+  }, CAREER_TIMEOUT_MS);
+
   it('le premier contrat est honoré en moins de 2 minutes', () => {
     for (const seed of SEEDS) {
       expect(playBot(seed, COMPETENT, 3 * 60).firstDeliveryAt, `graine ${seed}`).toBeLessThan(120);

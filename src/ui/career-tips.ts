@@ -1,4 +1,4 @@
-import { CDU, GPU, NETWORK, TRAINING, WEATHER } from '../sim/balance';
+import { CDU, COMMERCIAL, GPU, NETWORK, TRAINING, WEATHER } from '../sim/balance';
 import { networkActive } from '../sim/network';
 import { isUnlocked, modifiers } from '../sim/progression';
 import { wearActive } from '../sim/systems/failures';
@@ -69,6 +69,13 @@ export const CAREER_TIPS: readonly CareerTip[] = [
     title: 'GPU G3',
     text: `${GPU[3].computeCU} CU/s par rack, mais ${GPU[3].heatKW} kW de chaleur sur une seule case : posez-les à ${CDU.radius} cases au plus d’un CDU, sinon ils surchauffent.`,
     when: (s) => modifiers(s).maxGen >= 3,
+  },
+  {
+    id: 'commercial',
+    icon: 'autoCommercial',
+    title: 'Commercial automatique',
+    text: `Il accepte seul les offres que votre calcul libre couvre, en gardant ${pct(COMMERCIAL.margin)} du calcul en réserve (plus pour un SLA), et un entraînement seulement si un bloc libre l’attend. Réglez-le dans le panneau Contrats : types pris, prix minimum, marge.`,
+    when: (s) => modifiers(s).autoAccept,
   },
 ];
 

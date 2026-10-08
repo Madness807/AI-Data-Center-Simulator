@@ -29,15 +29,15 @@ export interface BotProfile {
   noResearch?: boolean;
   /** Carrière : il ignore le réseau (ni recherche, ni switchs). */
   noNetwork?: boolean;
+  /** Carrière : une fois le commercial automatique étudié, il le laisse prendre seul les contrats. */
+  autoCommercial?: boolean;
 }
 
 /** Ordre d'étude du bot de carrière : d'abord ce qui économise du travail et de l'argent. */
 export const RESEARCH_ORDER = [
   'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'switches', 'spare-parts', 'containment', 'planned-maintenance', 'gpu-g2',
-  'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'fabric', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3',
-  'specialties', 'switchover-2n', 'predictive', 'heat-reuse', 'optical',
-  // Commercial : en dernier pour l'instant (ordre réglé à l'équilibrage de la v1.3).
-  'negotiation', 'loyalty', 'auto-commercial', 'key-accounts',
+  'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'fabric', 'negotiation', 'loyalty', 'free-cooling', 'auto-commercial',
+  'green-power', 'liquid-cooling', 'gpu-g3', 'specialties', 'switchover-2n', 'predictive', 'key-accounts', 'heat-reuse', 'optical',
 ];
 export const CAREER_RESEARCH_SHARE = 0.2;
 
@@ -181,7 +181,8 @@ class Bot {
     if (this.profile.career) this.research(s);
     this.repair(s);
     if (this.profile.career) this.maintain(s);
-    this.contracts(s);
+    // Le commercial automatique de la simulation prend la main, si le profil le lui laisse.
+    if (!(this.profile.autoCommercial && modifiers(s).autoAccept)) this.contracts(s);
     if (this.profile.career && this.addPdu(s)) return;
     if (this.profile.career && !this.profile.noBackup && this.backup(s)) return;
     if (this.profile.career && !this.profile.noNetwork && this.network(s)) return;

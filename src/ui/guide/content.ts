@@ -1,6 +1,7 @@
 import {
   AISLE,
   ALERTS,
+  COMMERCIAL,
   CDU,
   CRAC,
   DEMOLISH_REFUND,
@@ -128,6 +129,9 @@ function contracts(): GuideChapter {
       { kind: 'p', text: `Ils demandent un bloc de racks contigus, réservé au contrat (${span(TRAINING.cluster[TRAINING.minTier])} racks au palier ${tier(TRAINING.minTier)}), durent ${span(TRAINING.duration, ' s')} et paient ${percent(TRAINING.priceMult - 1)} de plus. Chaque rack du bloc doit être câblé à un switch (voir Réseau). Si un rack du bloc tombe en panne, le bloc est rompu et l’entraînement perd ${percent(TRAINING.rollback)} de sa progression (${percent(TRAINING.rollbackCheckpoints)} avec ${research('checkpoints')}).` },
       { kind: 'h', text: 'Contrats avec SLA', badge: tier(SLA.minTier) },
       { kind: 'p', text: `Payés ${percent(SLA.priceMult - 1)} de plus, ils exigent un débit continu : si le contrat reçoit moins que son débit plus de ${percentFine(SLA.tolerance)} du temps, la pénalité est retenue sur le paiement et la livraison ne rapporte pas de réputation.` },
+      { kind: 'h', text: 'Commercial', badge: CAREER },
+      { kind: 'p', text: `La branche de recherche Commercial améliore vos ventes : ${research('negotiation')} (${node('negotiation').description.toLowerCase().replace(/\.$/, '')}), ${research('loyalty')}, puis ${research('key-accounts')} pour des offres plus grosses et plus nombreuses.` },
+      { kind: 'p', text: `${research('auto-commercial')} accepte seul les offres que la salle peut tenir : jamais plus que le calcul en service (hors recherche) moins une marge de ${percent(COMMERCIAL.margin)} par défaut, plus large pour un SLA, et un entraînement seulement si un bloc libre existe ; rien pendant une coupure. Chaque contrat pris est annoncé. Dans le panneau Contrats, vous choisissez les types pris, un prix minimum par CU et la marge, ou vous l’éteignez.` },
       {
         kind: 'tips',
         items: [

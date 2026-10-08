@@ -240,26 +240,18 @@ Choix faits avec le joueur : le réseau ne compte que pour l'entraînement, le c
 
 **But** : donner un sens au plan de la salle (bouts de rangée, allées libres) au moment où les entraînements arrivent. Un joueur soigné gagne toujours en 75 à 120 minutes ; sans réseau, il ne livre aucun entraînement et gagne nettement plus tard.
 
-### v1.3 — Commercial — à faire
+### v1.3 — Commercial ✅
 
-Une 6e branche de recherche, **Commercial**, pour le rôle de gestionnaire : mieux vendre son calcul, puis laisser un commercial automatique prendre les contrats que la salle peut tenir. En fin de partie, accepter les offres une à une devient du clic sans décision ; la branche fait passer le joueur du choix de chaque contrat au réglage d'une politique, comme Exploitation l'a fait pour les réparations.
+Une 6e branche de recherche, **Commercial**, en 3 lots (branche et effets, commercial automatique, équilibrage et finitions).
 
-**Nœuds** (chiffres indicatifs, fixés à l'équilibrage) :
+- **Négociation** (niveau 2) : contrats +10 %. **Fidélisation** (niveau 2) : offres deux fois plus longues, échéances +15 %. **Grands comptes** (niveau 4) : plafond de taille +25 %, une offre de plus à la fois.
+- **Commercial automatique** (niveau 3, après Fidélisation) : à chaque tick, il prend les offres les mieux payées par CU que le calcul en service (hors recherche) couvre, marge déduite (20 % par défaut, 10 points de plus pour un SLA) ; un entraînement seulement avec un bloc libre (sur un seul switch sans la Fabric), un seul en attente ; rien pendant une coupure. Sans tirage au sort.
+- **Réglages** dans le panneau Contrats : interrupteur, types pris, prix minimum par CU, marge. Allumé, tous types, dès la recherche faite. Sauvegarde au format 10.
+- Panneau R&D à 6 colonnes (jusqu'à 1 320 px).
 
-- **Négociation** (niveau 2) : contrats payés environ 10 % de plus.
-- **Fidélisation** (niveau 2) : les offres restent deux fois plus longtemps, échéances un peu plus souples.
-- **Commercial automatique** (niveau 3, après Fidélisation) : accepte seul les offres que le calcul **libre** couvre (calcul en service, moins ce qui est promis aux contrats en cours et la part de la recherche), avec une marge de sécurité, et seulement si l'échéance est tenable ; un entraînement seulement si un bloc relié est libre.
-- **Grands comptes** (niveau 4, après Négociation) : offres plus grosses (plafond du palier relevé) et une offre de plus à la fois ; en v1.4, c'est lui qui amènera les contrats multi-régions.
+Choix faits avec le joueur : une branche à part plutôt qu'un nœud d'Exploitation, le commercial allumé dès sa recherche, tous les types de contrats par défaut mais prudemment.
 
-**Réglages du commercial** : un interrupteur dans le panneau Contrats, comme les automatismes du panneau Équipe, avec un prix minimum par CU, les types acceptés (inférence, SLA, entraînement) et la marge de sécurité. Chaque acceptation est annoncée (« Contrat accepté automatiquement : … »), et le joueur peut toujours accepter ou refuser à la main.
-
-**Lots** :
-
-1. Branche Commercial dans l'arbre (6e colonne du panneau Recherche, icône, couleur, liens) et les effets de Négociation, Fidélisation et Grands comptes (`modifiers`).
-2. Commercial automatique : calcul libre et faisabilité de l'échéance (fonctions pures, testées), politique `autoAccept` et ses réglages, notifications, réglages dans le panneau Contrats.
-3. Équilibrage (bots : un joueur soigné doit toujours gagner en 75 à 120 minutes, le commercial ne doit pas prendre de contrat qu'il rate), conseil de carrière, chapitre Recherche et Contrats du guide, version 1.3.0.
-
-**But** : alléger la fin de partie sans retirer la décision. Le joueur règle la politique (quoi, à quel prix, avec quelle marge) au lieu de cliquer chaque offre, et les retards restent sa responsabilité.
+**But** : alléger la fin de partie sans retirer la décision. Un bot qui délègue au commercial gagne toujours en moins de 120 minutes, sans plus de retards.
 
 ### v1.4 — Multi-sites (scale-across) — à faire
 
@@ -295,7 +287,6 @@ Le troisième niveau d'échelle d'un data center d'IA, après le rack (scale-up)
 
 ### Suite
 
-- **Commercial** : plan détaillé ci-dessus (v1.3).
 - **Multi-sites (scale-across)** : plan détaillé ci-dessus (v1.4).
 - **Extension** : achat de nouvelles salles, carte qui s'agrandit.
 - **Énergie** : prix variable de l'électricité (réseau, solaire, gaz), contrats d'approvisionnement, PDU à rayon local.

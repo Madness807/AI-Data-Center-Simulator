@@ -36,7 +36,7 @@ Commencez par le **tutoriel** : en neuf étapes, il montre toute la boucle du je
   - **Carrière**, une heure et demie environ :
     - livrez à l'heure pour gagner de la réputation et gravir 4 paliers, de Start-up à Hyperscaler ; les deux derniers exigent aussi du calcul en service ;
     - chaque palier amène de plus gros clients et de nouveaux défis : coupures de courant et usure des racks (Scale-up), météo, canicules, contrats d'entraînement sur des blocs de racks câblés à un switch, et SLA (Labo d'IA) ;
-    - une part de votre calcul finance la recherche (touche U) : 24 nœuds, des onduleurs au refroidissement liquide, aux GPU de 3e génération et à la fabric réseau ;
+    - une part de votre calcul finance la recherche (touche U) : 28 nœuds en 6 branches, des onduleurs au refroidissement liquide, aux GPU de 3e génération, à la fabric réseau et au commercial automatique, qui accepte seul les contrats que la salle peut tenir (réglable dans le panneau Contrats) ;
     - un conseil s'affiche la première fois qu'une situation se présente.
   - **Partie rapide** : atteindre 100 000 $ de trésorerie, en une trentaine de minutes.
   - Dans les deux cas, la partie continue en mode libre après la victoire.
