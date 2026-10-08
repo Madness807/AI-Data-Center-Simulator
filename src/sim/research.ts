@@ -2,7 +2,7 @@ import { AISLE, CDU, GENERATOR, GPU, MAINTENANCE, NETWORK, OPTICAL, PREDICTIVE, 
 import type { BuildingKind, Gen } from './entities';
 
 /** Branches de l'arbre, une colonne chacune dans le panneau Recherche. */
-export type Branch = 'compute' | 'network' | 'cooling' | 'power' | 'ops';
+export type Branch = 'compute' | 'network' | 'cooling' | 'power' | 'ops' | 'commercial';
 
 export const BRANCHES: { id: Branch; name: string }[] = [
   { id: 'compute', name: 'Calcul' },
@@ -10,6 +10,7 @@ export const BRANCHES: { id: Branch; name: string }[] = [
   { id: 'cooling', name: 'Refroidissement' },
   { id: 'power', name: 'Énergie' },
   { id: 'ops', name: 'Exploitation' },
+  { id: 'commercial', name: 'Commercial' },
 ];
 
 /** Effets d'un nœud, cumulés par modifiers() (progression.ts). */
@@ -43,6 +44,15 @@ export interface ResearchEffect {
   predictive?: true;
   /** Équipements qui deviennent constructibles. */
   unlocks?: BuildingKind[];
+  /** Commercial : multiplicateurs du paiement des offres, de leur durée de validité, de la marge d'échéance et de leur taille maximale. */
+  priceMult?: number;
+  offerExpiry?: number;
+  slack?: number;
+  offerSize?: number;
+  /** Offres de plus à la fois. */
+  extraOffers?: number;
+  /** Le commercial accepte seul les offres que le calcul libre couvre (réglages dans le panneau Contrats). */
+  autoAccept?: true;
 }
 
 export interface ResearchNode {
@@ -310,6 +320,47 @@ const NODES: readonly NodeSpec[] = [
     cost: 500,
     requires: ['auto-repair'],
     effect: { techSpeed: 1.3, workRate: 1.3 },
+  },
+  {
+    id: 'negotiation',
+    branch: 'commercial',
+    level: 2,
+    name: 'Négociation',
+    description: (e) => `Les contrats sont payés ${pct((e.priceMult ?? 1) - 1)} de plus (la pénalité de retard suit).`,
+    cost: 800,
+    requires: [],
+    effect: { priceMult: 1.1 },
+  },
+  {
+    id: 'loyalty',
+    branch: 'commercial',
+    level: 2,
+    name: 'Fidélisation',
+    description: (e) =>
+      `Les offres restent ${num(e.offerExpiry ?? 1)} fois plus longtemps, et leurs échéances sont ${pct((e.slack ?? 1) - 1)} plus souples.`,
+    cost: 700,
+    requires: [],
+    effect: { offerExpiry: 2, slack: 1.15 },
+  },
+  {
+    id: 'auto-commercial',
+    branch: 'commercial',
+    level: 3,
+    name: 'Commercial automatique',
+    description: 'Accepte seul les offres que votre calcul libre couvre, selon vos réglages (panneau Contrats).',
+    cost: 1200,
+    requires: ['loyalty'],
+    effect: { autoAccept: true },
+  },
+  {
+    id: 'key-accounts',
+    branch: 'commercial',
+    level: 4,
+    name: 'Grands comptes',
+    description: (e) => `Offres jusqu’à ${pct((e.offerSize ?? 1) - 1)} plus grosses, et ${e.extraOffers ?? 0} offre de plus à la fois.`,
+    cost: 2200,
+    requires: ['negotiation'],
+    effect: { offerSize: 1.25, extraOffers: 1 },
   },
 ];
 

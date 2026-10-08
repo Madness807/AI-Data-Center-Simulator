@@ -80,7 +80,7 @@ export function updateJobs(s: GameState, dt: number): void {
   if (finished.size) s.jobs = s.jobs.filter((j) => !finished.has(j));
 
   if (s.time >= s.nextOfferAt) {
-    if (s.jobs.filter((j) => j.status === 'offer').length < JOBS.maxOffers) {
+    if (s.jobs.filter((j) => j.status === 'offer').length < JOBS.maxOffers + modifiers(s).extraOffers) {
       s.jobs.push(generateOffer(s));
       notify(s, 'info', 'Nouvelle offre de contrat', { code: 'offer' });
     }
@@ -152,15 +152,17 @@ export function generateOffer(s: GameState): Job {
   }
   if (special === 'training') return trainingOffer(s, r);
   const racks = s.buildings.filter((b) => b.kind === 'rack').length;
-  // En carrière, le palier plafonne la taille des offres et fixe le niveau des prix.
+  // En carrière, le palier plafonne la taille des offres (Grands comptes le relève) et fixe le niveau des prix.
   const tier = s.rules.progression ? TIERS[s.career.tier] : null;
-  const maxUnits = Math.min(tier?.maxUnits ?? JOBS.maxUnits, Math.max(JOBS.minUnits, Math.ceil(racks * JOBS.unitsPerRack)));
+  const m = modifiers(s);
+  const cap = Math.round((tier?.maxUnits ?? JOBS.maxUnits) * m.offerSizeMult);
+  const maxUnits = Math.min(cap, Math.max(JOBS.minUnits, Math.ceil(racks * JOBS.unitsPerRack)));
   const rateCU = (1 + Math.floor(r() * maxUnits)) * RACK.computeCU;
   const durationS = roundTo10(lerp(JOBS.duration, r()));
   const slack = lerp(JOBS.slack, r());
   const tightBonus = 1 + (JOBS.slack[1] - slack) * JOBS.tightBonus;
   const jitter = JOBS.priceJitter.min + JOBS.priceJitter.spread * r();
-  const payment = roundTo10(rateCU * durationS * JOBS.pricePerCU * jitter * tightBonus * (tier?.priceMult ?? 1));
+  const payment = roundTo10(rateCU * durationS * JOBS.pricePerCU * jitter * tightBonus * (tier?.priceMult ?? 1) * m.priceMult);
   const name = `${pick(KINDS, r())} — ${pick(clientsFor(s), r())}`;
   if (special === 'sla') {
     const paid = roundTo10(payment * SLA.priceMult);
@@ -170,7 +172,10 @@ export function generateOffer(s: GameState): Job {
   return makeOffer(s, { name, rateCU, durationS, slack, payment });
 }
 
-/** Une offre : le travail, l'échéance, la pénalité et l'expiration se déduisent du débit, de la durée et du prix. */
+/**
+ * Une offre : le travail, l'échéance, la pénalité et l'expiration se déduisent du débit, de la durée et du prix.
+ * La Fidélisation allonge l'échéance après le calcul du prix (une marge plus large ne le baisse pas) et la validité.
+ */
 function makeOffer(
   s: GameState,
   o: { name: string; rateCU: number; durationS: number; slack: number; payment: number },
@@ -184,11 +189,11 @@ function makeOffer(
     durationS: o.durationS,
     work: o.rateCU * o.durationS,
     progress: 0,
-    deadlineInS: Math.round(o.durationS * o.slack),
+    deadlineInS: Math.round(o.durationS * o.slack * modifiers(s).slackMult),
     payment: o.payment,
     penalty: roundTo10(o.payment * JOBS.penaltyRatio),
     offeredAt: s.time,
-    expiresAt: s.time + JOBS.offerExpiry,
+    expiresAt: s.time + JOBS.offerExpiry * modifiers(s).offerExpiryMult,
     deadline: 0,
     allocated: 0,
     ...extra,
@@ -210,7 +215,7 @@ function trainingOffer(s: GameState, r: () => number): Job {
   const durationS = roundTo10(lerp(TRAINING.duration, r()));
   const slack = lerp(TRAINING.slack, r());
   const jitter = TRAINING.priceJitter.min + TRAINING.priceJitter.spread * r();
-  const payment = roundTo10(rateCU * durationS * JOBS.pricePerCU * TRAINING.priceMult * tier.priceMult * jitter);
+  const payment = roundTo10(rateCU * durationS * JOBS.pricePerCU * TRAINING.priceMult * tier.priceMult * jitter * modifiers(s).priceMult);
   const name = `Entraînement LLM — ${pick(clientsFor(s), r())}`;
   return makeOffer(s, { name, rateCU, durationS, slack, payment }, { kind: 'training', cluster: size, minGen: TRAINING.minGen });
 }

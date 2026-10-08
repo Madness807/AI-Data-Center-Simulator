@@ -27,7 +27,7 @@ export function shortName(kind: BuildingKind, gen: Gen = 1): string {
 }
 
 /** Icône de chaque branche de la recherche. */
-export const BRANCH_ICON: Record<Branch, IconName> = { compute: 'compute', network: 'switch', cooling: 'crac', power: 'power', ops: 'team' };
+export const BRANCH_ICON: Record<Branch, IconName> = { compute: 'compute', network: 'switch', cooling: 'crac', power: 'power', ops: 'team', commercial: 'commercial' };
 
 /** Icône de chaque nœud de recherche ; un nœud qui débloque un équipement reprend celle de l'équipement. */
 export const RESEARCH_ICON: Readonly<Record<string, IconName>> = {
@@ -55,6 +55,10 @@ export const RESEARCH_ICON: Readonly<Record<string, IconName>> = {
   'spare-parts': 'spareParts',
   specialties: 'specialties',
   predictive: 'predictive',
+  negotiation: 'negotiation',
+  loyalty: 'loyalty',
+  'auto-commercial': 'autoCommercial',
+  'key-accounts': 'keyAccounts',
 };
 
 /** Libellé de chaque spécialité de technicien. */

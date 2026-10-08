@@ -31,9 +31,9 @@ describe('grille de l’arbre', () => {
   it('chaque nœud a sa place, deux au plus par case ; l’arbre tient dans le panneau', () => {
     expect([...TREE.pos.keys()].sort()).toEqual(RESEARCH.map((n) => n.id).sort());
     for (const c of TREE.cells) expect(c.ids.length, `${c.branch} niveau ${c.level}`).toBeLessThanOrEqual(2);
-    // Budget de hauteur (640 px) : 7 tuiles empilées au plus, toutes lignes confondues ; et 5 colonnes.
+    // Budget de hauteur (640 px) : 7 tuiles empilées au plus, toutes lignes confondues ; et 6 colonnes.
     expect([...TREE.slots.values()].reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(7);
-    expect(BRANCHES.length).toBeLessThanOrEqual(5);
+    expect(BRANCHES.length).toBeLessThanOrEqual(6);
     expect(cell('compute', 4)).toEqual([]);
     expect(cell('network', 1)).toEqual([]);
   });

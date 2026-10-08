@@ -36,6 +36,8 @@ export const RESEARCH_ORDER = [
   'auto-repair', 'crac-he', 'pdu-hc', 'ups', 'generators', 'switches', 'spare-parts', 'containment', 'planned-maintenance', 'gpu-g2',
   'opportunistic', 'retrofit', 'fast-techs', 'checkpoints', 'fabric', 'free-cooling', 'green-power', 'liquid-cooling', 'gpu-g3',
   'specialties', 'switchover-2n', 'predictive', 'heat-reuse', 'optical',
+  // Commercial : en dernier pour l'instant (ordre réglé à l'équilibrage de la v1.3).
+  'negotiation', 'loyalty', 'auto-commercial', 'key-accounts',
 ];
 export const CAREER_RESEARCH_SHARE = 0.2;
 

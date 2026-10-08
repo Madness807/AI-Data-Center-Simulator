@@ -153,6 +153,8 @@ export const BRANCH_COLORS: Readonly<Record<Branch, number>> = {
   cooling: 0x56b4e9,
   power: 0xf0e442,
   ops: 0xe69f00,
+  // Commercial : argent clair, hors des teintes d'Okabe-Ito déjà prises (lisible en mode daltonien).
+  commercial: 0xd8dee9,
 };
 
 export type Rgb = readonly [number, number, number];

@@ -113,6 +113,13 @@ export interface Modifiers {
   /** Réparation : prix et durée (le stock de pièces les réduit). */
   repairCost: number;
   repairSeconds: number;
+  /** Commercial : paiement, validité et échéance des offres, taille maximale, offres de plus, acceptation automatique. */
+  priceMult: number;
+  offerExpiryMult: number;
+  slackMult: number;
+  offerSizeMult: number;
+  extraOffers: number;
+  autoAccept: boolean;
 }
 
 const BASE: Modifiers = {
@@ -139,6 +146,12 @@ const BASE: Modifiers = {
   predictive: false,
   repairCost: REPAIR.cost,
   repairSeconds: REPAIR.seconds,
+  priceMult: 1,
+  offerExpiryMult: 1,
+  slackMult: 1,
+  offerSizeMult: 1,
+  extraOffers: 0,
+  autoAccept: false,
 };
 
 const cache = new WeakMap<GameState, { key: string; value: Modifiers }>();
@@ -174,6 +187,12 @@ export function modifiers(s: GameState): Modifiers {
     if (e.autoMaintain) m.autoMaintain = true;
     if (e.specialties) m.specialties = true;
     if (e.predictive) m.predictive = true;
+    if (e.priceMult) m.priceMult *= e.priceMult;
+    if (e.offerExpiry) m.offerExpiryMult *= e.offerExpiry;
+    if (e.slack) m.slackMult *= e.slack;
+    if (e.offerSize) m.offerSizeMult *= e.offerSize;
+    if (e.extraOffers) m.extraOffers += e.extraOffers;
+    if (e.autoAccept) m.autoAccept = true;
     if (e.spareParts) {
       m.repairCost = SPARE_PARTS.cost;
       m.repairSeconds = SPARE_PARTS.seconds;
