@@ -240,8 +240,41 @@ Choix faits avec le joueur : le réseau ne compte que pour l'entraînement, le c
 
 **But** : donner un sens au plan de la salle (bouts de rangée, allées libres) au moment où les entraînements arrivent. Un joueur soigné gagne toujours en 75 à 120 minutes ; sans réseau, il ne livre aucun entraînement et gagne nettement plus tard.
 
+### v1.3 — Multi-sites (scale-across) — à faire
+
+Le troisième niveau d'échelle d'un data center d'IA, après le rack (scale-up) et la salle (scale-out) : plusieurs sites reliés par des liens longue distance. Ce que les hyperscalers font vraiment aujourd'hui, c'est surtout répartir l'inférence entre régions et orchestrer ; l'entraînement synchrone entre sites reste lent. Le jeu suit la même idée.
+
+**Principe** : la salle du joueur reste le seul site construit case par case. Les **sites distants** se gèrent à plus haut niveau, comme une colocation : on y loue de la capacité de calcul par modules, sans plan de salle, sans chaleur ni réparations à gérer (une équipe locale est comprise dans le loyer).
+
+- **Régions** (3, aux profils contrastés) : par exemple un site nordique (électricité et climat favorables, mais lien lent et loin des clients), un site proche (cher, rapide) et un site d'énergie verte (bon marché, coupures plus fréquentes). Chacune a un loyer par module, un prix de l'électricité, une latence et un risque d'incident.
+- **Modules de capacité** : chaque module ajoute du calcul (CU/s) au site, avec frais d'ouverture et loyer par seconde.
+- **Liens inter-sites (WAN)** : chaque site distant est relié à la salle par un lien de débit limité, qu'on peut renforcer. Une coupure de lien isole le site.
+- **Contrats régionaux** : une partie des offres d'inférence vient d'une région ; servies depuis un site de cette région, elles paient plus (latence). Les offres **multi-régions** exigent du calcul sur au moins deux sites et résistent à la perte de l'un d'eux.
+- **Entraînement réparti** : un bloc d'entraînement peut s'étendre à un site distant, mais il avance alors beaucoup plus lentement (synchronisation par le WAN, bornée par le débit du lien), ce que la recherche améliore.
+- **Incidents régionaux** : panne de site ou coupure de lien, quelques minutes. C'est l'intérêt de répartir.
+- **Recherche** (branche Réseau, niveaux 4 et 5) : « Liens inter-sites » (ouvre les sites distants), « Orchestration globale » (l'inférence va seule vers le site le moins cher ou le plus proche), « Entraînement asynchrone » (entraînement réparti nettement moins pénalisé).
+- **Interface** : un panneau Sites (carte des régions, capacité, loyer, état, débit du lien), la région sur les cartes de contrat, le calcul par site au tableau de bord, un chapitre du guide (généré depuis les réglages, comme les autres).
+
+**Lots** :
+
+1. Socle : modèle `RemoteSite` et liens dans `GameState`, règle `rules.sites` (carrière seulement), réglages `SITES`/`WAN` dans `balance.ts`, sauvegarde (format + 1, anciennes parties sans site), tests.
+2. Sites distants : ouverture, modules, loyer et électricité au grand livre, calcul distant ajouté au partage des contrats ; panneau Sites.
+3. Contrats régionaux et multi-régions, avec les SLA.
+4. Entraînement réparti et débit des liens ; les trois recherches.
+5. Incidents régionaux, alertes, conseils de carrière.
+6. Fin de carrière et équilibrage (bots) ; chapitre du guide.
+7. Finitions et version 1.3.0.
+
+**À décider avant le lot 1** :
+
+- **Place dans la carrière** (proposition) : les sites distants s'ouvrent à Hyperscaler, et la victoire passe à un 5e palier, « Opérateur mondial », qui exige du calcul en service sur au moins deux sites. Le scale-across devient la finale, la carrière s'allonge de 20 à 30 minutes. Autre choix : contenu du mode libre, après la victoire actuelle.
+- **Gestion des sites** : abstraite (proposition ci-dessus) ou vraie seconde salle construite case par case, beaucoup plus lourde (tout l'état de la partie est aujourd'hui celui d'une seule salle), qui rejoindrait alors l'**Extension** ci-dessous.
+
+**But** : donner au joueur arrivé au sommet un nouveau problème d'échelle, qui ne se résout plus en posant des racks mais en répartissant (coût, latence, résilience), et lui faire sentir pourquoi l'entraînement reste groupé alors que l'inférence se répartit.
+
 ### Suite
 
+- **Multi-sites (scale-across)** : plan détaillé ci-dessus (v1.3).
 - **Extension** : achat de nouvelles salles, carte qui s'agrandit.
 - **Énergie** : prix variable de l'électricité (réseau, solaire, gaz), contrats d'approvisionnement, PDU à rayon local.
 - **Sécurité** : incendie, détection et extinction.
