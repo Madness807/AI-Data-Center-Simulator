@@ -2,6 +2,45 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), numéros de version selon [SemVer](https://semver.org/lang/fr/).
 
+## [1.2.0] — 2026-10-08
+
+Le jeu s'installe et se joue hors ligne, s'explique dans un guide complet, et sa barre de construction montre enfin toutes les variantes.
+
+### Ajouté
+
+- **Guide du jeu** (lien « Guide » de l'écran titre, Échap › Guide du jeu, bouton livre du bloc d'outils, ? ou F1 pour les commandes) :
+  - 12 chapitres de règles : démarrer, contrats, racks, énergie, chaleur, pannes, techniciens, réseau, carrière, recherche (une fiche par nœud), économie, interface, plus le chapitre Commandes ;
+  - un sommaire avec recherche (sans tenir compte des accents) ;
+  - les mécaniques de carrière portent la pastille de leur palier ;
+  - tous les chiffres viennent des réglages du jeu ;
+  - la partie se met en pause pendant la lecture.
+- **Application installable et hors ligne (PWA)** : bouton « Installer le jeu » sur l'écran titre (Chrome, Edge ; Fichier › Ajouter au Dock dans Safari), icônes du jeu ; après une première visite, le jeu se lance sans connexion, et prend toujours la dernière version quand il est en ligne.
+- **Bandeau de variantes** : quand une famille est en main, toutes ses variantes s'affichent au-dessus de la barre (vignette, prix, chiffres clés, recherche requise) ; un clic en prend une. En colonne sur les écrans étroits.
+
+### Modifié
+
+- **Écran titre** : une vraie carte d'accueil, avec les deux modes en cartes, « Continuer la partie » en grand et les liens secondaires à part.
+- **Barre de construction** :
+  - elle ne sert plus qu'à construire et embaucher ;
+  - calques, bords, guide et recherche passent dans un bloc d'icônes en bas à droite, avec infobulles ;
+  - une carte trop chère reste cliquable (prix en rouge), pour choisir une variante moins chère ;
+  - vignettes plus grandes.
+
+### Corrigé
+
+- **Anciennes générations** : une fois le rack G2, le CDU ou l'onduleur choisis, le rack G1, le CRAC ou le PDU n'étaient plus proposés avant un rechargement de la page. Le tour des variantes repasse maintenant par toutes celles débloquées.
+- **Infobulle de l'onduleur** : son autonomie est calculée d'après ses réglages.
+
+### Interne
+
+- Service worker écrit au build par un plugin Vite (liste des fichiers et version tirées du contenu) ; nginx sert le manifeste et revalide toujours le service worker.
+- Nouveaux tests :
+  - tour des variantes ;
+  - chiffres du bandeau et placement ;
+  - fichiers gardés hors ligne ;
+  - guide, dont un garde-fou contre les chiffres écrits en dur.
+- Vérifié sans chevauchement : 72 mises en page de la barre et du bandeau.
+
 ## [1.1.2] — 2026-10-06
 
 Correctif d'interface : plus aucun chevauchement dans le HUD, à toutes les tailles d'écran et d'interface, même avec les grands nombres de fin de carrière. La largeur « effective » est celle de la fenêtre divisée par la taille d'interface.
