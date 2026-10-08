@@ -240,7 +240,28 @@ Choix faits avec le joueur : le réseau ne compte que pour l'entraînement, le c
 
 **But** : donner un sens au plan de la salle (bouts de rangée, allées libres) au moment où les entraînements arrivent. Un joueur soigné gagne toujours en 75 à 120 minutes ; sans réseau, il ne livre aucun entraînement et gagne nettement plus tard.
 
-### v1.3 — Multi-sites (scale-across) — à faire
+### v1.3 — Commercial — à faire
+
+Une 6e branche de recherche, **Commercial**, pour le rôle de gestionnaire : mieux vendre son calcul, puis laisser un commercial automatique prendre les contrats que la salle peut tenir. En fin de partie, accepter les offres une à une devient du clic sans décision ; la branche fait passer le joueur du choix de chaque contrat au réglage d'une politique, comme Exploitation l'a fait pour les réparations.
+
+**Nœuds** (chiffres indicatifs, fixés à l'équilibrage) :
+
+- **Négociation** (niveau 2) : contrats payés environ 10 % de plus.
+- **Fidélisation** (niveau 2) : les offres restent deux fois plus longtemps, échéances un peu plus souples.
+- **Commercial automatique** (niveau 3, après Fidélisation) : accepte seul les offres que le calcul **libre** couvre (calcul en service, moins ce qui est promis aux contrats en cours et la part de la recherche), avec une marge de sécurité, et seulement si l'échéance est tenable ; un entraînement seulement si un bloc relié est libre.
+- **Grands comptes** (niveau 4, après Négociation) : offres plus grosses (plafond du palier relevé) et une offre de plus à la fois ; en v1.4, c'est lui qui amènera les contrats multi-régions.
+
+**Réglages du commercial** : un interrupteur dans le panneau Contrats, comme les automatismes du panneau Équipe, avec un prix minimum par CU, les types acceptés (inférence, SLA, entraînement) et la marge de sécurité. Chaque acceptation est annoncée (« Contrat accepté automatiquement : … »), et le joueur peut toujours accepter ou refuser à la main.
+
+**Lots** :
+
+1. Branche Commercial dans l'arbre (6e colonne du panneau Recherche, icône, couleur, liens) et les effets de Négociation, Fidélisation et Grands comptes (`modifiers`).
+2. Commercial automatique : calcul libre et faisabilité de l'échéance (fonctions pures, testées), politique `autoAccept` et ses réglages, notifications, réglages dans le panneau Contrats.
+3. Équilibrage (bots : un joueur soigné doit toujours gagner en 75 à 120 minutes, le commercial ne doit pas prendre de contrat qu'il rate), conseil de carrière, chapitre Recherche et Contrats du guide, version 1.3.0.
+
+**But** : alléger la fin de partie sans retirer la décision. Le joueur règle la politique (quoi, à quel prix, avec quelle marge) au lieu de cliquer chaque offre, et les retards restent sa responsabilité.
+
+### v1.4 — Multi-sites (scale-across) — à faire
 
 Le troisième niveau d'échelle d'un data center d'IA, après le rack (scale-up) et la salle (scale-out) : plusieurs sites reliés par des liens longue distance. Ce que les hyperscalers font vraiment aujourd'hui, c'est surtout répartir l'inférence entre régions et orchestrer ; l'entraînement synchrone entre sites reste lent. Le jeu suit la même idée.
 
@@ -263,7 +284,7 @@ Le troisième niveau d'échelle d'un data center d'IA, après le rack (scale-up)
 4. Entraînement réparti et débit des liens ; les trois recherches.
 5. Incidents régionaux, alertes, conseils de carrière.
 6. Fin de carrière et équilibrage (bots) ; chapitre du guide.
-7. Finitions et version 1.3.0.
+7. Finitions et version 1.4.0.
 
 **À décider avant le lot 1** :
 
@@ -274,7 +295,8 @@ Le troisième niveau d'échelle d'un data center d'IA, après le rack (scale-up)
 
 ### Suite
 
-- **Multi-sites (scale-across)** : plan détaillé ci-dessus (v1.3).
+- **Commercial** : plan détaillé ci-dessus (v1.3).
+- **Multi-sites (scale-across)** : plan détaillé ci-dessus (v1.4).
 - **Extension** : achat de nouvelles salles, carte qui s'agrandit.
 - **Énergie** : prix variable de l'électricité (réseau, solaire, gaz), contrats d'approvisionnement, PDU à rayon local.
 - **Sécurité** : incendie, détection et extinction.
